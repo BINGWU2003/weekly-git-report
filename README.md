@@ -197,11 +197,11 @@ weekly collect --since 2026-06-01 --until 2026-06-07
 - GitHub / GitLab PR API。
 - Jira / TAPD / 禅道 API。
 - 自动生成最终公司周报。
-- MCP Server 完整能力。
 
 ## Monorepo 包
 
 - `packages/shared`：常量、Zod schemas、类型。
 - `packages/core`：配置、路径、Git、扫描、采集、写入逻辑。
 - `packages/cli`：CLI 命令入口。
-- `packages/mcp-server`：MCP Server 预留包。
+- `packages/mcp-server`：MCP stdio server 和 Agent 工具。
+- `packages/typescript-config`：共享 TypeScript 配置。
