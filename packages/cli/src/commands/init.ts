@@ -51,7 +51,7 @@ async function promptInitConfig(defaultConfig: Config): Promise<Config> {
 
   try {
     const rootsAnswer = await prompt.question(
-      `? Project roots (comma-separated) (${defaultConfig.roots.join(", ")}): `,
+      `? Project roots (separate multiple paths with ，) (${defaultConfig.roots.join("，")}): `,
     );
     const outputRootAnswer = await prompt.question(
       `? Output root (${defaultConfig.outputRoot}): `,
@@ -69,7 +69,7 @@ async function promptInitConfig(defaultConfig: Config): Promise<Config> {
 
 function parseRoots(answer: string, defaultRoots: string[]): string[] {
   const roots = answer
-    .split(",")
+    .split(/[，,]/)
     .map((root) => root.trim())
     .filter(Boolean);
 

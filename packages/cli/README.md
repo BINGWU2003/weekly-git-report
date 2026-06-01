@@ -17,6 +17,6 @@ weekly list
 weekly collect --since 2026-06-01 --until 2026-06-07
 ```
 
-`weekly init` 会交互式询问项目扫描根目录 `roots` 和周报输出目录 `outputRoot`。直接回车会使用默认值。
+`weekly init` 会交互式询问项目扫描根目录 `roots` 和周报输出目录 `outputRoot`。多个 `roots` 目录用 `，` 隔开，直接回车会使用默认值。
 
 CLI 会将配置保存到 `~/.weekly-git-report/config.json`，并将周报原始记录写入配置中的 `outputRoot`。
