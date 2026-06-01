@@ -1,3 +1,3 @@
 # `@weekly-git-report/eslint-config`
 
-Shared ESLint flat config for the workspace Node.js TypeScript packages.
+工作区 Node.js TypeScript 包使用的共享 ESLint flat config。
