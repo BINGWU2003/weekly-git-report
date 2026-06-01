@@ -1,6 +1,6 @@
 {
   "name": "@weekly-git-report/mcp-server",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "bin": {
     "weekly-git-report-mcp": "./dist/index.js"
@@ -11,7 +11,10 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsup",
     "check-types": "tsc --noEmit",
