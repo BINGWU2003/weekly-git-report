@@ -10,7 +10,7 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsup",
     "check-types": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0"
   },
@@ -22,6 +22,7 @@
     "@weekly-git-report/typescript-config": "workspace:*",
     "@types/node": "catalog:",
     "eslint": "catalog:",
+    "tsup": "catalog:",
     "typescript": "catalog:"
   }
 }
