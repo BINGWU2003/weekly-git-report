@@ -60,6 +60,38 @@ corepack pnpm check-types
 corepack pnpm build
 ```
 
+## 发布前检查
+
+发包前建议执行：
+
+```sh
+corepack pnpm install
+corepack pnpm lint
+corepack pnpm check-types
+corepack pnpm build
+```
+
+构建产物由 `tsup` 生成到各包的 `dist/` 目录。
+
+CLI 可执行文件：
+
+```text
+packages/cli/dist/index.js
+```
+
+MCP Server 可执行文件：
+
+```text
+packages/mcp-server/dist/index.js
+```
+
+发布后对外命令：
+
+```sh
+weekly
+weekly-git-report-mcp
+```
+
 ## CLI 使用
 
 当前包的 CLI 入口为 `packages/cli`，构建后可以直接通过 Node 运行：
@@ -73,6 +105,16 @@ node packages/cli/dist/index.js --help
 
 ```sh
 weekly
+```
+
+如果发包后通过 npm 全局安装，使用方式为：
+
+```sh
+weekly --help
+weekly init
+weekly scan
+weekly list
+weekly collect
 ```
 
 ### 初始化
@@ -223,6 +265,77 @@ MCP Server 使用 stdio 启动：
 node packages/mcp-server/dist/index.js
 ```
 
+发包后可以直接使用 bin 命令启动：
+
+```sh
+weekly-git-report-mcp
+```
+
+### MCP Client 配置
+
+如果 MCP Client 支持 stdio server，可以按下面方式配置。
+
+开发环境使用本地构建产物：
+
+```json
+{
+  "mcpServers": {
+    "weekly-git-report": {
+      "command": "node",
+      "args": [
+        "D:/files/hjc-code/weekly-git-report/packages/mcp-server/dist/index.js"
+      ]
+    }
+  }
+}
+```
+
+发包并全局安装后使用 bin 命令：
+
+```json
+{
+  "mcpServers": {
+    "weekly-git-report": {
+      "command": "weekly-git-report-mcp",
+      "args": []
+    }
+  }
+}
+```
+
+如果 MCP Client 不继承系统 PATH，可以改用完整命令路径，或用 `node` 加包内 `dist/index.js` 的绝对路径。
+
+### MCP 使用前准备
+
+MCP Server 复用 CLI 生成的本地配置和项目索引。首次使用前先执行：
+
+```sh
+weekly init
+weekly scan --root E:/workspace/project
+```
+
+如果需要把原始记录输出到 D 盘，编辑：
+
+```text
+~/.weekly-git-report/config.json
+```
+
+设置：
+
+```json
+{
+  "roots": ["E:/workspace/project"],
+  "outputRoot": "D:/files",
+  "author": []
+}
+```
+
+之后 MCP 的 `collect_git_logs` 会把结果写入：
+
+```text
+D:/files/raw/{YYYY}/{MM}/{YYYY-MM-DD}_{YYYY-MM-DD}/
+```
+
 已提供工具：
 
 - `list_projects`：列出已扫描 Git 项目。
@@ -232,6 +345,37 @@ node packages/mcp-server/dist/index.js
 - `read_week_raw`：读取指定周期所有项目 Markdown 原始记录。
 
 MCP 读取原始记录时只允许访问 `config.json` 中 `outputRoot` 下的文件。
+
+### MCP 工具参数示例
+
+`collect_git_logs`：
+
+```json
+{
+  "since": "2026-06-01",
+  "until": "2026-06-07",
+  "author": ["张三", "李四"],
+  "projectIds": []
+}
+```
+
+`get_week_index`：
+
+```json
+{
+  "start": "2026-06-01",
+  "end": "2026-06-07"
+}
+```
+
+`read_week_raw`：
+
+```json
+{
+  "start": "2026-06-01",
+  "end": "2026-06-07"
+}
+```
 
 ## 幂等策略
 
