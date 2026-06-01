@@ -204,4 +204,5 @@ weekly collect --since 2026-06-01 --until 2026-06-07
 - `packages/core`：配置、路径、Git、扫描、采集、写入逻辑。
 - `packages/cli`：CLI 命令入口。
 - `packages/mcp-server`：MCP stdio server 和 Agent 工具。
+- `packages/eslint-config`：共享 ESLint 配置。
 - `packages/typescript-config`：共享 TypeScript 配置。

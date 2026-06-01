@@ -100,6 +100,12 @@ function stripGitSuffix(value: string): string {
 }
 
 function sanitizeFileBaseName(value: string): string {
-  const sanitized = value.trim().replace(/[<>:"/\\|?*\x00-\x1F]/g, "-");
+  const sanitized = [...value.trim()]
+    .map((char) => (isInvalidFileNameChar(char) ? "-" : char))
+    .join("");
   return sanitized || "project";
+}
+
+function isInvalidFileNameChar(char: string): boolean {
+  return '<>:"/\\|?*'.includes(char) || char.charCodeAt(0) < 32;
 }
