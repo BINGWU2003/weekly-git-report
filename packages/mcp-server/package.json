@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "type": "module",
   "private": true,
+  "bin": {
+    "weekly-git-report-mcp": "./dist/index.js"
+  },
   "exports": {
     ".": {
       "types": "./src/index.ts",
@@ -14,7 +17,9 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@weekly-git-report/core": "workspace:*"
+    "@modelcontextprotocol/sdk": "^1.22.0",
+    "@weekly-git-report/core": "workspace:*",
+    "@weekly-git-report/shared": "workspace:*"
   },
   "devDependencies": {
     "@weekly-git-report/typescript-config": "workspace:*",
