@@ -120,6 +120,20 @@ pnpm version-packages
 pnpm release
 ```
 
+手动发布前需要在当前终端设置 npm token。项目 `.npmrc` 使用 `NPM_TOKEN` 环境变量，不保存明文 token：
+
+```sh
+export NPM_TOKEN=your-npm-token
+pnpm release
+```
+
+Windows PowerShell：
+
+```powershell
+$env:NPM_TOKEN="your-npm-token"
+pnpm release
+```
+
 Changesets 配置只发布以下两个包：
 
 - `@weekly-git-report/cli`
