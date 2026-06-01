@@ -4,17 +4,21 @@ import { tryRunGit } from "../git/git-command.js";
 
 export async function resolveAuthor(
   config: Config,
-  cliAuthor?: string,
+  cliAuthors: string[] = [],
   cwd = process.cwd(),
-): Promise<string | undefined> {
-  if (cliAuthor?.trim()) {
-    return cliAuthor.trim();
+): Promise<string[]> {
+  if (cliAuthors.length > 0) {
+    return normalizeAuthors(cliAuthors);
   }
 
-  if (config.author.trim()) {
-    return config.author.trim();
+  if (config.author.length > 0) {
+    return normalizeAuthors(config.author);
   }
 
   const gitAuthor = await tryRunGit(["config", "user.name"], cwd);
-  return gitAuthor?.trim() || undefined;
+  return gitAuthor?.trim() ? [gitAuthor.trim()] : [];
+}
+
+function normalizeAuthors(authors: string[]): string[] {
+  return [...new Set(authors.map((author) => author.trim()).filter(Boolean))];
 }

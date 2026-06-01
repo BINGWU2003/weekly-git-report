@@ -4,6 +4,25 @@ import { DEFAULT_CONFIG } from "./constants.js";
 
 const dateStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
+export const AuthorListSchema = z.preprocess(
+  (value) => {
+    if (typeof value === "string") {
+      const author = value.trim();
+      return author ? [author] : [];
+    }
+
+    if (Array.isArray(value)) {
+      return value
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+
+    return value;
+  },
+  z.array(z.string()).default([]),
+);
+
 export const PeriodSchema = z.object({
   start: dateStringSchema,
   end: dateStringSchema,
@@ -14,7 +33,7 @@ export const ConfigSchema = z.object({
   excludeDirs: z.array(z.string()).default([...DEFAULT_CONFIG.excludeDirs]),
   maxDepth: z.number().int().positive().default(DEFAULT_CONFIG.maxDepth),
   outputRoot: z.string().default(DEFAULT_CONFIG.outputRoot),
-  author: z.string().optional().default(DEFAULT_CONFIG.author),
+  author: AuthorListSchema,
   defaultSince: z.string().optional().default(DEFAULT_CONFIG.defaultSince),
   defaultUntil: z.string().optional().default(DEFAULT_CONFIG.defaultUntil),
   includeEmptyProjects: z
@@ -42,7 +61,7 @@ export const ProjectsIndexSchema = z.object({
 export const CollectOptionsSchema = z.object({
   since: z.string(),
   until: z.string(),
-  author: z.string().optional(),
+  author: AuthorListSchema,
   projectIds: z.array(z.string()).default([]),
   backup: z.boolean().default(false),
 });
@@ -85,7 +104,7 @@ export const ScanProjectsInputSchema = z.object({
 export const CollectGitLogsInputSchema = z.object({
   since: dateStringSchema,
   until: dateStringSchema,
-  author: z.string().optional(),
+  author: AuthorListSchema,
   projectIds: z.array(z.string()).default([]),
 });
 

@@ -12,7 +12,7 @@ import type { Project } from "@weekly-git-report/shared";
 interface RawCollectArgs {
   since?: string;
   until?: string;
-  author?: string;
+  authors: string[];
   projectIds: string[];
   backup: boolean;
 }
@@ -22,16 +22,16 @@ export async function runCollectCommand(args: string[]): Promise<void> {
   const config = await loadConfig();
   const projectsIndex = await loadProjectsIndex();
   const period = resolvePeriod(config, rawOptions);
-  const author = await resolveAuthor(config, rawOptions.author);
+  const authors = await resolveAuthor(config, rawOptions.authors);
   const options = CollectOptionsSchema.parse({
     since: period.start,
     until: period.end,
-    author,
+    author: authors,
     projectIds: rawOptions.projectIds,
     backup: rawOptions.backup,
   });
   const projects = filterProjects(projectsIndex.projects, options.projectIds);
-  const result = await collectCommits({ projects, period, author: options.author });
+  const result = await collectCommits({ projects, period, authors: options.author });
   const report = await writeReport({
     config,
     period,
@@ -52,7 +52,7 @@ export async function runCollectCommand(args: string[]): Promise<void> {
 }
 
 function parseCollectArgs(args: string[]): RawCollectArgs {
-  const parsed: RawCollectArgs = { projectIds: [], backup: false };
+  const parsed: RawCollectArgs = { authors: [], projectIds: [], backup: false };
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -70,7 +70,7 @@ function parseCollectArgs(args: string[]): RawCollectArgs {
     }
 
     if (arg === "--author") {
-      parsed.author = readOptionValue(args, index, arg);
+      parsed.authors.push(readOptionValue(args, index, arg));
       index += 1;
       continue;
     }

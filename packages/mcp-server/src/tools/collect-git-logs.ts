@@ -18,9 +18,9 @@ export async function collectGitLogs(input: unknown) {
       : projectsIndex.projects.filter(
           (project) => selected.has(project.id) || selected.has(project.name),
         );
-  const author = await resolveAuthor(config, args.author);
+  const authors = await resolveAuthor(config, args.author);
   const period = { start: args.since, end: args.until };
-  const collectResult = await collectCommits({ projects, period, author });
+  const collectResult = await collectCommits({ projects, period, authors });
   const report = await writeReport({
     config,
     period,

@@ -3,6 +3,7 @@ import type { z } from "zod";
 import type {
   CollectGitLogsInputSchema,
   CollectOptionsSchema,
+  AuthorListSchema,
   ConfigSchema,
   GetWeekIndexInputSchema,
   ListProjectsInputSchema,
@@ -17,6 +18,7 @@ import type {
   ScanProjectsInputSchema,
 } from "./schemas.js";
 
+export type AuthorList = z.infer<typeof AuthorListSchema>;
 export type Period = z.infer<typeof PeriodSchema>;
 export type Config = z.infer<typeof ConfigSchema>;
 export type Project = z.infer<typeof ProjectSchema>;

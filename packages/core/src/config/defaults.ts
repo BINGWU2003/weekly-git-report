@@ -7,7 +7,7 @@ export function createDefaultConfig(): Config {
     excludeDirs: [...DEFAULT_CONFIG.excludeDirs],
     maxDepth: DEFAULT_CONFIG.maxDepth,
     outputRoot: DEFAULT_CONFIG.outputRoot,
-    author: DEFAULT_CONFIG.author,
+    author: [...DEFAULT_CONFIG.author],
     defaultSince: DEFAULT_CONFIG.defaultSince,
     defaultUntil: DEFAULT_CONFIG.defaultUntil,
     includeEmptyProjects: DEFAULT_CONFIG.includeEmptyProjects,

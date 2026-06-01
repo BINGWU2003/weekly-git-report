@@ -90,7 +90,7 @@ weekly init
   "excludeDirs": ["node_modules", ".cache", "dist", "build", "vendor", "tmp"],
   "maxDepth": 5,
   "outputRoot": "~/weekly-reports",
-  "author": "",
+  "author": [],
   "defaultSince": "last monday",
   "defaultUntil": "now",
   "includeEmptyProjects": false
@@ -127,6 +127,7 @@ weekly list
 weekly collect
 weekly collect --since 2026-06-01 --until 2026-06-07
 weekly collect --author "张三"
+weekly collect --author "张三" --author "李四"
 weekly collect --project order-service
 weekly collect --all
 weekly collect --backup
@@ -137,6 +138,17 @@ author 优先级：
 ```text
 CLI 参数 author > config.json author > git config user.name
 ```
+
+`author` 支持多个作者。配置文件中可以写成数组：
+
+```json
+{
+  "author": ["张三", "李四"]
+}
+```
+
+CLI 中可以重复传入 `--author`，会同时采集这些作者的提交。
+为兼容旧配置，`"author": "张三"` 仍会被解析为 `["张三"]`。
 
 采集完成后输出示例：
 

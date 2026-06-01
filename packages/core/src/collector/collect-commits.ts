@@ -17,7 +17,7 @@ export interface ProjectCommitResult {
 export interface CollectCommitsOptions {
   projects: Project[];
   period: Period;
-  author?: string;
+  authors?: string[];
 }
 
 export interface CollectCommitsResult {
@@ -33,7 +33,7 @@ export async function collectCommits(
 
   for (const project of options.projects) {
     try {
-      const commits = await collectProjectCommits(project, options.period, options.author);
+      const commits = await collectProjectCommits(project, options.period, options.authors ?? []);
       projects.push({ project, commits });
     } catch (error) {
       errors.push({
@@ -49,6 +49,29 @@ export async function collectCommits(
 }
 
 async function collectProjectCommits(
+  project: Project,
+  period: Period,
+  authors: string[],
+): Promise<GitCommit[]> {
+  if (authors.length === 0) {
+    return collectProjectCommitsByAuthor(project, period);
+  }
+
+  const commitsByHash = new Map<string, GitCommit>();
+
+  for (const author of authors) {
+    const commits = await collectProjectCommitsByAuthor(project, period, author);
+    for (const commit of commits) {
+      commitsByHash.set(commit.hash, commit);
+    }
+  }
+
+  return [...commitsByHash.values()].sort((left, right) =>
+    right.committedAt.localeCompare(left.committedAt),
+  );
+}
+
+async function collectProjectCommitsByAuthor(
   project: Project,
   period: Period,
   author?: string,

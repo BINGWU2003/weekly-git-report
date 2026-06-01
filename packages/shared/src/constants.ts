@@ -17,7 +17,7 @@ export const DEFAULT_CONFIG = {
   excludeDirs: [...DEFAULT_EXCLUDE_DIRS],
   maxDepth: 5,
   outputRoot: DEFAULT_OUTPUT_ROOT,
-  author: "",
+  author: [],
   defaultSince: "last monday",
   defaultUntil: "now",
   includeEmptyProjects: false,
