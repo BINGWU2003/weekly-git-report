@@ -54,10 +54,10 @@
 ## 开发命令
 
 ```sh
-corepack pnpm install
-corepack pnpm lint
-corepack pnpm check-types
-corepack pnpm build
+pnpm install
+pnpm lint
+pnpm check-types
+pnpm build
 ```
 
 ## 发布说明
@@ -70,10 +70,10 @@ corepack pnpm build
 发包前建议执行完整检查：
 
 ```sh
-corepack pnpm install
-corepack pnpm lint
-corepack pnpm check-types
-corepack pnpm build
+pnpm install
+pnpm lint
+pnpm check-types
+pnpm build
 ```
 
 构建产物由 `tsup` 生成到各包的 `dist/` 目录。
@@ -105,19 +105,19 @@ packages/mcp-server/dist/index.js
 添加变更集：
 
 ```sh
-corepack pnpm changeset
+pnpm changeset
 ```
 
 更新版本号和 changelog：
 
 ```sh
-corepack pnpm version-packages
+pnpm version-packages
 ```
 
 发布两个包：
 
 ```sh
-corepack pnpm release
+pnpm release
 ```
 
 Changesets 配置只发布以下两个包：
@@ -166,7 +166,7 @@ weekly-git-report-mcp
 开发环境可以直接通过 Node 运行 CLI 构建产物：
 
 ```sh
-corepack pnpm build
+pnpm build
 node packages/cli/dist/index.js --help
 ```
 
