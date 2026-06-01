@@ -10,9 +10,6 @@ interface SkillInstallOptions {
   target?: SkillTarget;
 }
 
-const CODEX_START = "<!-- weekly-git-report:start -->";
-const CODEX_END = "<!-- weekly-git-report:end -->";
-
 export async function runSkillCommand(args: string[]): Promise<void> {
   const [subcommand, ...rest] = args;
 
@@ -66,9 +63,9 @@ async function promptSkillTarget(): Promise<SkillTarget> {
 
   try {
     console.log("Install weekly-git-report skill for:");
-    console.log("  1. opencode (.opencode/skills/weekly-git-report/SKILL.md)");
-    console.log("  2. claude (.claude/skills/weekly-git-report/SKILL.md)");
-    console.log("  3. codex (AGENTS.md)");
+    console.log("  1. opencode (.opencode/skill/weekly-git-report/SKILL.md)");
+    console.log("  2. claude (.claude/skill/weekly-git-report/SKILL.md)");
+    console.log("  3. codex (.codex/skill/weekly-git-report/SKILL.md)");
     const answer = await prompt.question("? Target model/client (opencode): ");
     return parseSkillTarget(answer.trim() || "opencode");
   } finally {
@@ -77,11 +74,6 @@ async function promptSkillTarget(): Promise<SkillTarget> {
 }
 
 async function installSkill(options: Required<SkillInstallOptions>): Promise<void> {
-  if (options.target === "codex") {
-    await installCodexInstructions(options.force);
-    return;
-  }
-
   const target = getSkillFilePath(options.target);
   const source = getSkillTemplatePath();
 
@@ -95,32 +87,13 @@ async function installSkill(options: Required<SkillInstallOptions>): Promise<voi
   console.log(`Restart ${getRestartTargetName(options.target)} to load the new skill.`);
 }
 
-async function installCodexInstructions(force: boolean): Promise<void> {
-  const target = path.resolve(process.cwd(), "AGENTS.md");
-  const block = await renderCodexInstructions();
-  const current = await readTextIfExists(target);
-
-  if (current.includes(CODEX_START) && !force) {
-    throw new Error("Codex instructions already exist. Re-run with --force to overwrite.");
-  }
-
-  const next = current.includes(CODEX_START)
-    ? current.replace(createMarkedBlockRegex(), block)
-    : appendMarkedBlock(current, block);
-
-  await writeFile(target, next, "utf8");
-
-  console.log(`Installed codex instructions: ${target}`);
-  console.log("Restart Codex to load the updated AGENTS.md instructions.");
-}
-
-function getSkillFilePath(target: Exclude<SkillTarget, "codex">): string {
-  const rootDir = target === "claude" ? ".claude" : ".opencode";
+function getSkillFilePath(target: SkillTarget): string {
+  const rootDir = `.${target}`;
 
   return path.resolve(
     process.cwd(),
     rootDir,
-    "skills",
+    "skill",
     "weekly-git-report",
     "SKILL.md",
   );
@@ -134,39 +107,6 @@ function getSkillTemplatePath(): string {
     "weekly-git-report",
     "SKILL.md",
   );
-}
-
-async function renderCodexInstructions(): Promise<string> {
-  const content = await readFile(getSkillTemplatePath(), "utf8");
-  const body = content.replace(/^---[\s\S]*?---\s*/, "").trim();
-
-  return `${CODEX_START}\n${body}\n${CODEX_END}\n`;
-}
-
-async function readTextIfExists(filePath: string): Promise<string> {
-  try {
-    return await readFile(filePath, "utf8");
-  } catch (error) {
-    if (isNodeError(error) && error.code === "ENOENT") {
-      return "";
-    }
-
-    throw error;
-  }
-}
-
-function appendMarkedBlock(current: string, block: string): string {
-  const prefix = current.trimEnd();
-
-  return prefix ? `${prefix}\n\n${block}` : block;
-}
-
-function createMarkedBlockRegex(): RegExp {
-  return new RegExp(`${escapeRegExp(CODEX_START)}[\\s\\S]*?${escapeRegExp(CODEX_END)}\\n?`);
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function parseSkillTarget(value: string): SkillTarget {
@@ -205,8 +145,4 @@ function readOptionValue(args: string[], index: number, option: string): string 
   }
 
   return value;
-}
-
-function isNodeError(error: unknown): error is NodeJS.ErrnoException {
-  return error instanceof Error && "code" in error;
 }

@@ -99,16 +99,16 @@ weekly skill install --force
 
 | Target | 写入位置 | 说明 |
 | --- | --- | --- |
-| `opencode` | `.opencode/skills/weekly-git-report/SKILL.md` | opencode 项目 Skill。 |
-| `claude` | `.claude/skills/weekly-git-report/SKILL.md` | Claude Code 项目 Skill。 |
-| `codex` | `AGENTS.md` | 写入带标记的 weekly-git-report 指令区块。 |
+| `opencode` | `.opencode/skill/weekly-git-report/SKILL.md` | opencode 项目 Skill。 |
+| `claude` | `.claude/skill/weekly-git-report/SKILL.md` | Claude Code 项目 Skill。 |
+| `codex` | `.codex/skill/weekly-git-report/SKILL.md` | Codex 项目 Skill。 |
 
-`--force` 会覆盖已有 Skill 文件；对 Codex 会替换 `AGENTS.md` 中已有的 weekly-git-report 标记区块。
+`--force` 会覆盖已有 Skill 文件。
 
 opencode 安装位置：
 
 ```text
-.opencode/skills/weekly-git-report/SKILL.md
+.opencode/skill/weekly-git-report/SKILL.md
 ```
 
 安装后需要重启对应 Agent 客户端。
