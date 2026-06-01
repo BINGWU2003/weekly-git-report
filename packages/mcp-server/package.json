@@ -1,6 +1,6 @@
 {
   "name": "@weekly-git-report/mcp-server",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "bin": {
     "weekly-git-report-mcp": "./dist/index.js"
