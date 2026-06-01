@@ -420,6 +420,12 @@ weekly scan --root E:/workspace/project
 D:/files/raw/{YYYY}/{MM}/{YYYY-MM-DD}_{YYYY-MM-DD}/
 ```
 
+MCP 的 `save_week_summary` 会把总结写入：
+
+```text
+D:/files/summary/{YYYY}/{MM}/{YYYY-MM-DD}_{YYYY-MM-DD}.md
+```
+
 已提供工具：
 
 - `list_projects`：列出已扫描 Git 项目。
@@ -427,6 +433,7 @@ D:/files/raw/{YYYY}/{MM}/{YYYY-MM-DD}_{YYYY-MM-DD}/
 - `collect_git_logs`：采集 Git 提交记录并写入原始记录文件。
 - `get_week_index`：读取指定周期的 `index.md`。
 - `read_week_raw`：读取指定周期所有项目 Markdown 原始记录。
+- `save_week_summary`：保存指定周期的周报总结 Markdown 到 `summary` 目录。
 
 MCP 读取原始记录时只允许访问 `config.json` 中 `outputRoot` 下的文件。
 
@@ -458,6 +465,16 @@ MCP 读取原始记录时只允许访问 `config.json` 中 `outputRoot` 下的�
 {
   "start": "2026-06-01",
   "end": "2026-06-07"
+}
+```
+
+`save_week_summary`：
+
+```json
+{
+  "start": "2026-06-01",
+  "end": "2026-06-07",
+  "content": "# 周报总结\n\n- 完成 Git 提交记录采集和整理。"
 }
 ```
 

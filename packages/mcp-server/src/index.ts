@@ -7,6 +7,7 @@ import {
   GetWeekIndexInputSchema,
   ListProjectsInputSchema,
   ReadWeekRawInputSchema,
+  SaveWeekSummaryInputSchema,
   ScanProjectsInputSchema,
 } from "@weekly-git-report/shared";
 
@@ -15,6 +16,7 @@ import { getWeekIndex } from "./tools/get-week-index.js";
 import { listProjects } from "./tools/list-projects.js";
 import { jsonResponse } from "./tools/response.js";
 import { readWeekRaw } from "./tools/read-week-raw.js";
+import { saveWeekSummary } from "./tools/save-week-summary.js";
 import { scanProjects } from "./tools/scan-projects.js";
 
 const server = new McpServer({
@@ -65,6 +67,15 @@ server.registerTool(
     inputSchema: ReadWeekRawInputSchema,
   },
   async (input) => jsonResponse(await readWeekRaw(input)),
+);
+
+server.registerTool(
+  "save_week_summary",
+  {
+    description: "保存指定周期的周报总结 Markdown 到 summary 目录。",
+    inputSchema: SaveWeekSummaryInputSchema,
+  },
+  async (input) => jsonResponse(await saveWeekSummary(input)),
 );
 
 async function main(): Promise<void> {

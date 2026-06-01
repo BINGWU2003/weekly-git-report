@@ -1,9 +1,13 @@
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
-import { INDEX_FILE_NAME, MANIFEST_FILE_NAME, ManifestSchema } from "@weekly-git-report/shared";
+import {
+  INDEX_FILE_NAME,
+  MANIFEST_FILE_NAME,
+  ManifestSchema,
+} from "@weekly-git-report/shared";
 import type { Manifest, Period } from "@weekly-git-report/shared";
-import { getOutputRoot, getPeriodOutputDir } from "@weekly-git-report/core";
+import { getOutputRoot, getPeriodOutputDir, getSummaryDir } from "@weekly-git-report/core";
 
 export function assertWithinOutputRoot(targetPath: string, outputRoot: string): void {
   const root = getOutputRoot(outputRoot);
@@ -66,4 +70,21 @@ export async function readWeekProjectFiles(
   }
 
   return files;
+}
+
+export function getSafeWeekSummaryFile(outputRoot: string, period: Period): string {
+  const [year, month] = period.start.split("-");
+
+  if (!year || !month) {
+    throw new Error(`Invalid period start: ${period.start}`);
+  }
+
+  const summaryFile = path.join(
+    getSummaryDir(outputRoot),
+    year,
+    month,
+    `${period.start}_${period.end}.md`,
+  );
+  assertWithinOutputRoot(summaryFile, outputRoot);
+  return summaryFile;
 }

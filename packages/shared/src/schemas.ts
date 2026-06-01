@@ -110,6 +110,9 @@ export const CollectGitLogsInputSchema = z.object({
 
 export const GetWeekIndexInputSchema = PeriodSchema;
 export const ReadWeekRawInputSchema = PeriodSchema;
+export const SaveWeekSummaryInputSchema = PeriodSchema.extend({
+  content: z.string().min(1),
+});
 
 export const McpToolInputSchema = z.union([
   ListProjectsInputSchema,
@@ -117,4 +120,5 @@ export const McpToolInputSchema = z.union([
   CollectGitLogsInputSchema,
   GetWeekIndexInputSchema,
   ReadWeekRawInputSchema,
+  SaveWeekSummaryInputSchema,
 ]);

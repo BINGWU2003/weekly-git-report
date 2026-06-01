@@ -28,3 +28,28 @@ npx -y @weekly-git-report/mcp-server@latest
 ```
 
 使用 MCP 工具前，请先通过 `@weekly-git-report/cli` 执行 `weekly init` 和 `weekly scan`。
+
+## 工具
+
+- `list_projects`：列出已扫描 Git 项目。
+- `scan_projects`：扫描项目并更新项目索引。
+- `collect_git_logs`：采集 Git 提交记录并写入原始记录文件。
+- `get_week_index`：读取指定周期的 `index.md`。
+- `read_week_raw`：读取指定周期所有项目 Markdown 原始记录。
+- `save_week_summary`：保存指定周期的周报总结 Markdown 到 `summary` 目录。
+
+`save_week_summary` 会写入：
+
+```text
+{outputRoot}/summary/{YYYY}/{MM}/{YYYY-MM-DD}_{YYYY-MM-DD}.md
+```
+
+参数示例：
+
+```json
+{
+  "start": "2026-06-01",
+  "end": "2026-06-07",
+  "content": "# 周报总结\n\n- 完成 Git 提交记录采集和整理。"
+}
+```

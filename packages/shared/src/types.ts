@@ -15,6 +15,7 @@ import type {
   ProjectSchema,
   ProjectsIndexSchema,
   ReadWeekRawInputSchema,
+  SaveWeekSummaryInputSchema,
   ScanProjectsInputSchema,
 } from "./schemas.js";
 
@@ -32,4 +33,5 @@ export type ScanProjectsInput = z.infer<typeof ScanProjectsInputSchema>;
 export type CollectGitLogsInput = z.infer<typeof CollectGitLogsInputSchema>;
 export type GetWeekIndexInput = z.infer<typeof GetWeekIndexInputSchema>;
 export type ReadWeekRawInput = z.infer<typeof ReadWeekRawInputSchema>;
+export type SaveWeekSummaryInput = z.infer<typeof SaveWeekSummaryInputSchema>;
 export type McpToolInput = z.infer<typeof McpToolInputSchema>;
