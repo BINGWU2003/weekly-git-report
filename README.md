@@ -81,10 +81,10 @@ pnpm build
 
 ### 包与命令
 
-| 包名                            | 目录                  | bin                     | 用途                 |
-| ------------------------------- | --------------------- | ----------------------- | -------------------- |
-| `@weekly-git-report/cli`        | `packages/cli`        | `weekly`                | CLI 扫描与采集工具   |
-| `@weekly-git-report/mcp-server` | `packages/mcp-server` | `weekly-git-report-mcp` | MCP stdio server     |
+| 包名                            | 目录                  | bin                     | 用途               |
+| ------------------------------- | --------------------- | ----------------------- | ------------------ |
+| `@weekly-git-report/cli`        | `packages/cli`        | `weekly`                | CLI 扫描与采集工具 |
+| `@weekly-git-report/mcp-server` | `packages/mcp-server` | `weekly-git-report-mcp` | MCP stdio server   |
 
 CLI 构建产物：
 
@@ -468,14 +468,6 @@ MCP 读取原始记录时只允许访问 `config.json` 中 `outputRoot` 下的�
 - 每个项目 Markdown 会计算 `contentHash`。
 - `generatedAt` 和“采集时间”不参与 `contentHash`。
 - 如果内容未变化，重复采集会跳过项目 Markdown 写入。
-
-## 第一版暂不支持
-
-- 自定义工具工作目录。
-- `weekly collect --output`。
-- GitHub / GitLab PR API。
-- Jira / TAPD / 禅道 API。
-- 自动生成最终公司周报。
 
 ## Monorepo 包
 
