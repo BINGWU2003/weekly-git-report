@@ -23,7 +23,7 @@ weekly init
 weekly scan --root E:/workspace/project
 weekly list
 weekly collect --since 2026-06-01 --until 2026-06-07
-weekly skill install
+weekly skill install --target opencode
 ```
 
 `weekly init` 会交互式询问项目扫描根目录 `roots` 和周报输出目录 `outputRoot`。多个 `roots` 目录用 `，` 隔开，直接回车会使用默认值。
@@ -86,16 +86,32 @@ weekly collect --backup
 
 ```sh
 weekly skill install
+weekly skill install --target opencode
+weekly skill install --target claude
+weekly skill install --target codex
+weekly skill install --model opencode
 weekly skill install --force
 ```
 
-安装位置：
+不传 `--target` / `--model` 时会交互选择目标；非 TTY 环境默认安装到 `opencode`。
+
+支持的目标：
+
+| Target | 写入位置 | 说明 |
+| --- | --- | --- |
+| `opencode` | `.opencode/skills/weekly-git-report/SKILL.md` | opencode 项目 Skill。 |
+| `claude` | `.claude/skills/weekly-git-report/SKILL.md` | Claude Code 项目 Skill。 |
+| `codex` | `AGENTS.md` | 写入带标记的 weekly-git-report 指令区块。 |
+
+`--force` 会覆盖已有 Skill 文件；对 Codex 会替换 `AGENTS.md` 中已有的 weekly-git-report 标记区块。
+
+opencode 安装位置：
 
 ```text
 .opencode/skills/weekly-git-report/SKILL.md
 ```
 
-安装后需要重启 opencode。
+安装后需要重启对应 Agent 客户端。
 
 ## 发布内容
 

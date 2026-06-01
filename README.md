@@ -105,7 +105,17 @@ weekly collect --since 2026-06-01 --until 2026-06-07
 npx -y @weekly-git-report/cli@latest skill install
 ```
 
-安装后重启 opencode。之后当用户要求生成周报时，Skill 会指导 Agent 通过 `@weekly-git-report/agent-cli` 临时采集 raw、读取 raw 并保存 summary。
+默认会交互选择目标客户端，支持 `opencode`、`claude` 和 `codex`：
+
+```sh
+npx -y @weekly-git-report/cli@latest skill install --target opencode
+npx -y @weekly-git-report/cli@latest skill install --target claude
+npx -y @weekly-git-report/cli@latest skill install --target codex
+```
+
+也可以使用等价参数名 `--model`。
+
+安装后重启对应 Agent 客户端。之后当用户要求生成周报时，Skill 会指导 Agent 通过 `@weekly-git-report/agent-cli` 临时采集 raw、读取 raw 并保存 summary。
 
 ### MCP 常驻模式
 
@@ -585,11 +595,27 @@ MCP 读取原始记录时只允许访问 `config.json` 中 `outputRoot` 下的�
 npx -y @weekly-git-report/cli@latest skill install
 ```
 
-这会创建：
+支持指定目标：
+
+```sh
+npx -y @weekly-git-report/cli@latest skill install --target opencode
+npx -y @weekly-git-report/cli@latest skill install --target claude
+npx -y @weekly-git-report/cli@latest skill install --target codex
+```
+
+默认 `opencode` 目标会创建：
 
 ```text
 .opencode/skills/weekly-git-report/SKILL.md
 ```
+
+不同目标写入位置：
+
+| Target | 写入位置 |
+| --- | --- |
+| `opencode` | `.opencode/skills/weekly-git-report/SKILL.md` |
+| `claude` | `.claude/skills/weekly-git-report/SKILL.md` |
+| `codex` | `AGENTS.md` |
 
 Skill 触发后会指导 Agent 通过 `weekly-agent` 临时命令采集、读取 raw 并保存 summary，不需要配置 MCP。
 
