@@ -1,0 +1,10 @@
+{
+  "roots": ["~/work", "~/Code", "~/Projects"],
+  "excludeDirs": ["node_modules", ".cache", "dist", "build", "vendor", "tmp"],
+  "maxDepth": 5,
+  "outputRoot": "~/weekly-reports",
+  "author": "",
+  "defaultSince": "last monday",
+  "defaultUntil": "now",
+  "includeEmptyProjects": false
+}

@@ -1,159 +1,207 @@
-# Turborepo starter
+# weekly-git-report
 
-This Turborepo starter is maintained by the Turborepo core team.
+`weekly-git-report` 是一个本地 Node.js + TypeScript CLI 工具，用于扫描多个 Git 项目，采集指定周期内的 commit 记录，并生成结构化 Markdown 原始记录。
 
-## Using this example
+本项目只生成“原始 Git 提交记录”，不负责自动生成最终公司周报。
 
-Run the following command:
+## 已实现能力
 
-```sh
-npx create-turbo@latest
+- `weekly init`：初始化本地配置。
+- `weekly scan`：扫描 Git 项目并生成项目索引。
+- `weekly list`：查看已扫描项目列表。
+- `weekly collect`：采集 commit 并生成 Markdown、`index.md`、`manifest.json`。
+- 支持通过 `config.json` 的 `outputRoot` 自定义原始记录输出目录。
+- 支持重复采集同一项目、同一周期时幂等处理。
+- 使用 Zod 校验配置、项目索引、采集参数和 manifest。
+
+## 目录说明
+
+工具工作目录固定为：
+
+```text
+~/.weekly-git-report/
 ```
 
-## What's inside?
+初始化后包含：
 
-This Turborepo includes the following packages/apps:
-
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@weekly-git-report/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@weekly-git-report/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@weekly-git-report/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo build
+```text
+~/.weekly-git-report/
+  config.json
+  projects.json
 ```
 
-Without global `turbo`, use your package manager:
+默认周报原始记录输出目录为：
 
-```sh
-cd my-turborepo
-npx turbo build
-pnpm dlx turbo build
-pnpm exec turbo build
+```text
+~/weekly-reports/
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+采集后生成：
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo build --filter=docs
+```text
+~/weekly-reports/raw/{YYYY}/{MM}/{YYYY-MM-DD}_{YYYY-MM-DD}/
+  index.md
+  manifest.json
+  {project}.md
 ```
 
-Without global `turbo`:
+## 开发命令
 
 ```sh
-npx turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
+pnpm install
+pnpm check-types
+pnpm build
+pnpm lint
 ```
 
-### Develop
+## CLI 使用
 
-To develop all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+当前包的 CLI 入口为 `packages/cli`，构建后可以直接通过 Node 运行：
 
 ```sh
-cd my-turborepo
-turbo dev
+pnpm build
+node packages/cli/dist/index.js --help
 ```
 
-Without global `turbo`, use your package manager:
+后续发布或本地 link 后，命令名为：
 
 ```sh
-cd my-turborepo
-npx turbo dev
-pnpm exec turbo dev
-pnpm exec turbo dev
+weekly
 ```
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+### 初始化
 
 ```sh
-turbo dev --filter=web
+weekly init
 ```
 
-Without global `turbo`:
+作用：
+
+- 创建 `~/.weekly-git-report/`。
+- 创建默认 `config.json`。
+- 创建默认输出目录 `~/weekly-reports/raw` 和 `~/weekly-reports/summary`。
+- 如果配置文件已存在，不会覆盖。
+
+默认配置：
+
+```json
+{
+  "roots": ["~/work", "~/Code", "~/Projects"],
+  "excludeDirs": ["node_modules", ".cache", "dist", "build", "vendor", "tmp"],
+  "maxDepth": 5,
+  "outputRoot": "~/weekly-reports",
+  "author": "",
+  "defaultSince": "last monday",
+  "defaultUntil": "now",
+  "includeEmptyProjects": false
+}
+```
+
+### 扫描项目
 
 ```sh
-npx turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
+weekly scan
+weekly scan --root ~/work --root ~/Code
+weekly scan --max-depth 6
 ```
 
-### Remote Caching
+扫描会递归查找包含 `.git` 目录或 `.git` 文件的 Git 项目，并生成：
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
+```text
+~/.weekly-git-report/projects.json
+```
 
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
+扫描时会读取每个项目的 remote、branch 和最近提交时间。同一个 remote 对应多个本地路径时，保留最近活跃的项目。
 
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+### 查看项目列表
 
 ```sh
-cd my-turborepo
-turbo login
+weekly list
 ```
 
-Without global `turbo`, use your package manager:
+输出项目名、分支和 remote。
+
+### 采集 Git 提交记录
 
 ```sh
-cd my-turborepo
-npx turbo login
-pnpm exec turbo login
-pnpm exec turbo login
+weekly collect
+weekly collect --since 2026-06-01 --until 2026-06-07
+weekly collect --author "张三"
+weekly collect --project order-service
+weekly collect --all
+weekly collect --backup
 ```
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+author 优先级：
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
+```text
+CLI 参数 author > config.json author > git config user.name
+```
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+采集完成后输出示例：
+
+```text
+Generated:
+~/weekly-reports/raw/2026/06/2026-06-01_2026-06-07
+
+Projects: 3
+Commits: 16
+Updated files: 3
+Skipped files: 0
+Errors: 0
+```
+
+## 自定义输出目录
+
+编辑：
+
+```text
+~/.weekly-git-report/config.json
+```
+
+修改：
+
+```json
+{
+  "outputRoot": "~/Documents/company-weekly-reports"
+}
+```
+
+之后执行：
 
 ```sh
-turbo link
+weekly collect --since 2026-06-01 --until 2026-06-07
 ```
 
-Without global `turbo`:
+结果会写入：
 
-```sh
-npx turbo link
-pnpm exec turbo link
-pnpm exec turbo link
+```text
+~/Documents/company-weekly-reports/raw/2026/06/2026-06-01_2026-06-07/
 ```
 
-## Useful Links
+不会写入默认目录，除非 `outputRoot` 本身就是默认路径。
 
-Learn more about the power of Turborepo:
+## 幂等策略
 
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+- 同一项目和同一周期始终写入同一个 Markdown 文件。
+- 默认覆盖模式，禁止追加写入。
+- 不生成 `-1`、`-copy`、`-new` 这类重复文件。
+- 每个项目 Markdown 会计算 `contentHash`。
+- `generatedAt` 和“采集时间”不参与 `contentHash`。
+- 如果内容未变化，重复采集会跳过项目 Markdown 写入。
+
+## 第一版暂不支持
+
+- 自定义工具工作目录。
+- `weekly collect --output`。
+- GitHub / GitLab PR API。
+- Jira / TAPD / 禅道 API。
+- 自动生成最终公司周报。
+- MCP Server 完整能力。
+
+## Monorepo 包
+
+- `packages/shared`：常量、Zod schemas、类型。
+- `packages/core`：配置、路径、Git、扫描、采集、写入逻辑。
+- `packages/cli`：CLI 命令入口。
+- `packages/mcp-server`：MCP Server 预留包。
