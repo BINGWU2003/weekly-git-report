@@ -25,7 +25,7 @@ const server = new McpServer({
 server.registerTool(
   "list_projects",
   {
-    description: "List scanned Git projects from ~/.weekly-git-report/projects.json.",
+    description: "列出已扫描的 Git 项目，数据来源为 ~/.weekly-git-report/projects.json。",
     inputSchema: ListProjectsInputSchema,
   },
   async (input) => jsonResponse(await listProjects(input)),
@@ -34,7 +34,7 @@ server.registerTool(
 server.registerTool(
   "scan_projects",
   {
-    description: "Scan configured or provided roots and update projects.json.",
+    description: "扫描配置中或参数指定的根目录，并更新 projects.json 项目索引。",
     inputSchema: ScanProjectsInputSchema,
   },
   async (input) => jsonResponse(await scanProjects(input)),
@@ -43,7 +43,7 @@ server.registerTool(
 server.registerTool(
   "collect_git_logs",
   {
-    description: "Collect Git commits for a date range and write raw weekly report files.",
+    description: "采集指定时间范围内的 Git 提交记录，并写入周报原始记录文件。",
     inputSchema: CollectGitLogsInputSchema,
   },
   async (input) => jsonResponse(await collectGitLogs(input)),
@@ -52,7 +52,7 @@ server.registerTool(
 server.registerTool(
   "get_week_index",
   {
-    description: "Read index.md for a generated weekly raw report period.",
+    description: "读取指定周期已生成的周报原始记录索引 index.md。",
     inputSchema: GetWeekIndexInputSchema,
   },
   async (input) => jsonResponse(await getWeekIndex(input)),
@@ -61,7 +61,7 @@ server.registerTool(
 server.registerTool(
   "read_week_raw",
   {
-    description: "Read all project Markdown files for a generated weekly raw report period.",
+    description: "读取指定周期已生成的所有项目 Markdown 原始记录。",
     inputSchema: ReadWeekRawInputSchema,
   },
   async (input) => jsonResponse(await readWeekRaw(input)),
