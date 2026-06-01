@@ -9,8 +9,6 @@
 ## 导出
 
 - `@weekly-git-report/typescript-config/base.json`：Node.js TypeScript 基础配置。
-- `@weekly-git-report/typescript-config/nextjs.json`：保留的 Next.js 配置模板。
-- `@weekly-git-report/typescript-config/react-library.json`：保留的 React library 配置模板。
 - `@weekly-git-report/typescript-config/tsup`：共享 tsup 配置。
 
 ## 使用
