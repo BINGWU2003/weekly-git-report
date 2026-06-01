@@ -1,2 +1,10 @@
 packages:
   - "packages/*"
+
+catalog:
+  "@modelcontextprotocol/sdk": ^1.22.0
+  "@types/node": ^22.15.3
+  prettier: ^3.7.4
+  turbo: ^2.9.16
+  typescript: 5.9.2
+  zod: ^4.2.1

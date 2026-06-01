@@ -17,13 +17,13 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.22.0",
+    "@modelcontextprotocol/sdk": "catalog:",
     "@weekly-git-report/core": "workspace:*",
     "@weekly-git-report/shared": "workspace:*"
   },
   "devDependencies": {
     "@weekly-git-report/typescript-config": "workspace:*",
-    "@types/node": "^22.15.3",
-    "typescript": "5.9.2"
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
   }
 }
