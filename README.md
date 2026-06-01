@@ -1,12 +1,12 @@
 # weekly-git-report
 
-`weekly-git-report` 是一个本地 Node.js + TypeScript CLI 工具，用于扫描多个 Git 项目，采集指定周期内的 commit 记录，并生成结构化 Markdown 原始记录。
+`weekly-git-report` 是一个本地 Node.js + TypeScript 工具集，用于扫描多个 Git 项目，采集指定周期内的 commit 记录，并生成结构化 Markdown 原始记录和可保存的周报总结。
 
-本项目只生成“原始 Git 提交记录”，不负责自动生成最终公司周报。
+项目提供三种入口：面向人的 `weekly` CLI、面向 MCP Client 的 stdio server、面向 Agent Skill 按需调用的 `weekly-agent` CLI。
 
 ## 当前状态
 
-当前版本已满足本项目现阶段使用需求，功能范围到 CLI + MCP Server 为止。
+当前版本已满足本项目现阶段使用需求，功能范围覆盖 CLI、MCP Server、Agent CLI 和 opencode Skill 模板。
 
 原计划中的阶段 8 稳定性增强暂不继续推进。后续如有实际使用中的问题，再按具体问题单独迭代。
 
@@ -18,7 +18,36 @@
 - `weekly collect`：采集 commit 并生成 Markdown、`index.md`、`manifest.json`。
 - 支持通过 `config.json` 的 `outputRoot` 自定义原始记录输出目录。
 - 支持重复采集同一项目、同一周期时幂等处理。
+- 支持 MCP tool 保存 summary 到 `outputRoot/summary`。
+- 支持通过 Skill + Agent CLI 按需生成和保存周报总结，避免 MCP tools 常驻占用上下文。
 - 使用 Zod 校验配置、项目索引、采集参数和 manifest。
+
+## 架构分层
+
+```text
+@weekly-git-report/cli
+  -> @weekly-git-report/core
+
+@weekly-git-report/mcp-server
+  -> @weekly-git-report/workflow
+  -> @weekly-git-report/core
+
+@weekly-git-report/agent-cli
+  -> @weekly-git-report/workflow
+  -> @weekly-git-report/core
+
+@weekly-git-report/shared
+  -> schemas / constants / types
+```
+
+分层原则：
+
+- `cli` 负责人手动初始化、扫描、采集和安装 Skill。
+- `agent-cli` 只提供 Agent 按需调用的非交互 JSON 命令。
+- `mcp-server` 只负责 MCP 工具注册和 stdio 入口。
+- `workflow` 统一封装 MCP 与 Agent CLI 共用的业务流程。
+- `core` 负责 Git、文件、路径、配置和 raw 写入等底层能力。
+- `shared` 负责常量、schema 和类型。
 
 ## 目录说明
 
@@ -51,6 +80,48 @@
   {project}.md
 ```
 
+总结保存后生成：
+
+```text
+~/weekly-reports/summary/{YYYY}/{MM}/{YYYY-MM-DD}_{YYYY-MM-DD}.md
+```
+
+## 推荐使用方式
+
+### 人手动使用 CLI
+
+```sh
+npm install -g @weekly-git-report/cli
+weekly init
+weekly scan --root E:/workspace/project
+weekly collect --since 2026-06-01 --until 2026-06-07
+```
+
+### Agent Skill 按需模式
+
+适合不想常驻加载 MCP tools 的场景。
+
+```sh
+npx -y @weekly-git-report/cli@latest skill install
+```
+
+安装后重启 opencode。之后当用户要求生成周报时，Skill 会指导 Agent 通过 `@weekly-git-report/agent-cli` 临时采集 raw、读取 raw 并保存 summary。
+
+### MCP 常驻模式
+
+适合希望 Agent 直接调用 MCP tools 的场景。
+
+```json
+{
+  "mcpServers": {
+    "weekly-git-report": {
+      "command": "npx",
+      "args": ["-y", "@weekly-git-report/mcp-server@latest"]
+    }
+  }
+}
+```
+
 ## 开发命令
 
 ```sh
@@ -58,6 +129,14 @@ pnpm install
 pnpm lint
 pnpm check-types
 pnpm build
+```
+
+单包调试示例：
+
+```sh
+pnpm --filter @weekly-git-report/cli build
+pnpm --filter @weekly-git-report/agent-cli check-types
+pnpm --filter @weekly-git-report/mcp-server lint
 ```
 
 ## 发布说明
@@ -533,11 +612,15 @@ npx -y @weekly-git-report/agent-cli@latest summary save --start 2026-06-01 --end
 
 ## Monorepo 包
 
-- `packages/shared`：常量、Zod schemas、类型。
-- `packages/core`：配置、路径、Git、扫描、采集、写入逻辑。
-- `packages/workflow`：MCP 与 Agent CLI 共用的业务流程层，私有包不发布。
-- `packages/cli`：CLI 命令入口。
-- `packages/mcp-server`：MCP stdio server 和 Agent 工具。
-- `packages/agent-cli`：Agent Skill 按需调用的非交互 CLI。
-- `packages/eslint-config`：共享 ESLint 配置。
-- `packages/typescript-config`：共享 TypeScript 配置。
+| 包 | 发布 | 职责 |
+| --- | --- | --- |
+| `packages/cli` | 是 | 面向人的 `weekly` CLI，负责 init、scan、collect、skill install。 |
+| `packages/agent-cli` | 是 | 面向 Agent Skill 的 `weekly-agent` 非交互 CLI，输出稳定 JSON。 |
+| `packages/mcp-server` | 是 | MCP stdio server，暴露项目扫描、raw 读取和 summary 保存工具。 |
+| `packages/workflow` | 否 | MCP 与 Agent CLI 共用的业务流程层。 |
+| `packages/core` | 否 | 配置、路径、Git、扫描、采集、写入逻辑。 |
+| `packages/shared` | 否 | 常量、Zod schemas、类型。 |
+| `packages/eslint-config` | 否 | 共享 ESLint flat config。 |
+| `packages/typescript-config` | 否 | 共享 TypeScript 和 tsup 配置。 |
+
+每个子包目录下都有独立 README，说明该包的职责、使用方式和依赖关系。

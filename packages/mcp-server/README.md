@@ -1,6 +1,8 @@
 # @weekly-git-report/mcp-server
 
-用于读取已扫描 Git 项目和周报原始记录的 MCP stdio server。
+MCP stdio server，给支持 MCP 的 Agent/客户端提供周报相关工具。
+
+如果你不想让 MCP tools 常驻占用上下文，推荐改用 `@weekly-git-report/cli` 安装 Skill，再由 Skill 按需调用 `@weekly-git-report/agent-cli`。
 
 ## 启动方式
 
@@ -29,6 +31,17 @@ npx -y @weekly-git-report/mcp-server@latest
 
 使用 MCP 工具前，请先通过 `@weekly-git-report/cli` 执行 `weekly init` 和 `weekly scan`。
 
+## 工作目录
+
+MCP Server 复用 CLI 生成的本地配置：
+
+```text
+~/.weekly-git-report/config.json
+~/.weekly-git-report/projects.json
+```
+
+生成的 raw 和 summary 都写入配置中的 `outputRoot`。
+
 ## 工具
 
 - `list_projects`：列出已扫描 Git 项目。
@@ -44,6 +57,8 @@ npx -y @weekly-git-report/mcp-server@latest
 {outputRoot}/summary/{YYYY}/{MM}/{YYYY-MM-DD}_{YYYY-MM-DD}.md
 ```
 
+MCP 的读取和写入都会限制在 `outputRoot` 内，避免访问配置输出目录之外的文件。
+
 参数示例：
 
 ```json
@@ -53,3 +68,7 @@ npx -y @weekly-git-report/mcp-server@latest
   "content": "# 周报总结\n\n- 完成 Git 提交记录采集和整理。"
 }
 ```
+
+## 依赖关系
+
+`@weekly-git-report/mcp-server` 只保留 MCP 注册和响应包装。具体业务流程复用私有包 `@weekly-git-report/workflow`，发布时会被打包进 `dist`。
