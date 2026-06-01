@@ -90,11 +90,10 @@ weekly skill install --target opencode
 weekly skill install --target claude
 weekly skill install --target codex
 weekly skill install --target all
-weekly skill install --model opencode
 weekly skill install --force
 ```
 
-不传 `--target` / `--model` 时会交互选择目标；非 TTY 环境默认安装到 `opencode`。
+不传 `--target` 时会交互选择目标；非 TTY 环境默认安装到 `opencode`。
 
 支持的目标：
 

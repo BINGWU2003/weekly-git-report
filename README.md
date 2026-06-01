@@ -114,8 +114,6 @@ npx -y @weekly-git-report/cli@latest skill install --target codex
 npx -y @weekly-git-report/cli@latest skill install --target all
 ```
 
-也可以使用等价参数名 `--model`。
-
 安装后重启对应 Agent 客户端。之后当用户要求生成周报时，Skill 会指导 Agent 通过 `@weekly-git-report/agent-cli` 临时采集 raw、读取 raw 并保存 summary。
 
 ### MCP 常驻模式

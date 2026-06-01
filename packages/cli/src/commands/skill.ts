@@ -36,7 +36,7 @@ function parseSkillInstallArgs(args: string[]): SkillInstallOptions {
       continue;
     }
 
-    if (arg === "--model" || arg === "--target") {
+    if (arg === "--target") {
       options.target = parseSkillTarget(readOptionValue(args, index, arg));
       index += 1;
       continue;
@@ -68,7 +68,7 @@ async function promptSkillTarget(): Promise<SkillTarget> {
     {
       type: "select",
       name: "target",
-      message: "Target model/client",
+      message: "Target client",
       initial: 0,
       choices: [
         {
