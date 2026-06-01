@@ -4,6 +4,12 @@
 
 本项目只生成“原始 Git 提交记录”，不负责自动生成最终公司周报。
 
+## 当前状态
+
+当前版本已满足本项目现阶段使用需求，功能范围到 CLI + MCP Server 为止。
+
+原计划中的阶段 8 稳定性增强暂不继续推进。后续如有实际使用中的问题，再按具体问题单独迭代。
+
 ## 已实现能力
 
 - `weekly init`：初始化本地配置。
@@ -48,10 +54,10 @@
 ## 开发命令
 
 ```sh
-pnpm install
-pnpm check-types
-pnpm build
-pnpm lint
+corepack pnpm install
+corepack pnpm lint
+corepack pnpm check-types
+corepack pnpm build
 ```
 
 ## CLI 使用
@@ -179,6 +185,22 @@ Errors: 0
 }
 ```
 
+Windows 下也可以直接配置到 D 盘或 E 盘，建议使用 `/` 避免 JSON 反斜杠转义：
+
+```json
+{
+  "outputRoot": "D:/files"
+}
+```
+
+如果使用反斜杠，需要写成双反斜杠：
+
+```json
+{
+  "outputRoot": "D:\\files"
+}
+```
+
 之后执行：
 
 ```sh
@@ -192,6 +214,24 @@ weekly collect --since 2026-06-01 --until 2026-06-07
 ```
 
 不会写入默认目录，除非 `outputRoot` 本身就是默认路径。
+
+## MCP Server
+
+MCP Server 使用 stdio 启动：
+
+```sh
+node packages/mcp-server/dist/index.js
+```
+
+已提供工具：
+
+- `list_projects`：列出已扫描 Git 项目。
+- `scan_projects`：扫描项目并更新项目索引。
+- `collect_git_logs`：采集 Git 提交记录并写入原始记录文件。
+- `get_week_index`：读取指定周期的 `index.md`。
+- `read_week_raw`：读取指定周期所有项目 Markdown 原始记录。
+
+MCP 读取原始记录时只允许访问 `config.json` 中 `outputRoot` 下的文件。
 
 ## 幂等策略
 
