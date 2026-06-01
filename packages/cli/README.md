@@ -89,6 +89,9 @@ weekly skill install
 weekly skill install --target opencode
 weekly skill install --target claude
 weekly skill install --target codex
+weekly skill install --target all
+weekly skill install --target -all
+weekly skill install --all
 weekly skill install --model opencode
 weekly skill install --force
 ```
@@ -102,6 +105,7 @@ weekly skill install --force
 | `opencode` | `.opencode/skill/weekly-git-report/SKILL.md` | opencode 项目 Skill。 |
 | `claude` | `.claude/skill/weekly-git-report/SKILL.md` | Claude Code 项目 Skill。 |
 | `codex` | `.codex/skill/weekly-git-report/SKILL.md` | Codex 项目 Skill。 |
+| `all` / `-all` | 以上全部位置 | 同时安装 opencode、Claude Code 和 Codex。 |
 
 `--force` 会覆盖已有 Skill 文件。
 

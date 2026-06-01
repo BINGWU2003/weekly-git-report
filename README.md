@@ -111,6 +111,9 @@ npx -y @weekly-git-report/cli@latest skill install
 npx -y @weekly-git-report/cli@latest skill install --target opencode
 npx -y @weekly-git-report/cli@latest skill install --target claude
 npx -y @weekly-git-report/cli@latest skill install --target codex
+npx -y @weekly-git-report/cli@latest skill install --target all
+npx -y @weekly-git-report/cli@latest skill install --target -all
+npx -y @weekly-git-report/cli@latest skill install --all
 ```
 
 也可以使用等价参数名 `--model`。
@@ -601,6 +604,9 @@ npx -y @weekly-git-report/cli@latest skill install
 npx -y @weekly-git-report/cli@latest skill install --target opencode
 npx -y @weekly-git-report/cli@latest skill install --target claude
 npx -y @weekly-git-report/cli@latest skill install --target codex
+npx -y @weekly-git-report/cli@latest skill install --target all
+npx -y @weekly-git-report/cli@latest skill install --target -all
+npx -y @weekly-git-report/cli@latest skill install --all
 ```
 
 默认 `opencode` 目标会创建：
@@ -616,6 +622,7 @@ npx -y @weekly-git-report/cli@latest skill install --target codex
 | `opencode` | `.opencode/skill/weekly-git-report/SKILL.md` |
 | `claude` | `.claude/skill/weekly-git-report/SKILL.md` |
 | `codex` | `.codex/skill/weekly-git-report/SKILL.md` |
+| `all` / `-all` | 同时写入以上全部位置 |
 
 Skill 触发后会指导 Agent 通过 `weekly-agent` 临时命令采集、读取 raw 并保存 summary，不需要配置 MCP。
 

@@ -3,7 +3,9 @@ import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 
-type SkillTarget = "claude" | "codex" | "opencode";
+type SkillTarget = "all" | "claude" | "codex" | "opencode";
+
+const SKILL_TARGETS = ["opencode", "claude", "codex"] as const;
 
 interface SkillInstallOptions {
   force: boolean;
@@ -30,6 +32,11 @@ function parseSkillInstallArgs(args: string[]): SkillInstallOptions {
 
     if (arg === "--force") {
       options.force = true;
+      continue;
+    }
+
+    if (arg === "--all") {
+      options.target = "all";
       continue;
     }
 
@@ -74,17 +81,32 @@ async function promptSkillTarget(): Promise<SkillTarget> {
 }
 
 async function installSkill(options: Required<SkillInstallOptions>): Promise<void> {
-  const target = getSkillFilePath(options.target);
+  if (options.target === "all") {
+    for (const target of SKILL_TARGETS) {
+      await installSkillFile(target, options.force);
+    }
+
+    return;
+  }
+
+  await installSkillFile(options.target, options.force);
+}
+
+async function installSkillFile(
+  targetName: Exclude<SkillTarget, "all">,
+  force: boolean,
+): Promise<void> {
+  const target = getSkillFilePath(targetName);
   const source = getSkillTemplatePath();
 
   await mkdir(path.dirname(target), { recursive: true });
   await writeFile(target, await readFile(source, "utf8"), {
     encoding: "utf8",
-    flag: options.force ? "w" : "wx",
+    flag: force ? "w" : "wx",
   });
 
-  console.log(`Installed ${options.target} skill: ${target}`);
-  console.log(`Restart ${getRestartTargetName(options.target)} to load the new skill.`);
+  console.log(`Installed ${targetName} skill: ${target}`);
+  console.log(`Restart ${getRestartTargetName(targetName)} to load the new skill.`);
 }
 
 function getSkillFilePath(target: SkillTarget): string {
@@ -112,6 +134,10 @@ function getSkillTemplatePath(): string {
 function parseSkillTarget(value: string): SkillTarget {
   const normalized = value.trim().toLowerCase();
 
+  if (normalized === "all" || normalized === "-all") {
+    return "all";
+  }
+
   if (normalized === "1" || normalized === "opencode") {
     return "opencode";
   }
@@ -124,10 +150,10 @@ function parseSkillTarget(value: string): SkillTarget {
     return "codex";
   }
 
-  throw new Error("Target must be one of: opencode, claude, codex");
+  throw new Error("Target must be one of: opencode, claude, codex, all");
 }
 
-function getRestartTargetName(target: SkillTarget): string {
+function getRestartTargetName(target: Exclude<SkillTarget, "all">): string {
   switch (target) {
     case "claude":
       return "Claude Code";
