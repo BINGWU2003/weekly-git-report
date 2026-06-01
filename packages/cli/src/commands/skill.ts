@@ -36,11 +36,6 @@ function parseSkillInstallArgs(args: string[]): SkillInstallOptions {
       continue;
     }
 
-    if (arg === "--all") {
-      options.target = "all";
-      continue;
-    }
-
     if (arg === "--model" || arg === "--target") {
       options.target = parseSkillTarget(readOptionValue(args, index, arg));
       index += 1;
@@ -160,7 +155,7 @@ function getSkillTemplatePath(): string {
 function parseSkillTarget(value: string): SkillTarget {
   const normalized = value.trim().toLowerCase();
 
-  if (normalized === "all" || normalized === "-all") {
+  if (normalized === "all") {
     return "all";
   }
 
