@@ -20,7 +20,7 @@ importers:
 
   apps/docs:
     dependencies:
-      '@repo/ui':
+      '@weekly-git-report/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       next:
@@ -33,10 +33,10 @@ importers:
         specifier: ^19.2.0
         version: 19.2.0(react@19.2.0)
     devDependencies:
-      '@repo/eslint-config':
+      '@weekly-git-report/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
-      '@repo/typescript-config':
+      '@weekly-git-report/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
       '@types/node':
@@ -57,7 +57,7 @@ importers:
 
   apps/web:
     dependencies:
-      '@repo/ui':
+      '@weekly-git-report/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       next:
@@ -70,10 +70,10 @@ importers:
         specifier: ^19.2.0
         version: 19.2.0(react@19.2.0)
     devDependencies:
-      '@repo/eslint-config':
+      '@weekly-git-report/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
-      '@repo/typescript-config':
+      '@weekly-git-report/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
       '@types/node':
@@ -139,10 +139,10 @@ importers:
         specifier: ^19.2.0
         version: 19.2.0(react@19.2.0)
     devDependencies:
-      '@repo/eslint-config':
+      '@weekly-git-report/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
-      '@repo/typescript-config':
+      '@weekly-git-report/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
       '@types/node':
