@@ -1,6 +1,6 @@
 import { defineConfig } from "tsup";
 
-export const nodeLibraryConfig = defineConfig({
+const baseNodeConfig = {
   clean: true,
   dts: true,
   entry: ["src/index.ts"],
@@ -10,4 +10,11 @@ export const nodeLibraryConfig = defineConfig({
   sourcemap: true,
   splitting: false,
   target: "node18",
+};
+
+export const nodeLibraryConfig = defineConfig(baseNodeConfig);
+
+export const nodeBundledBinConfig = defineConfig({
+  ...baseNodeConfig,
+  noExternal: [/^@weekly-git-report\//],
 });

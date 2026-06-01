@@ -1,0 +1,16 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.1.1/schema.json",
+  "access": "public",
+  "baseBranch": "main",
+  "changelog": "@changesets/cli/changelog",
+  "commit": false,
+  "fixed": [],
+  "ignore": [
+    "@weekly-git-report/core",
+    "@weekly-git-report/shared",
+    "@weekly-git-report/eslint-config",
+    "@weekly-git-report/typescript-config"
+  ],
+  "linked": [],
+  "updateInternalDependencies": "patch"
+}

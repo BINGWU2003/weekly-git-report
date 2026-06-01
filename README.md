@@ -60,9 +60,14 @@ corepack pnpm check-types
 corepack pnpm build
 ```
 
-## 发布前检查
+## 发布说明
 
-发包前建议执行：
+本仓库准备发布两个 npm 包：
+
+- `@weekly-git-report/cli`：提供 `weekly` 命令。
+- `@weekly-git-report/mcp-server`：提供 `weekly-git-report-mcp` 命令。
+
+发包前建议执行完整检查：
 
 ```sh
 corepack pnpm install
@@ -72,42 +77,106 @@ corepack pnpm build
 ```
 
 构建产物由 `tsup` 生成到各包的 `dist/` 目录。
+`@weekly-git-report/core` 和 `@weekly-git-report/shared` 是内部包，不单独发布，会被打进 CLI 和 MCP Server 的构建产物。
 
-CLI 可执行文件：
+### 包与命令
+
+| 包名                            | 目录                  | bin                     | 用途                 |
+| ------------------------------- | --------------------- | ----------------------- | -------------------- |
+| `@weekly-git-report/cli`        | `packages/cli`        | `weekly`                | CLI 扫描与采集工具   |
+| `@weekly-git-report/mcp-server` | `packages/mcp-server` | `weekly-git-report-mcp` | MCP stdio server     |
+
+CLI 构建产物：
 
 ```text
 packages/cli/dist/index.js
 ```
 
-MCP Server 可执行文件：
+MCP Server 构建产物：
 
 ```text
 packages/mcp-server/dist/index.js
 ```
 
-发布后对外命令：
+### 发布命令
+
+本项目使用 Changesets 管理版本和发布。
+
+添加变更集：
 
 ```sh
-weekly
+corepack pnpm changeset
+```
+
+更新版本号和 changelog：
+
+```sh
+corepack pnpm version-packages
+```
+
+发布两个包：
+
+```sh
+corepack pnpm release
+```
+
+Changesets 配置只发布以下两个包：
+
+- `@weekly-git-report/cli`
+- `@weekly-git-report/mcp-server`
+
+以下包会被忽略，不会发布：
+
+- `@weekly-git-report/core`
+- `@weekly-git-report/shared`
+- `@weekly-git-report/eslint-config`
+- `@weekly-git-report/typescript-config`
+
+如果只在公司私有 npm 源内发布，按私有源策略调整 registry 配置。
+
+### 安装方式
+
+只需要 CLI：
+
+```sh
+npm install -g @weekly-git-report/cli
+```
+
+只需要 MCP Server：
+
+```sh
+npm install -g @weekly-git-report/mcp-server
+```
+
+两者都需要：
+
+```sh
+npm install -g @weekly-git-report/cli @weekly-git-report/mcp-server
+```
+
+安装后可用命令：
+
+```sh
+weekly --help
 weekly-git-report-mcp
 ```
 
 ## CLI 使用
 
-当前包的 CLI 入口为 `packages/cli`，构建后可以直接通过 Node 运行：
+开发环境可以直接通过 Node 运行 CLI 构建产物：
 
 ```sh
-pnpm build
+corepack pnpm build
 node packages/cli/dist/index.js --help
 ```
 
-后续发布或本地 link 后，命令名为：
+发布并安装 `@weekly-git-report/cli` 后，命令名为：
 
 ```sh
 weekly
 ```
 
-如果发包后通过 npm 全局安装，使用方式为：
+全局安装后，使用方式为：
 
 ```sh
 weekly --help
@@ -259,13 +328,13 @@ weekly collect --since 2026-06-01 --until 2026-06-07
 
 ## MCP Server
 
-MCP Server 使用 stdio 启动：
+开发环境可以直接通过 Node 启动 MCP Server 构建产物：
 
 ```sh
 node packages/mcp-server/dist/index.js
 ```
 
-发包后可以直接使用 bin 命令启动：
+发布并安装 `@weekly-git-report/mcp-server` 后，可以直接使用 bin 命令启动：
 
 ```sh
 weekly-git-report-mcp
@@ -290,7 +359,7 @@ weekly-git-report-mcp
 }
 ```
 
-发包并全局安装后使用 bin 命令：
+发布并全局安装 `@weekly-git-report/mcp-server` 后使用 bin 命令：
 
 ```json
 {
