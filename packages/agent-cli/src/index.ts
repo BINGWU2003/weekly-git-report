@@ -1,8 +1,6 @@
 #!/usr/bin/env node
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFile } from "node:fs/promises";
 
 import { ConfigNotFoundError, ProjectsIndexNotFoundError } from "@weekly-git-report/core";
 import {
@@ -29,9 +27,6 @@ try {
       break;
     case "summary":
       await runSummaryCommand(subcommand, args);
-      break;
-    case "skill":
-      await runSkillCommand(subcommand, args);
       break;
     case undefined:
     case "--help":
@@ -92,19 +87,6 @@ async function runSummaryCommand(
     }
     default:
       throw new Error(`Unknown summary command: ${subcommandName ?? ""}`);
-  }
-}
-
-async function runSkillCommand(
-  subcommandName: string | undefined,
-  args: string[],
-): Promise<void> {
-  switch (subcommandName) {
-    case "install":
-      await installSkill(args.includes("--force"));
-      break;
-    default:
-      throw new Error(`Unknown skill command: ${subcommandName ?? ""}`);
   }
 }
 
@@ -252,31 +234,6 @@ async function readStdin(): Promise<string> {
   return Buffer.concat(chunks).toString("utf8");
 }
 
-async function installSkill(force: boolean): Promise<void> {
-  const target = path.resolve(
-    process.cwd(),
-    ".opencode",
-    "skills",
-    "weekly-git-report",
-    "SKILL.md",
-  );
-  const source = path.resolve(
-    path.dirname(fileURLToPath(import.meta.url)),
-    "..",
-    "skills",
-    "weekly-git-report",
-    "SKILL.md",
-  );
-
-  await mkdir(path.dirname(target), { recursive: true });
-  await writeFile(target, await readFile(source, "utf8"), {
-    encoding: "utf8",
-    flag: force ? "w" : "wx",
-  });
-
-  await printJson({ skillFile: target });
-}
-
 async function printJson(data: unknown): Promise<void> {
   console.log(JSON.stringify(data, null, 2));
 }
@@ -288,19 +245,12 @@ function handleError(error: unknown): void {
   } else if (error instanceof ProjectsIndexNotFoundError) {
     console.error("Projects index not found. Please run: weekly scan");
     process.exitCode = 1;
-  } else if (isNodeError(error) && error.code === "EEXIST") {
-    console.error("Skill already exists. Re-run with --force to overwrite.");
-    process.exitCode = 1;
   } else if (error instanceof Error) {
     console.error(error.message);
     process.exitCode = 1;
   } else {
     throw error;
   }
-}
-
-function isNodeError(error: unknown): error is NodeJS.ErrnoException {
-  return error instanceof Error && "code" in error;
 }
 
 function printHelp(): void {
@@ -313,6 +263,5 @@ Usage:
   weekly-agent raw index --start <YYYY-MM-DD> --end <YYYY-MM-DD>
   weekly-agent raw read --start <YYYY-MM-DD> --end <YYYY-MM-DD>
   weekly-agent summary save --start <YYYY-MM-DD> --end <YYYY-MM-DD> [--file <path>]
-  weekly-agent skill install [--force]
 `);
 }

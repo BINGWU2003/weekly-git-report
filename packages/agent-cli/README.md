@@ -11,18 +11,8 @@ npx -y @weekly-git-report/agent-cli@latest raw read --start 2026-06-01 --end 202
 npx -y @weekly-git-report/agent-cli@latest summary save --start 2026-06-01 --end 2026-06-07 --file summary.md
 ```
 
-## 安装 Skill
-
-在任意项目中执行：
+Skill 安装由 `@weekly-git-report/cli` 负责：
 
 ```sh
-npx -y @weekly-git-report/agent-cli@latest skill install
+npx -y @weekly-git-report/cli@latest skill install
 ```
-
-这会创建：
-
-```text
-.opencode/skills/weekly-git-report/SKILL.md
-```
-
-安装后重启 opencode，让 Skill 生效。

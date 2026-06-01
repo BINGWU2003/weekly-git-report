@@ -6,6 +6,7 @@ import { runCollectCommand } from "./commands/collect.js";
 import { runInitCommand } from "./commands/init.js";
 import { runListCommand } from "./commands/list.js";
 import { runScanCommand } from "./commands/scan.js";
+import { runSkillCommand } from "./commands/skill.js";
 
 const [command, ...args] = process.argv.slice(2);
 
@@ -22,6 +23,9 @@ try {
       break;
     case "collect":
       await runCollectCommand(args);
+      break;
+    case "skill":
+      await runSkillCommand(args);
       break;
     case undefined:
     case "--help":
@@ -52,5 +56,6 @@ Usage:
   weekly scan
   weekly list
   weekly collect
+  weekly skill install
 `);
 }

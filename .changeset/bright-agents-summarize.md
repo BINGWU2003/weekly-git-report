@@ -3,4 +3,4 @@
 "@weekly-git-report/mcp-server": patch
 ---
 
-Add an on-demand Agent CLI and Skill template for generating weekly summaries without loading MCP tools permanently. Refactor the MCP server to reuse the shared private workflow layer.
+Add an on-demand Agent CLI for generating weekly summaries without loading MCP tools permanently. Move Skill installation into the human-facing CLI and refactor the MCP server to reuse the shared private workflow layer.

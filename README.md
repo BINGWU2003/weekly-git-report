@@ -171,7 +171,7 @@ MCP Server 不需要全局安装，推荐在 MCP Client 配置中通过 `npx` �
 Agent Skill 不需要 MCP 常驻，推荐通过 `weekly-agent` 按需调用：
 
 ```sh
-npx -y @weekly-git-report/agent-cli@latest skill install
+npx -y @weekly-git-report/cli@latest skill install
 ```
 
 安装后重启 opencode，让 Skill 生效。
@@ -503,7 +503,7 @@ MCP 读取原始记录时只允许访问 `config.json` 中 `outputRoot` 下的�
 在目标项目中安装 Skill：
 
 ```sh
-npx -y @weekly-git-report/agent-cli@latest skill install
+npx -y @weekly-git-report/cli@latest skill install
 ```
 
 这会创建：
