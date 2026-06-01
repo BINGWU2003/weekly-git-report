@@ -2,9 +2,9 @@
 
 ## 1. 项目背景
 
-当前公司周报需要人工回忆多个项目在一周内的工作内容，效率较低且容易遗漏。开发人员通常会在多个 Git 项目中提交代码，但这些提交分散在不同目录、不同仓库中，不方便统一采集和总结。
+当前公司周报需要人工回忆多个项目在一周内的工作内容，效率较低且容易遗漏。开发人员通常会在多个 Git 项目中提交代码，但这些提交记录分散在不同目录、不同仓库中，不方便统一采集和总结。
 
-本项目目标是开发一个基于 Node.js + MCP + Zod 的 monorepo 工具，用于自动扫描本机多个 Git 项目，采集指定时间范围内的 Git 提交记录，并在本地生成结构化 Markdown 文件。后续可由 AI Agent 读取这些 Markdown 文件，生成公司周报总结。
+本项目目标是开发一个基于 **Node.js + TypeScript + MCP + Zod** 的 monorepo 工具，用于自动扫描本机多个 Git 项目，采集指定时间范围内的 Git commit 记录，并在本地生成结构化 Markdown 文件。后续可由 AI Agent 读取这些 Markdown 文件，生成公司周报总结。
 
 本项目只负责生成“原始 Git 提交记录”，不直接负责生成最终公司周报。
 
@@ -18,9 +18,10 @@
 2. 生成项目索引文件，记录项目名称、路径、remote、branch、最近活跃时间等信息。
 3. 支持按时间范围批量采集多个项目的 Git commit 记录。
 4. 按固定目录结构生成 Markdown 文件。
-5. 支持重复采集同一项目、同一时间范围时幂等处理。
-6. 提供 MCP Server，使 Agent 可以读取项目索引和 Git 原始记录。
-7. 使用 Zod 对 CLI 入参、配置文件、项目索引、MCP tool 参数进行校验。
+5. 支持用户自定义周报原始记录输出目录。
+6. 支持重复采集同一项目、同一时间范围时幂等处理。
+7. 提供 MCP Server，使 Agent 可以读取项目索引和 Git 原始记录。
+8. 使用 Zod 对 CLI 入参、配置文件、项目索引、MCP tool 参数进行校验。
 
 ### 2.2 非目标
 
@@ -29,6 +30,7 @@
 3. 不负责分析 commit 的业务含义。
 4. 不负责上传文件到云端。
 5. 不负责管理用户 Git 凭证。
+6. 第一版不支持自定义工具工作目录。
 
 ---
 
@@ -51,7 +53,6 @@
 - `fast-glob`：扫描目录
 - `fs-extra`：文件读写
 - `dayjs`：日期处理
-- `gray-matter`：可选，用于 Markdown frontmatter
 - `@modelcontextprotocol/sdk`：MCP Server 开发
 
 ---
@@ -84,10 +85,10 @@ weekly-git-report/
     cli/
       src/
         commands/
-          scan.ts
-          collect.ts
-          list.ts
           init.ts
+          scan.ts
+          list.ts
+          collect.ts
         index.ts
       package.json
 
@@ -95,7 +96,7 @@ weekly-git-report/
       src/
         tools/
           list-projects.ts
-          get-project.ts
+          scan-projects.ts
           collect-git-logs.ts
           get-week-index.ts
           read-week-raw.ts
@@ -104,9 +105,9 @@ weekly-git-report/
 
     shared/
       src/
-        types.ts
         constants.ts
         schemas.ts
+        types.ts
       package.json
 
   examples/
@@ -117,7 +118,20 @@ weekly-git-report/
 
 ## 5. 数据目录设计
 
-工具默认在用户主目录下创建工作目录：
+本项目涉及两个目录：
+
+1. 工具工作目录
+2. 周报原始记录输出目录
+
+### 5.1 工具工作目录
+
+工具工作目录固定为：
+
+```text
+~/.weekly-git-report/
+```
+
+初始化后目录结构如下：
 
 ```text
 ~/.weekly-git-report/
@@ -139,7 +153,17 @@ weekly-git-report/
 
 用于保存扫描得到的 Git 项目索引。
 
-生成的周报原始记录默认放在：
+第一版不要求支持自定义工具工作目录。
+
+### 5.2 周报原始记录输出目录
+
+周报原始记录默认输出到：
+
+```text
+~/weekly-reports/
+```
+
+默认生成结构如下：
 
 ```text
 ~/weekly-reports/
@@ -147,7 +171,54 @@ weekly-git-report/
   summary/
 ```
 
-其中本项目只生成 `raw` 目录内容，`summary` 目录预留给后续 Agent 总结结果使用。
+其中：
+
+```text
+raw/
+```
+
+由本项目生成，用于保存 Git 原始提交记录。
+
+```text
+summary/
+```
+
+预留给后续 Agent 生成公司周报总结使用，本项目第一版不负责写入。
+
+### 5.3 输出目录自定义
+
+周报原始记录输出目录支持通过配置文件自定义。
+
+配置项为：
+
+```json
+{
+  "outputRoot": "~/weekly-reports"
+}
+```
+
+如果用户配置：
+
+```json
+{
+  "outputRoot": "~/Documents/company-weekly-reports"
+}
+```
+
+则采集结果应生成到：
+
+```text
+~/Documents/company-weekly-reports/
+  raw/
+    2026/
+      06/
+        2026-06-01_2026-06-07/
+          index.md
+          manifest.json
+          order-service.md
+```
+
+第一版不要求支持 `weekly collect --output` 参数。
 
 ---
 
@@ -156,7 +227,7 @@ weekly-git-report/
 采集指定周期的 Git 提交记录后，生成如下目录：
 
 ```text
-~/weekly-reports/
+{outputRoot}/
   raw/
     2026/
       06/
@@ -168,18 +239,26 @@ weekly-git-report/
           payment-api.md
 ```
 
+其中 `{outputRoot}` 来自配置文件：
+
+```json
+{
+  "outputRoot": "~/weekly-reports"
+}
+```
+
 ### 6.1 目录规则
 
-目录格式：
+周期目录格式：
 
 ```text
-raw/{YYYY}/{MM}/{YYYY-MM-DD}_{YYYY-MM-DD}/
+{outputRoot}/raw/{YYYY}/{MM}/{YYYY-MM-DD}_{YYYY-MM-DD}/
 ```
 
 示例：
 
 ```text
-raw/2026/06/2026-06-01_2026-06-07/
+~/weekly-reports/raw/2026/06/2026-06-01_2026-06-07/
 ```
 
 ### 6.2 文件规则
@@ -198,7 +277,16 @@ admin-web.md
 backend__order-service.md
 ```
 
-项目文件名优先使用项目名。若项目名重复，则使用 remote 推导出的命名空间加项目名，例如：
+项目文件名优先使用项目名。
+
+如果存在重名项目，例如：
+
+```text
+backend/order-service
+frontend/order-service
+```
+
+则使用 remote 推导出的命名空间加项目名：
 
 ```text
 backend__order-service.md
@@ -209,7 +297,7 @@ frontend__order-service.md
 
 ## 7. 配置文件设计
 
-配置文件路径：
+配置文件路径固定为：
 
 ```text
 ~/.weekly-git-report/config.json
@@ -225,21 +313,47 @@ frontend__order-service.md
   "outputRoot": "~/weekly-reports",
   "author": "",
   "defaultSince": "last monday",
-  "defaultUntil": "now"
+  "defaultUntil": "now",
+  "includeEmptyProjects": false
 }
 ```
 
 字段说明：
 
-| 字段         | 类型     | 必填 | 说明                                         |
-| ------------ | -------- | ---- | -------------------------------------------- |
-| roots        | string[] | 是   | 要扫描的代码根目录                           |
-| excludeDirs  | string[] | 否   | 扫描时排除的目录                             |
-| maxDepth     | number   | 否   | 最大扫描深度，默认 5                         |
-| outputRoot   | string   | 是   | Git 原始记录输出目录                         |
-| author       | string   | 否   | Git author 过滤条件，不填则使用当前 Git 用户 |
-| defaultSince | string   | 否   | 默认开始时间                                 |
-| defaultUntil | string   | 否   | 默认结束时间                                 |
+| 字段                 | 类型     | 必填 | 说明                                                            |
+| -------------------- | -------- | ---- | --------------------------------------------------------------- |
+| roots                | string[] | 是   | 要扫描的代码根目录                                              |
+| excludeDirs          | string[] | 否   | 扫描时排除的目录                                                |
+| maxDepth             | number   | 否   | 最大扫描深度，默认 5                                            |
+| outputRoot           | string   | 是   | Git 原始记录输出根目录，默认 `~/weekly-reports`，支持用户自定义 |
+| author               | string   | 否   | Git author 过滤条件，不填则使用当前 Git 用户                    |
+| defaultSince         | string   | 否   | 默认开始时间                                                    |
+| defaultUntil         | string   | 否   | 默认结束时间                                                    |
+| includeEmptyProjects | boolean  | 否   | 是否为无提交项目生成 Markdown 文件，默认 false                  |
+
+### 7.1 outputRoot 说明
+
+`outputRoot` 只影响 Git 原始记录的输出位置，不影响工具自身配置目录。
+
+默认值：
+
+```text
+~/weekly-reports
+```
+
+如果配置为：
+
+```json
+{
+  "outputRoot": "~/Documents/company-weekly-reports"
+}
+```
+
+则最终生成目录为：
+
+```text
+~/Documents/company-weekly-reports/raw/{YYYY}/{MM}/{YYYY-MM-DD}_{YYYY-MM-DD}/
+```
 
 ---
 
@@ -291,7 +405,7 @@ frontend__order-service.md
 
 ### 9.1 扫描逻辑
 
-cd 
+`weekly scan` 需要遍历配置文件中的 `roots`，递归查找 Git 项目。
 
 识别为 Git 项目的条件：
 
@@ -306,7 +420,30 @@ project/.git/
 project/.git
 ```
 
-第二种情况用于 Git worktree 或 submodule 场景。
+其中：
+
+```text
+project/.git/
+```
+
+是普通 Git 仓库常见形式。
+
+```text
+project/.git
+```
+
+可能出现在 Git worktree 或 submodule 场景。
+
+扫描时需要忽略配置中的 `excludeDirs`，例如：
+
+```text
+node_modules
+.cache
+dist
+build
+vendor
+tmp
+```
 
 ### 9.2 扫描时需要获取的信息
 
@@ -328,7 +465,9 @@ git log -1 --format=%cI
 remote URL > 本地路径 > 项目名称
 ```
 
-若 remote 相同，则选择 `lastCommitAt` 最新的项目。
+如果 remote 相同，则选择 `lastCommitAt` 最新的项目。
+
+如果项目没有 remote，则使用本地路径作为唯一标识。
 
 ---
 
@@ -381,6 +520,8 @@ author 优先级：
 CLI 参数 author > config.json author > git config user.name
 ```
 
+如果三个来源都为空，则不添加 `--author` 参数，采集该项目指定时间范围内的所有提交。
+
 ---
 
 ## 11. Markdown 文件格式
@@ -417,13 +558,23 @@ CLI 参数 author > config.json author > git config user.name
 ```
 ````
 
-````
-
 ### 11.2 无提交时的 Markdown 文件
 
-如果项目在该周期内没有提交，仍然可以生成文件：
+如果项目在该周期内没有提交，默认不生成项目 Markdown 文件。
 
-```md
+如果配置：
+
+```json
+{
+  "includeEmptyProjects": true
+}
+```
+
+则无提交项目也生成 Markdown 文件。
+
+示例：
+
+````md
 # order-service
 
 - 周期：2026-06-01 ~ 2026-06-07
@@ -441,19 +592,9 @@ CLI 参数 author > config.json author > git config user.name
 ## Raw
 
 ```text
+
+```
 ````
-
-````
-
-是否生成无提交项目文件由配置控制：
-
-```json
-{
-  "includeEmptyProjects": false
-}
-````
-
-默认建议为 `false`。
 
 ---
 
@@ -468,6 +609,7 @@ CLI 参数 author > config.json author > git config user.name
 
 - 周期：2026-06-01 ~ 2026-06-07
 - 采集时间：2026-06-07 18:30:00
+- 输出目录：/Users/user/weekly-reports/raw/2026/06/2026-06-01_2026-06-07
 - 项目数量：3
 - 总 Commit 数：16
 
@@ -502,6 +644,7 @@ CLI 参数 author > config.json author > git config user.name
     "end": "2026-06-07"
   },
   "generatedAt": "2026-06-07T18:30:00.000Z",
+  "outputRoot": "/Users/user/weekly-reports",
   "outputDir": "/Users/user/weekly-reports/raw/2026/06/2026-06-01_2026-06-07",
   "projects": [
     {
@@ -513,6 +656,22 @@ CLI 参数 author > config.json author > git config user.name
       "branch": "main",
       "commitCount": 8,
       "contentHash": "sha256:abc123"
+    }
+  ],
+  "errors": []
+}
+```
+
+如果某个项目采集失败，需要记录到 `errors` 中：
+
+```json
+{
+  "errors": [
+    {
+      "projectId": "gitlab.company.com/backend/order-service",
+      "name": "order-service",
+      "path": "/Users/user/work/backend/order-service",
+      "message": "fatal: not a git repository"
     }
   ]
 }
@@ -530,6 +689,12 @@ CLI 参数 author > config.json author > git config user.name
 period.start + period.end + project.remote
 ```
 
+如果项目没有 remote，则使用：
+
+```text
+period.start + period.end + project.path
+```
+
 ### 14.2 默认行为
 
 默认使用覆盖模式：
@@ -540,6 +705,14 @@ period.start + period.end + project.remote
 ```
 
 禁止追加写入。
+
+不允许生成以下重复文件：
+
+```text
+order-service-1.md
+order-service-copy.md
+order-service-new.md
+```
 
 ### 14.3 contentHash
 
@@ -556,14 +729,14 @@ contentHash = sha256(markdownContentWithoutGeneratedAt)
 1. 如果文件不存在，直接写入。
 2. 如果文件存在且 contentHash 相同，可以跳过写入。
 3. 如果文件存在且 contentHash 不同，覆盖写入。
-4. 如果用户开启 `--backup`，覆盖前将旧文件移动到 `.history` 目录。
+4. 如果用户开启 `--backup`，覆盖前将旧文件复制到 `.history` 目录。
 
 ### 14.5 备份目录
 
 可选备份目录：
 
 ```text
-raw/2026/06/2026-06-01_2026-06-07/.history/
+{outputRoot}/raw/2026/06/2026-06-01_2026-06-07/.history/
   order-service.2026-06-07_18-30-00.md
 ```
 
@@ -590,6 +763,22 @@ weekly init
 1. 创建 `~/.weekly-git-report/` 目录。
 2. 创建默认 `config.json`。
 3. 创建默认输出目录 `~/weekly-reports/`。
+4. 如果配置文件已存在，不应直接覆盖，需提示用户。
+
+默认生成配置：
+
+```json
+{
+  "roots": ["~/work", "~/Code", "~/Projects"],
+  "excludeDirs": ["node_modules", ".cache", "dist", "build", "vendor", "tmp"],
+  "maxDepth": 5,
+  "outputRoot": "~/weekly-reports",
+  "author": "",
+  "defaultSince": "last monday",
+  "defaultUntil": "now",
+  "includeEmptyProjects": false
+}
+```
 
 ### 15.2 扫描项目
 
@@ -600,7 +789,7 @@ weekly scan
 作用：
 
 1. 根据配置扫描 Git 项目。
-2. 生成 `projects.json`。
+2. 生成 `~/.weekly-git-report/projects.json`。
 3. 输出扫描结果摘要。
 
 可选参数：
@@ -610,13 +799,19 @@ weekly scan --root ~/work --root ~/Code
 weekly scan --max-depth 6
 ```
 
+参数优先级：
+
+```text
+CLI 参数 > config.json
+```
+
 ### 15.3 查看项目列表
 
 ```bash
 weekly list
 ```
 
-输出：
+输出示例：
 
 ```text
 order-service   main      git@gitlab.company.com:backend/order-service.git
@@ -641,7 +836,39 @@ weekly collect --all
 weekly collect --backup
 ```
 
-### 15.5 输出结果
+第一版不支持：
+
+```bash
+weekly collect --output
+```
+
+输出目录只通过 `config.json` 中的 `outputRoot` 控制。
+
+### 15.5 输出目录规则
+
+`weekly collect` 生成文件时，应读取配置文件中的 `outputRoot` 作为输出根目录。
+
+默认输出：
+
+```text
+~/weekly-reports/raw/{YYYY}/{MM}/{YYYY-MM-DD}_{YYYY-MM-DD}/
+```
+
+如果 `config.json` 中配置：
+
+```json
+{
+  "outputRoot": "~/Documents/company-weekly-reports"
+}
+```
+
+则输出到：
+
+```text
+~/Documents/company-weekly-reports/raw/{YYYY}/{MM}/{YYYY-MM-DD}_{YYYY-MM-DD}/
+```
+
+### 15.6 采集完成输出
 
 采集完成后输出：
 
@@ -653,6 +880,7 @@ Projects: 3
 Commits: 16
 Updated files: 3
 Skipped files: 0
+Errors: 0
 ```
 
 ---
@@ -660,6 +888,20 @@ Skipped files: 0
 ## 16. MCP Server 需求
 
 MCP Server 需要读取本地配置、项目索引、原始记录目录，并向 Agent 暴露工具。
+
+MCP Server 读取配置文件：
+
+```text
+~/.weekly-git-report/config.json
+```
+
+MCP Server 读取项目索引：
+
+```text
+~/.weekly-git-report/projects.json
+```
+
+MCP Server 读取 Git 原始记录时，必须基于 `config.json` 中的 `outputRoot` 计算路径。
 
 ### 16.1 MCP Tool: list_projects
 
@@ -728,6 +970,7 @@ MCP Server 需要读取本地配置、项目索引、原始记录目录，并向
 
 - `projectIds` 为空时采集全部项目。
 - `projectIds` 不为空时只采集指定项目。
+- 输出目录由 `config.json` 中的 `outputRoot` 决定。
 
 返回：
 
@@ -737,7 +980,8 @@ MCP Server 需要读取本地配置、项目索引、原始记录目录，并向
   "indexFile": "~/weekly-reports/raw/2026/06/2026-06-01_2026-06-07/index.md",
   "manifestFile": "~/weekly-reports/raw/2026/06/2026-06-01_2026-06-07/manifest.json",
   "projectCount": 3,
-  "commitCount": 16
+  "commitCount": 16,
+  "errors": []
 }
 ```
 
@@ -814,6 +1058,17 @@ export const PeriodSchema = z.object({
   end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
 
+export const ConfigSchema = z.object({
+  roots: z.array(z.string()).min(1),
+  excludeDirs: z.array(z.string()).default([]),
+  maxDepth: z.number().int().positive().default(5),
+  outputRoot: z.string().default("~/weekly-reports"),
+  author: z.string().optional().default(""),
+  defaultSince: z.string().optional().default("last monday"),
+  defaultUntil: z.string().optional().default("now"),
+  includeEmptyProjects: z.boolean().default(false),
+});
+
 export const ProjectSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -843,9 +1098,10 @@ export const CollectOptionsSchema = z.object({
 如果某个项目路径不存在或无法执行 Git 命令：
 
 1. 不应中断全部任务。
-2. 在结果中记录失败项目。
-3. 在 `manifest.json` 中记录错误信息。
+2. 当前项目跳过。
+3. 在 `manifest.json` 的 `errors` 中记录失败项目。
 4. CLI 输出 warning。
+5. 继续处理其他项目。
 
 ### 18.2 Git 命令失败
 
@@ -864,15 +1120,26 @@ fatal: bad revision
 
 ### 18.3 配置文件不存在
 
-执行非 `init` 命令时，如果配置文件不存在：
+执行非 `init` 命令时，如果配置文件不存在，应提示用户先执行：
 
-1. 提示用户先执行 `weekly init`。
-2. 或自动创建默认配置，具体策略由开发决定。
+```bash
+weekly init
+```
 
-推荐第一版采用显式初始化：
+错误提示：
 
 ```text
 Config not found. Please run: weekly init
+```
+
+### 18.4 outputRoot 不存在
+
+如果 `outputRoot` 目录不存在，`weekly collect` 应自动创建。
+
+如果没有权限创建，应中断采集并提示：
+
+```text
+Failed to create outputRoot: {path}
 ```
 
 ---
@@ -898,7 +1165,35 @@ commit message 可能包含 Markdown 表格特殊字符，需要处理。
 
 ---
 
-## 20. 安全与隐私
+## 20. 路径处理规则
+
+需要支持 `~` 路径展开。
+
+例如：
+
+```text
+~/weekly-reports
+```
+
+在 macOS 上应解析为：
+
+```text
+/Users/{username}/weekly-reports
+```
+
+在 Linux 上应解析为：
+
+```text
+/home/{username}/weekly-reports
+```
+
+Windows 可按 Node.js 的 home directory 规则解析。
+
+所有写入文件前，应将路径规范化为绝对路径。
+
+---
+
+## 21. 安全与隐私
 
 1. 本工具默认只在本地运行。
 2. 不上传 Git 提交内容。
@@ -907,10 +1202,11 @@ commit message 可能包含 Markdown 表格特殊字符，需要处理。
 5. 不允许 MCP tool 读取任意系统路径。
 6. 不保存 Git 凭证。
 7. 不执行来自用户输入的任意 shell 命令。
+8. 所有路径必须经过规范化处理，避免路径穿越问题。
 
 ---
 
-## 21. 开发里程碑
+## 22. 开发里程碑
 
 ### Milestone 1：CLI 基础能力
 
@@ -918,6 +1214,7 @@ commit message 可能包含 Markdown 表格特殊字符，需要处理。
 - 扫描 Git 项目
 - 生成 projects.json
 - 查看项目列表
+- 支持 outputRoot 配置
 
 ### Milestone 2：Git 采集与 Markdown 输出
 
@@ -926,6 +1223,7 @@ commit message 可能包含 Markdown 表格特殊字符，需要处理。
 - 生成 index.md
 - 生成 manifest.json
 - 支持幂等覆盖
+- 支持自定义 outputRoot 输出
 
 ### Milestone 3：MCP Server
 
@@ -934,6 +1232,7 @@ commit message 可能包含 Markdown 表格特殊字符，需要处理。
 - 提供 collect_git_logs
 - 提供 get_week_index
 - 提供 read_week_raw
+- MCP 读取 outputRoot 下的原始记录
 
 ### Milestone 4：稳定性增强
 
@@ -945,16 +1244,40 @@ commit message 可能包含 Markdown 表格特殊字符，需要处理。
 
 ---
 
-## 22. 验收标准
+## 23. 验收标准
 
-### 22.1 扫描验收
+### 23.1 初始化验收
+
+执行：
+
+```bash
+weekly init
+```
+
+应生成：
+
+```text
+~/.weekly-git-report/
+  config.json
+```
+
+默认配置中应包含：
+
+```json
+{
+  "outputRoot": "~/weekly-reports"
+}
+```
+
+### 23.2 扫描验收
 
 给定配置：
 
 ```json
 {
   "roots": ["~/work"],
-  "maxDepth": 5
+  "maxDepth": 5,
+  "outputRoot": "~/weekly-reports"
 }
 ```
 
@@ -972,7 +1295,7 @@ weekly scan
 
 并包含所有扫描到的 Git 项目。
 
-### 22.2 采集验收
+### 23.3 默认采集验收
 
 执行：
 
@@ -989,7 +1312,40 @@ weekly collect --since 2026-06-01 --until 2026-06-07
   *.md
 ```
 
-### 22.3 幂等验收
+### 23.4 自定义 outputRoot 验收
+
+如果配置文件中设置：
+
+```json
+{
+  "outputRoot": "~/Documents/company-weekly-reports"
+}
+```
+
+执行：
+
+```bash
+weekly collect --since 2026-06-01 --until 2026-06-07
+```
+
+应生成：
+
+```text
+~/Documents/company-weekly-reports/raw/2026/06/2026-06-01_2026-06-07/
+  index.md
+  manifest.json
+  *.md
+```
+
+不应再写入默认目录：
+
+```text
+~/weekly-reports/raw/2026/06/2026-06-01_2026-06-07/
+```
+
+除非用户配置的 `outputRoot` 本身就是默认路径。
+
+### 23.5 幂等验收
 
 连续执行两次：
 
@@ -1005,7 +1361,7 @@ weekly collect --since 2026-06-01 --until 2026-06-07
 4. `manifest.json` 中项目数量不重复。
 5. 若 commit 内容无变化，contentHash 保持一致。
 
-### 22.4 MCP 验收
+### 23.6 MCP 验收
 
 Agent 调用：
 
@@ -1022,10 +1378,11 @@ read_week_raw
 2. 采集指定周期 Git 记录。
 3. 读取周期索引。
 4. 读取该周期所有项目原始记录。
+5. 正确使用 `config.json` 中的 `outputRoot`。
 
 ---
 
-## 23. 推荐使用流程
+## 24. 推荐使用流程
 
 用户首次使用：
 
@@ -1047,6 +1404,28 @@ weekly collect
 weekly collect --since 2026-06-01 --until 2026-06-07
 ```
 
+自定义输出目录：
+
+1. 编辑配置文件：
+
+```text
+~/.weekly-git-report/config.json
+```
+
+2. 修改：
+
+```json
+{
+  "outputRoot": "~/Documents/company-weekly-reports"
+}
+```
+
+3. 执行：
+
+```bash
+weekly collect
+```
+
 Agent 使用：
 
 ```text
@@ -1057,7 +1436,7 @@ Agent 使用：
 
 ---
 
-## 24. 后续扩展方向
+## 25. 后续扩展方向
 
 1. 支持 GitHub / GitLab PR 记录采集。
 2. 支持 Jira / TAPD / 禅道任务记录采集。
@@ -1067,10 +1446,11 @@ Agent 使用：
 6. 支持 Web UI 查看周报原始记录。
 7. 支持 VS Code 插件。
 8. 支持定时任务自动采集。
+9. 支持 CLI 参数临时覆盖输出目录，例如 `weekly collect --output`。
 
 ---
 
-## 25. 第一版建议实现范围
+## 26. 第一版建议实现范围
 
 第一版建议只实现以下能力：
 
@@ -1078,11 +1458,21 @@ Agent 使用：
 2. `weekly scan`
 3. `weekly list`
 4. `weekly collect`
-5. 生成 `projects.json`
-6. 生成项目 Markdown
-7. 生成 `index.md`
-8. 生成 `manifest.json`
-9. 默认覆盖模式
-10. Zod 参数校验
+5. 生成 `config.json`
+6. 生成 `projects.json`
+7. 生成项目 Markdown
+8. 生成 `index.md`
+9. 生成 `manifest.json`
+10. 默认覆盖模式
+11. Zod 参数校验
+12. 支持通过 `config.json` 的 `outputRoot` 自定义输出目录
 
 MCP Server 可以作为第二阶段实现，但 monorepo 结构可以第一版就预留出来。
+
+第一版不要求支持：
+
+1. 自定义工具工作目录
+2. `weekly collect --output`
+3. GitHub / GitLab PR API
+4. Jira / TAPD / 禅道 API
+5. 自动生成最终公司周报
