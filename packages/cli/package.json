@@ -22,6 +22,8 @@
     "lint": "eslint . --max-warnings 0"
   },
   "dependencies": {
+    "kolorist": "catalog:",
+    "prompts": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
@@ -30,6 +32,7 @@
     "@weekly-git-report/shared": "workspace:*",
     "@weekly-git-report/typescript-config": "workspace:*",
     "@types/node": "catalog:",
+    "@types/prompts": "catalog:",
     "eslint": "catalog:",
     "tsup": "catalog:",
     "typescript": "catalog:"

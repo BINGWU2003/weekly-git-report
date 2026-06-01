@@ -1,7 +1,8 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
+
+import { intro, outro, promptOptions, prompts } from "../utils/prompt.js";
 
 type SkillTarget = "all" | "claude" | "codex" | "opencode";
 
@@ -66,18 +67,41 @@ async function promptSkillTarget(): Promise<SkillTarget> {
     return "opencode";
   }
 
-  const prompt = createInterface({ input: process.stdin, output: process.stdout });
+  intro("weekly-git-report skill");
 
-  try {
-    console.log("Install weekly-git-report skill for:");
-    console.log("  1. opencode (.opencode/skill/weekly-git-report/SKILL.md)");
-    console.log("  2. claude (.claude/skill/weekly-git-report/SKILL.md)");
-    console.log("  3. codex (.codex/skill/weekly-git-report/SKILL.md)");
-    const answer = await prompt.question("? Target model/client (opencode): ");
-    return parseSkillTarget(answer.trim() || "opencode");
-  } finally {
-    prompt.close();
-  }
+  const answer = await prompts(
+    {
+      type: "select",
+      name: "target",
+      message: "Target model/client",
+      initial: 0,
+      choices: [
+        {
+          title: "opencode",
+          description: ".opencode/skill/weekly-git-report/SKILL.md",
+          value: "opencode",
+        },
+        {
+          title: "claude",
+          description: ".claude/skill/weekly-git-report/SKILL.md",
+          value: "claude",
+        },
+        {
+          title: "codex",
+          description: ".codex/skill/weekly-git-report/SKILL.md",
+          value: "codex",
+        },
+        {
+          title: "all",
+          description: "Install all targets",
+          value: "all",
+        },
+      ],
+    },
+    promptOptions(),
+  );
+
+  return parseSkillTarget(String(answer.target ?? "opencode"));
 }
 
 async function installSkill(options: Required<SkillInstallOptions>): Promise<void> {
@@ -86,10 +110,12 @@ async function installSkill(options: Required<SkillInstallOptions>): Promise<voi
       await installSkillFile(target, options.force);
     }
 
+    outro("All skills installed.");
     return;
   }
 
   await installSkillFile(options.target, options.force);
+  outro("Skill installed.");
 }
 
 async function installSkillFile(
