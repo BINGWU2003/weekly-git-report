@@ -62,10 +62,11 @@ pnpm build
 
 ## 发布说明
 
-本仓库准备发布两个 npm 包：
+本仓库准备发布三个 npm 包：
 
 - `@weekly-git-report/cli`：提供 `weekly` 命令。
 - `@weekly-git-report/mcp-server`：提供 `weekly-git-report-mcp` 命令。
+- `@weekly-git-report/agent-cli`：提供 `weekly-agent` 命令，给 Agent Skill 按需调用。
 
 发包前建议执行完整检查：
 
@@ -77,7 +78,7 @@ pnpm build
 ```
 
 构建产物由 `tsup` 生成到各包的 `dist/` 目录。
-`@weekly-git-report/core` 和 `@weekly-git-report/shared` 是内部包，不单独发布，会被打进 CLI 和 MCP Server 的构建产物。
+`@weekly-git-report/core`、`@weekly-git-report/shared` 和 `@weekly-git-report/workflow` 是内部包，不单独发布，会被打进公开包的构建产物。
 
 ### 包与命令
 
@@ -85,6 +86,7 @@ pnpm build
 | ------------------------------- | --------------------- | ----------------------- | ------------------ |
 | `@weekly-git-report/cli`        | `packages/cli`        | `weekly`                | CLI 扫描与采集工具 |
 | `@weekly-git-report/mcp-server` | `packages/mcp-server` | `weekly-git-report-mcp` | MCP stdio server   |
+| `@weekly-git-report/agent-cli`  | `packages/agent-cli`  | `weekly-agent`          | Agent 按需调用 CLI |
 
 CLI 构建产物：
 
@@ -96,6 +98,12 @@ MCP Server 构建产物：
 
 ```text
 packages/mcp-server/dist/index.js
+```
+
+Agent CLI 构建产物：
+
+```text
+packages/agent-cli/dist/index.js
 ```
 
 ### 发布命令
@@ -114,7 +122,7 @@ pnpm changeset
 pnpm version-packages
 ```
 
-发布两个包：
+发布公开包：
 
 ```sh
 pnpm release
@@ -134,15 +142,17 @@ $env:NPM_TOKEN="your-npm-token"
 pnpm release
 ```
 
-Changesets 配置只发布以下两个包：
+Changesets 配置只发布以下公开包：
 
 - `@weekly-git-report/cli`
 - `@weekly-git-report/mcp-server`
+- `@weekly-git-report/agent-cli`
 
 以下包会被忽略，不会发布：
 
 - `@weekly-git-report/core`
 - `@weekly-git-report/shared`
+- `@weekly-git-report/workflow`
 - `@weekly-git-report/eslint-config`
 - `@weekly-git-report/typescript-config`
 
@@ -157,6 +167,14 @@ npm install -g @weekly-git-report/cli
 ```
 
 MCP Server 不需要全局安装，推荐在 MCP Client 配置中通过 `npx` 按需安装和启动。
+
+Agent Skill 不需要 MCP 常驻，推荐通过 `weekly-agent` 按需调用：
+
+```sh
+npx -y @weekly-git-report/agent-cli@latest skill install
+```
+
+安装后重启 opencode，让 Skill 生效。
 
 安装后可用 CLI 命令：
 
@@ -478,6 +496,32 @@ MCP 读取原始记录时只允许访问 `config.json` 中 `outputRoot` 下的�
 }
 ```
 
+## Agent Skill 按需模式
+
+如果不想常驻加载 MCP tools，可以使用 Agent Skill 按需模式。
+
+在目标项目中安装 Skill：
+
+```sh
+npx -y @weekly-git-report/agent-cli@latest skill install
+```
+
+这会创建：
+
+```text
+.opencode/skills/weekly-git-report/SKILL.md
+```
+
+Skill 触发后会指导 Agent 通过 `weekly-agent` 临时命令采集、读取 raw 并保存 summary，不需要配置 MCP。
+
+常用命令：
+
+```sh
+npx -y @weekly-git-report/agent-cli@latest collect --since 2026-06-01 --until 2026-06-07 --all
+npx -y @weekly-git-report/agent-cli@latest raw read --start 2026-06-01 --end 2026-06-07
+npx -y @weekly-git-report/agent-cli@latest summary save --start 2026-06-01 --end 2026-06-07 --file summary.md
+```
+
 ## 幂等策略
 
 - 同一项目和同一周期始终写入同一个 Markdown 文件。
@@ -491,7 +535,9 @@ MCP 读取原始记录时只允许访问 `config.json` 中 `outputRoot` 下的�
 
 - `packages/shared`：常量、Zod schemas、类型。
 - `packages/core`：配置、路径、Git、扫描、采集、写入逻辑。
+- `packages/workflow`：MCP 与 Agent CLI 共用的业务流程层，私有包不发布。
 - `packages/cli`：CLI 命令入口。
 - `packages/mcp-server`：MCP stdio server 和 Agent 工具。
+- `packages/agent-cli`：Agent Skill 按需调用的非交互 CLI。
 - `packages/eslint-config`：共享 ESLint 配置。
 - `packages/typescript-config`：共享 TypeScript 配置。

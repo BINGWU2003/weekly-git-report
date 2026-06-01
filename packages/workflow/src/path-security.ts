@@ -2,12 +2,16 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
 import {
+  getOutputRoot,
+  getPeriodOutputDir,
+  getSummaryDir,
+} from "@weekly-git-report/core";
+import {
   INDEX_FILE_NAME,
   MANIFEST_FILE_NAME,
   ManifestSchema,
 } from "@weekly-git-report/shared";
 import type { Manifest, Period } from "@weekly-git-report/shared";
-import { getOutputRoot, getPeriodOutputDir, getSummaryDir } from "@weekly-git-report/core";
 
 export function assertWithinOutputRoot(targetPath: string, outputRoot: string): void {
   const root = getOutputRoot(outputRoot);
@@ -15,7 +19,7 @@ export function assertWithinOutputRoot(targetPath: string, outputRoot: string): 
   const relative = path.relative(root, target);
 
   if (relative.startsWith("..") || path.isAbsolute(relative)) {
-    throw new Error(`Refusing to read outside outputRoot: ${target}`);
+    throw new Error(`Refusing to access outside outputRoot: ${target}`);
   }
 }
 
@@ -45,10 +49,7 @@ export async function readWeekManifest(
   return ManifestSchema.parse(JSON.parse(await readFile(manifestFile, "utf8")));
 }
 
-export async function readWeekProjectFiles(
-  outputRoot: string,
-  period: Period,
-) {
+export async function readWeekProjectFiles(outputRoot: string, period: Period) {
   const outputDir = getSafePeriodOutputDir(outputRoot, period);
   const manifest = await readWeekManifest(outputRoot, period);
   const manifestFiles = new Set(manifest.projects.map((project) => project.file.replace(/^\.\//, "")));

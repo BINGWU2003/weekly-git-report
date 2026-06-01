@@ -1,9 +1,9 @@
 {
-  "name": "@weekly-git-report/mcp-server",
+  "name": "@weekly-git-report/agent-cli",
   "version": "1.0.1",
   "type": "module",
   "bin": {
-    "weekly-git-report-mcp": "./dist/index.js"
+    "weekly-agent": "./dist/index.js"
   },
   "exports": {
     ".": {
@@ -13,6 +13,7 @@
   },
   "files": [
     "dist",
+    "skills",
     "README.md"
   ],
   "scripts": {
@@ -20,10 +21,7 @@
     "check-types": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0"
   },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "catalog:",
-    "zod": "catalog:"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@weekly-git-report/eslint-config": "workspace:*",
     "@weekly-git-report/core": "workspace:*",

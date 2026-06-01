@@ -69,6 +69,36 @@ importers:
         specifier: 'catalog:'
         version: 5.9.2
 
+  packages/agent-cli:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.15.3
+      '@weekly-git-report/core':
+        specifier: workspace:*
+        version: link:../core
+      '@weekly-git-report/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@weekly-git-report/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@weekly-git-report/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@weekly-git-report/workflow':
+        specifier: workspace:*
+        version: link:../workflow
+      eslint:
+        specifier: 'catalog:'
+        version: 9.39.4
+      tsup:
+        specifier: 'catalog:'
+        version: 8.5.1(typescript@5.9.2)
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.2
+
   packages/cli:
     dependencies:
       zod:
@@ -176,6 +206,9 @@ importers:
       '@weekly-git-report/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
+      '@weekly-git-report/workflow':
+        specifier: workspace:*
+        version: link:../workflow
       eslint:
         specifier: 'catalog:'
         version: 9.39.4
@@ -216,6 +249,34 @@ importers:
       tsup:
         specifier: 'catalog:'
         version: 8.5.1(typescript@5.9.2)
+
+  packages/workflow:
+    dependencies:
+      '@weekly-git-report/core':
+        specifier: workspace:*
+        version: link:../core
+      '@weekly-git-report/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.15.3
+      '@weekly-git-report/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@weekly-git-report/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      eslint:
+        specifier: 'catalog:'
+        version: 9.39.4
+      tsup:
+        specifier: 'catalog:'
+        version: 8.5.1(typescript@5.9.2)
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.2
 
 packages:
 

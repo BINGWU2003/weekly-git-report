@@ -8,6 +8,7 @@
   "ignore": [
     "@weekly-git-report/core",
     "@weekly-git-report/shared",
+    "@weekly-git-report/workflow",
     "@weekly-git-report/eslint-config",
     "@weekly-git-report/typescript-config"
   ],
