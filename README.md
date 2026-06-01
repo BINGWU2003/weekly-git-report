@@ -150,29 +150,30 @@ Changesets 配置只发布以下两个包：
 
 ### 安装方式
 
-只需要 CLI：
+CLI 建议全局安装，提供 `weekly` 命令：
 
 ```sh
 npm install -g @weekly-git-report/cli
 ```
 
-只需要 MCP Server：
+MCP Server 不需要全局安装，推荐在 MCP Client 配置中通过 `npx` 按需安装和启动。
 
-```sh
-npm install -g @weekly-git-report/mcp-server
-```
-
-两者都需要：
-
-```sh
-npm install -g @weekly-git-report/cli @weekly-git-report/mcp-server
-```
-
-安装后可用命令：
+安装后可用 CLI 命令：
 
 ```sh
 weekly --help
-weekly-git-report-mcp
+```
+
+如果只想临时验证 MCP Server 能否启动，可以运行：
+
+```sh
+npx -y @weekly-git-report/mcp-server@latest
+```
+
+也可以指定固定版本，避免自动使用最新版本：
+
+```sh
+npx -y @weekly-git-report/mcp-server@1.0.0
 ```
 
 ## CLI 使用
@@ -348,10 +349,10 @@ weekly collect --since 2026-06-01 --until 2026-06-07
 node packages/mcp-server/dist/index.js
 ```
 
-发布并安装 `@weekly-git-report/mcp-server` 后，可以直接使用 bin 命令启动：
+发布到 npm 后，推荐通过 `npx` 按需启动，不需要全局安装：
 
 ```sh
-weekly-git-report-mcp
+npx -y @weekly-git-report/mcp-server@latest
 ```
 
 ### MCP Client 配置
@@ -373,20 +374,20 @@ weekly-git-report-mcp
 }
 ```
 
-发布并全局安装 `@weekly-git-report/mcp-server` 后使用 bin 命令：
+发布到 npm 后，推荐让 MCP Client 通过 `npx` 自动安装并启动：
 
 ```json
 {
   "mcpServers": {
     "weekly-git-report": {
-      "command": "weekly-git-report-mcp",
-      "args": []
+      "command": "npx",
+      "args": ["-y", "@weekly-git-report/mcp-server@latest"]
     }
   }
 }
 ```
 
-如果 MCP Client 不继承系统 PATH，可以改用完整命令路径，或用 `node` 加包内 `dist/index.js` 的绝对路径。
+如需固定版本，将 `@latest` 改成具体版本，例如 `@weekly-git-report/mcp-server@1.0.0`。
 
 ### MCP 使用前准备
 
