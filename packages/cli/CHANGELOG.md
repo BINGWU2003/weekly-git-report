@@ -1,5 +1,11 @@
 # @weekly-git-report/cli
 
+## 1.0.2
+
+### Patch Changes
+
+- skill初始化目录矫正
+
 ## 1.0.1
 
 ### Patch Changes
