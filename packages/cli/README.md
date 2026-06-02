@@ -99,9 +99,9 @@ weekly skill install --force
 
 | Target | 写入位置 | 说明 |
 | --- | --- | --- |
-| `opencode` | `.opencode/skill/weekly-git-report/SKILL.md` | opencode 项目 Skill。 |
-| `claude` | `.claude/skill/weekly-git-report/SKILL.md` | Claude Code 项目 Skill。 |
-| `codex` | `.codex/skill/weekly-git-report/SKILL.md` | Codex 项目 Skill。 |
+| `opencode` | `.opencode/skills/weekly-git-report/SKILL.md` | opencode 项目 Skill。 |
+| `claude` | `.claude/skills/weekly-git-report/SKILL.md` | Claude Code 项目 Skill。 |
+| `codex` | `.codex/skills/weekly-git-report/SKILL.md` | Codex 项目 Skill。 |
 | `all` | 以上全部位置 | 同时安装 opencode、Claude Code 和 Codex。 |
 
 `--force` 会覆盖已有 Skill 文件。
@@ -109,7 +109,7 @@ weekly skill install --force
 opencode 安装位置：
 
 ```text
-.opencode/skill/weekly-git-report/SKILL.md
+.opencode/skills/weekly-git-report/SKILL.md
 ```
 
 安装后需要重启对应 Agent 客户端。

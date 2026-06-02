@@ -606,16 +606,16 @@ npx -y @weekly-git-report/cli@latest skill install --target all
 默认 `opencode` 目标会创建：
 
 ```text
-.opencode/skill/weekly-git-report/SKILL.md
+.opencode/skills/weekly-git-report/SKILL.md
 ```
 
 不同目标写入位置：
 
 | Target | 写入位置 |
 | --- | --- |
-| `opencode` | `.opencode/skill/weekly-git-report/SKILL.md` |
-| `claude` | `.claude/skill/weekly-git-report/SKILL.md` |
-| `codex` | `.codex/skill/weekly-git-report/SKILL.md` |
+| `opencode` | `.opencode/skills/weekly-git-report/SKILL.md` |
+| `claude` | `.claude/skills/weekly-git-report/SKILL.md` |
+| `codex` | `.codex/skills/weekly-git-report/SKILL.md` |
 | `all` | 同时写入以上全部位置 |
 
 Skill 触发后会指导 Agent 通过 `weekly-agent` 临时命令采集、读取 raw 并保存 summary，不需要配置 MCP。

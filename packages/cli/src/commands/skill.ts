@@ -73,17 +73,17 @@ async function promptSkillTarget(): Promise<SkillTarget> {
       choices: [
         {
           title: "opencode",
-          description: ".opencode/skill/weekly-git-report/SKILL.md",
+          description: ".opencode/skills/weekly-git-report/SKILL.md",
           value: "opencode",
         },
         {
           title: "claude",
-          description: ".claude/skill/weekly-git-report/SKILL.md",
+          description: ".claude/skills/weekly-git-report/SKILL.md",
           value: "claude",
         },
         {
           title: "codex",
-          description: ".codex/skill/weekly-git-report/SKILL.md",
+          description: ".codex/skills/weekly-git-report/SKILL.md",
           value: "codex",
         },
         {
@@ -136,7 +136,7 @@ function getSkillFilePath(target: SkillTarget): string {
   return path.resolve(
     process.cwd(),
     rootDir,
-    "skill",
+    "skills",
     "weekly-git-report",
     "SKILL.md",
   );
