@@ -30,6 +30,84 @@ weekly skill install --target opencode
 
 CLI 会将配置保存到 `~/.weekly-git-report/config.json`，并将周报原始记录写入配置中的 `outputRoot`。
 
+## 配置文件
+
+### `~/.weekly-git-report/config.json`
+
+`weekly init` 会创建本地配置文件。示例：
+
+```json
+{
+  "roots": ["~/work", "~/Code", "~/Projects"],
+  "excludeDirs": ["node_modules", ".cache", "dist", "build", "vendor", "tmp"],
+  "maxDepth": 5,
+  "outputRoot": "~/weekly-reports",
+  "author": [],
+  "defaultSince": "last monday",
+  "defaultUntil": "now",
+  "includeEmptyProjects": false
+}
+```
+
+字段说明：
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `roots` | `string[]` | `['~/work', '~/Code', '~/Projects']` | `weekly scan` 默认扫描的根目录，至少需要一个目录。支持 `~` 表示用户主目录。 |
+| `excludeDirs` | `string[]` | `['node_modules', '.cache', 'dist', 'build', 'vendor', 'tmp']` | 扫描时跳过的目录名，只按目录名匹配，不需要写完整路径。 |
+| `maxDepth` | `number` | `5` | 扫描 Git 项目的最大递归深度，必须是正整数；`weekly scan --max-depth` 会覆盖本次扫描的值。 |
+| `outputRoot` | `string` | `'~/weekly-reports'` | raw、summary 输出根目录。支持 `~`、相对路径和绝对路径；Windows 路径建议写成 `D:/files`。 |
+| `author` | `string[]` | `[]` | 默认采集的 Git 作者；`weekly collect --author` 优先级更高。为空时使用当前目录的 `git config user.name`；兼容字符串写法。 |
+| `defaultSince` | `string` | `'last monday'` | 不传 `weekly collect --since` 时使用的开始日期。支持 `YYYY-MM-DD` 或 `last monday`。 |
+| `defaultUntil` | `string` | `'now'` | 不传 `weekly collect --until` 时使用的结束日期。支持 `YYYY-MM-DD` 或 `now`。 |
+| `includeEmptyProjects` | `boolean` | `false` | 是否为没有匹配 commit 的项目生成 raw 项目文件。 |
+
+### `~/.weekly-git-report/projects.json`
+
+`weekly scan` 会生成项目索引文件。示例：
+
+```json
+{
+  "version": 1,
+  "generatedAt": "2026-06-09T01:00:00.000Z",
+  "projects": [
+    {
+      "id": "github.com/acme/order-service",
+      "name": "order-service",
+      "fileName": "order-service.md",
+      "path": "D:/workspace/order-service",
+      "remote": "git@github.com:acme/order-service.git",
+      "branch": "main",
+      "lastCommitAt": "2026-06-08T10:30:00+08:00",
+      "isDuplicate": false
+    }
+  ]
+}
+```
+
+顶层字段说明：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `version` | `1` | 项目索引格式版本，当前固定为 `1`。 |
+| `generatedAt` | `string` | 索引生成时间，ISO 时间字符串。 |
+| `projects` | `Project[]` | 扫描到的 Git 项目列表。 |
+
+`projects` 项字段说明：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | `string` | 项目唯一标识。有 `origin` remote 时由 remote 规范化得到；没有 remote 时使用项目路径。`weekly collect --project` 可传 `id` 或 `name`。 |
+| `name` | `string` | 项目目录名。 |
+| `fileName` | `string` | 采集 raw 时写入的 Markdown 文件名，由项目名清洗非法文件名字符后生成。 |
+| `path` | `string` | 本地 Git 项目绝对路径。 |
+| `remote` | `string` | 可选，`origin` remote URL。 |
+| `branch` | `string` | 可选，扫描时的当前分支名。 |
+| `lastCommitAt` | `string` | 可选，最近一次 commit 时间，来自 `git log -1 --format=%cI`。 |
+| `isDuplicate` | `boolean` | 重复项目标记，当前扫描会按 `id` 去重，保留最近活跃的路径，写入的项目通常为 `false`。 |
+
+`projects.json` 由 `weekly scan` 维护，重新扫描会更新该文件。
+
 ## 命令
 
 ### `weekly init`
