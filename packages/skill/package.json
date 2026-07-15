@@ -1,6 +1,11 @@
 {
   "name": "@weekly-git-report/skill",
   "version": "1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BINGWU2003/weekly-git-report",
+    "directory": "packages/skill"
+  },
   "type": "module",
   "bin": {
     "weekly-skill": "./dist/index.js"
