@@ -20,7 +20,7 @@
 - 不注册 MCP tools。
 - 不决定 Agent 的周报总结格式。
 
-这些逻辑由 `cli`、`mcp-server`、`agent-cli` 和 `workflow` 处理。
+这些逻辑由 `cli`、`mcp`、`agent-cli` 和 `workflow` 处理。
 
 ## 常用导出
 

@@ -1,6 +1,6 @@
 {
   "name": "@weekly-git-report/agent-cli",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "type": "module",
   "bin": {
     "weekly-agent": "./dist/index.js"

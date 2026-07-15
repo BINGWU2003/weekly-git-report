@@ -27,7 +27,8 @@ const server = new McpServer({
 server.registerTool(
   "list_projects",
   {
-    description: "列出已扫描的 Git 项目，数据来源为 ~/.weekly-git-report/projects.json。",
+    description:
+      "列出已扫描的 Git 项目，数据来源为 ~/.weekly-git-report/projects.json。",
     inputSchema: ListProjectsInputSchema,
   },
   async (input) => jsonResponse(await listProjects(input)),
@@ -36,7 +37,8 @@ server.registerTool(
 server.registerTool(
   "scan_projects",
   {
-    description: "扫描配置中或参数指定的根目录，并更新 projects.json 项目索引。",
+    description:
+      "扫描配置中或参数指定的根目录，并更新 projects.json 项目索引。",
     inputSchema: ScanProjectsInputSchema,
   },
   async (input) => jsonResponse(await scanProjects(input)),

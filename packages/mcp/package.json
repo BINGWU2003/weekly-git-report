@@ -1,9 +1,9 @@
 {
-  "name": "@weekly-git-report/cli",
-  "version": "2.0.0",
+  "name": "@weekly-git-report/mcp",
+  "version": "1.0.3",
   "type": "module",
   "bin": {
-    "weekly": "./dist/index.js"
+    "weekly-git-report-mcp": "./dist/index.js"
   },
   "exports": {
     ".": {
@@ -21,8 +21,7 @@
     "lint": "eslint . --max-warnings 0"
   },
   "dependencies": {
-    "kolorist": "catalog:",
-    "prompts": "catalog:",
+    "@modelcontextprotocol/sdk": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
@@ -30,8 +29,8 @@
     "@weekly-git-report/core": "workspace:*",
     "@weekly-git-report/shared": "workspace:*",
     "@weekly-git-report/typescript-config": "workspace:*",
+    "@weekly-git-report/workflow": "workspace:*",
     "@types/node": "catalog:",
-    "@types/prompts": "catalog:",
     "eslint": "catalog:",
     "tsup": "catalog:",
     "typescript": "catalog:"

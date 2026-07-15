@@ -243,7 +243,7 @@ function handleError(error: unknown): void {
     console.error("Config not found. Please run: weekly init");
     process.exitCode = 1;
   } else if (error instanceof ProjectsIndexNotFoundError) {
-    console.error("Projects index not found. Please run: weekly scan");
+    console.error("Projects index not found. Please run: weekly-agent projects scan");
     process.exitCode = 1;
   } else if (error instanceof Error) {
     console.error(error.message);

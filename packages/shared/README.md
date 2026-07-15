@@ -26,7 +26,7 @@ import type { Config, Period } from "@weekly-git-report/shared";
 
 ## 依赖关系
 
-只依赖 `zod`。它位于依赖链底层，被 `core`、`workflow`、`cli`、`mcp-server` 和 `agent-cli` 复用。
+只依赖 `zod`。它位于依赖链底层，被 `core`、`workflow`、`cli`、`mcp` 和 `agent-cli` 复用。
 
 ## 开发命令
 

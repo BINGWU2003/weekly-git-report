@@ -13,16 +13,8 @@ interface SkillInstallOptions {
   target?: SkillTarget;
 }
 
-export async function runSkillCommand(args: string[]): Promise<void> {
-  const [subcommand, ...rest] = args;
-
-  switch (subcommand) {
-    case "install":
-      await installSkill(await resolveInstallOptions(parseSkillInstallArgs(rest)));
-      break;
-    default:
-      throw new Error(`Unknown skill command: ${subcommand ?? ""}`);
-  }
+export async function runInstallCommand(args: string[]): Promise<void> {
+  await installSkill(await resolveInstallOptions(parseSkillInstallArgs(args)));
 }
 
 function parseSkillInstallArgs(args: string[]): SkillInstallOptions {
@@ -42,7 +34,7 @@ function parseSkillInstallArgs(args: string[]): SkillInstallOptions {
       continue;
     }
 
-    throw new Error(`Unknown skill install option: ${arg}`);
+    throw new Error(`Unknown install option: ${arg}`);
   }
 
   return options;
@@ -99,7 +91,9 @@ async function promptSkillTarget(): Promise<SkillTarget> {
   return parseSkillTarget(String(answer.target ?? "opencode"));
 }
 
-async function installSkill(options: Required<SkillInstallOptions>): Promise<void> {
+async function installSkill(
+  options: Required<SkillInstallOptions>,
+): Promise<void> {
   if (options.target === "all") {
     for (const target of SKILL_TARGETS) {
       await installSkillFile(target, options.force);
@@ -127,15 +121,15 @@ async function installSkillFile(
   });
 
   console.log(`Installed ${targetName} skill: ${target}`);
-  console.log(`Restart ${getRestartTargetName(targetName)} to load the new skill.`);
+  console.log(
+    `Restart ${getRestartTargetName(targetName)} to load the new skill.`,
+  );
 }
 
 function getSkillFilePath(target: SkillTarget): string {
-  const rootDir = `.${target}`;
-
   return path.resolve(
     process.cwd(),
-    rootDir,
+    `.${target}`,
     "skills",
     "weekly-git-report",
     "SKILL.md",
@@ -155,21 +149,10 @@ function getSkillTemplatePath(): string {
 function parseSkillTarget(value: string): SkillTarget {
   const normalized = value.trim().toLowerCase();
 
-  if (normalized === "all") {
-    return "all";
-  }
-
-  if (normalized === "1" || normalized === "opencode") {
-    return "opencode";
-  }
-
-  if (normalized === "2" || normalized === "claude") {
-    return "claude";
-  }
-
-  if (normalized === "3" || normalized === "codex") {
-    return "codex";
-  }
+  if (normalized === "all") return "all";
+  if (normalized === "1" || normalized === "opencode") return "opencode";
+  if (normalized === "2" || normalized === "claude") return "claude";
+  if (normalized === "3" || normalized === "codex") return "codex";
 
   throw new Error("Target must be one of: opencode, claude, codex, all");
 }
@@ -185,7 +168,11 @@ function getRestartTargetName(target: Exclude<SkillTarget, "all">): string {
   }
 }
 
-function readOptionValue(args: string[], index: number, option: string): string {
+function readOptionValue(
+  args: string[],
+  index: number,
+  option: string,
+): string {
   const value = args[index + 1];
   if (!value) {
     throw new Error(`Missing value for ${option}`);

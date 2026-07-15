@@ -1,40 +1,83 @@
 # @weekly-git-report/cli
 
-面向使用者的主 CLI，提供本地初始化、项目扫描、提交采集和 Agent Skill 安装能力。
+weekly-git-report 的初始化 CLI。它只负责创建本地配置和输出目录，不负责扫描项目、采集 Git 记录或安装 Agent Skill。
 
-这个包适合人手动执行。Agent 自动化执行请使用 `@weekly-git-report/agent-cli`。
+- 项目扫描、采集和周报读写：使用 `@weekly-git-report/agent-cli`
+- Agent Skill 安装：使用 `@weekly-git-report/skill`
+- MCP 常驻模式：使用 `@weekly-git-report/mcp`
+
+## 环境要求
+
+- Node.js 18 或更高版本
+- Windows、macOS 或 Linux
 
 ## 安装
 
+全局安装后使用 `weekly` 命令：
+
 ```sh
 npm install -g @weekly-git-report/cli
+weekly --help
 ```
 
 也可以通过 `npx` 临时执行：
 
 ```sh
-npx -y @weekly-git-report/cli@latest --help
+npx -y @weekly-git-report/cli@latest init
 ```
 
-## 使用
+## 快速开始
 
 ```sh
 weekly init
-weekly scan --root E:/workspace/project
-weekly list
-weekly collect --since 2026-06-01 --until 2026-06-07
-weekly skill install --target opencode
+npx -y @weekly-git-report/agent-cli@latest projects scan
 ```
 
-`weekly init` 会交互式询问项目扫描根目录 `roots` 和周报输出目录 `outputRoot`。多个 `roots` 目录用 `，` 隔开，直接回车会使用默认值。
+第一条命令创建配置和输出目录；第二条命令根据配置扫描 Git 项目。
 
-CLI 会将配置保存到 `~/.weekly-git-report/config.json`，并将周报原始记录写入配置中的 `outputRoot`。
+## 命令
+
+### `weekly init`
+
+```sh
+weekly init
+```
+
+该命令没有额外参数。
+
+首次运行且终端支持交互时，会询问：
+
+| 输入项       | 说明                                               | 默认值                           |
+| ------------ | -------------------------------------------------- | -------------------------------- |
+| `roots`      | Git 项目扫描根目录，多个目录可用中文或英文逗号分隔 | `~/work`、`~/Code`、`~/Projects` |
+| `outputRoot` | raw 和 summary 的输出根目录                        | `~/weekly-reports`               |
+
+非 TTY 环境不会显示交互问题，会直接使用默认配置。
+
+如果 `~/.weekly-git-report/config.json` 已存在，命令会读取现有配置并补齐输出目录，不会覆盖配置文件。
+
+成功输出示例：
+
+```text
+Created config: C:\Users\name\.weekly-git-report\config.json
+Roots: ~/work, ~/Code, ~/Projects
+Work dir: C:\Users\name\.weekly-git-report
+Output root: C:\Users\name\weekly-reports
+Raw dir: C:\Users\name\weekly-reports\raw
+Summary dir: C:\Users\name\weekly-reports\summary
+```
+
+配置已经存在时，第一行显示 `Config already exists`。
 
 ## 配置文件
 
-### `~/.weekly-git-report/config.json`
+配置保存在：
 
-`weekly init` 会创建本地配置文件。示例：
+```text
+~/.weekly-git-report/config.json
+```
+
+默认配置：
 
 ```json
 {
@@ -49,157 +92,78 @@ CLI 会将配置保存到 `~/.weekly-git-report/config.json`，并将周报原�
 }
 ```
 
-字段说明：
+| 字段                   | 类型       | 默认值                           | 说明                                                 |
+| ---------------------- | ---------- | -------------------------------- | ---------------------------------------------------- |
+| `roots`                | `string[]` | `~/work`、`~/Code`、`~/Projects` | 项目扫描根目录，至少需要一个                         |
+| `excludeDirs`          | `string[]` | 常见依赖和构建目录               | 扫描时按目录名跳过                                   |
+| `maxDepth`             | 正整数     | `5`                              | 项目扫描最大递归深度                                 |
+| `outputRoot`           | `string`   | `~/weekly-reports`               | raw 和 summary 输出根目录                            |
+| `author`               | `string[]` | `[]`                             | 默认 Git 作者；空数组时回退到 `git config user.name` |
+| `defaultSince`         | `string`   | `last monday`                    | 默认采集开始时间，当前主要供底层配置兼容使用         |
+| `defaultUntil`         | `string`   | `now`                            | 默认采集结束时间，当前主要供底层配置兼容使用         |
+| `includeEmptyProjects` | `boolean`  | `false`                          | 是否为没有匹配提交的项目生成 raw 文件                |
 
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `roots` | `string[]` | `['~/work', '~/Code', '~/Projects']` | `weekly scan` 默认扫描的根目录，至少需要一个目录。支持 `~` 表示用户主目录。 |
-| `excludeDirs` | `string[]` | `['node_modules', '.cache', 'dist', 'build', 'vendor', 'tmp']` | 扫描时跳过的目录名，只按目录名匹配，不需要写完整路径。 |
-| `maxDepth` | `number` | `5` | 扫描 Git 项目的最大递归深度，必须是正整数；`weekly scan --max-depth` 会覆盖本次扫描的值。 |
-| `outputRoot` | `string` | `'~/weekly-reports'` | raw、summary 输出根目录。支持 `~`、相对路径和绝对路径；Windows 路径建议写成 `D:/files`。 |
-| `author` | `string[]` | `[]` | 默认采集的 Git 作者；`weekly collect --author` 优先级更高。为空时使用当前目录的 `git config user.name`；兼容字符串写法。 |
-| `defaultSince` | `string` | `'last monday'` | 不传 `weekly collect --since` 时使用的开始日期。支持 `YYYY-MM-DD` 或 `last monday`。 |
-| `defaultUntil` | `string` | `'now'` | 不传 `weekly collect --until` 时使用的结束日期。支持 `YYYY-MM-DD` 或 `now`。 |
-| `includeEmptyProjects` | `boolean` | `false` | 是否为没有匹配 commit 的项目生成 raw 项目文件。 |
-
-### `~/.weekly-git-report/projects.json`
-
-`weekly scan` 会生成项目索引文件。示例：
+路径支持 `~`、相对路径和绝对路径。Windows JSON 路径建议使用 `/`：
 
 ```json
 {
-  "version": 1,
-  "generatedAt": "2026-06-09T01:00:00.000Z",
-  "projects": [
-    {
-      "id": "github.com/acme/order-service",
-      "name": "order-service",
-      "fileName": "order-service.md",
-      "path": "D:/workspace/order-service",
-      "remote": "git@github.com:acme/order-service.git",
-      "branch": "main",
-      "lastCommitAt": "2026-06-08T10:30:00+08:00",
-      "isDuplicate": false
-    }
-  ]
+  "roots": ["E:/workspace"],
+  "outputRoot": "D:/weekly-reports"
 }
 ```
 
-顶层字段说明：
+如果使用反斜杠，需要写成 `D:\\weekly-reports`。
 
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `version` | `1` | 项目索引格式版本，当前固定为 `1`。 |
-| `generatedAt` | `string` | 索引生成时间，ISO 时间字符串。 |
-| `projects` | `Project[]` | 扫描到的 Git 项目列表。 |
-
-`projects` 项字段说明：
-
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `id` | `string` | 项目唯一标识。有 `origin` remote 时由 remote 规范化得到；没有 remote 时使用项目路径。`weekly collect --project` 可传 `id` 或 `name`。 |
-| `name` | `string` | 项目目录名。 |
-| `fileName` | `string` | 采集 raw 时写入的 Markdown 文件名，由项目名清洗非法文件名字符后生成。 |
-| `path` | `string` | 本地 Git 项目绝对路径。 |
-| `remote` | `string` | 可选，`origin` remote URL。 |
-| `branch` | `string` | 可选，扫描时的当前分支名。 |
-| `lastCommitAt` | `string` | 可选，最近一次 commit 时间，来自 `git log -1 --format=%cI`。 |
-| `isDuplicate` | `boolean` | 重复项目标记，当前扫描会按 `id` 去重，保留最近活跃的路径，写入的项目通常为 `false`。 |
-
-`projects.json` 由 `weekly scan` 维护，重新扫描会更新该文件。
-
-## 命令
-
-### `weekly init`
-
-初始化本地工作目录和配置：
+## 创建的目录
 
 ```text
-~/.weekly-git-report/config.json
+~/.weekly-git-report/
+  config.json
+
+{outputRoot}/
+  raw/
+  summary/
 ```
 
-同时创建 `outputRoot/raw` 和 `outputRoot/summary`。
-
-### `weekly scan`
-
-扫描 Git 项目并写入项目索引：
+`projects.json` 不由初始化命令创建。执行项目扫描后才会生成：
 
 ```sh
-weekly scan
-weekly scan --root ~/work --root ~/Code
-weekly scan --max-depth 6
+npx -y @weekly-git-report/agent-cli@latest projects scan
 ```
 
-输出文件：
+## 常见问题
 
-```text
-~/.weekly-git-report/projects.json
-```
+### 修改配置后再次运行会覆盖吗？
 
-### `weekly list`
+不会。`weekly init` 只在配置文件不存在时创建文件。
 
-列出已扫描项目的名称、分支和 remote。
+### 如何重新生成默认配置？
 
-### `weekly collect`
+先自行备份并删除 `~/.weekly-git-report/config.json`，再执行 `weekly init`。命令本身不提供覆盖或删除选项。
 
-采集指定周期 Git commit 并写入 raw 目录：
+### 配置校验失败
+
+检查 JSON 语法，并确认 `roots` 至少包含一个字符串、`maxDepth` 是正整数。
+
+## 从 CLI 1.x 迁移
+
+CLI 2.0 只保留初始化命令：
+
+| CLI 1.x 命令           | 替代方式                                                     |
+| ---------------------- | ------------------------------------------------------------ |
+| `weekly scan`          | `weekly-agent projects scan`                                 |
+| `weekly list`          | `weekly-agent projects list`                                 |
+| `weekly collect`       | `weekly-agent collect`                                       |
+| `weekly skill install` | `weekly-skill install` 或直接运行 `@weekly-git-report/skill` |
+
+临时调用示例：
 
 ```sh
-weekly collect --since 2026-06-01 --until 2026-06-07
-weekly collect --author "张三" --author "李四"
-weekly collect --project order-service
-weekly collect --all
-weekly collect --backup
+npx -y @weekly-git-report/agent-cli@latest projects scan
+npx -y @weekly-git-report/skill@latest
 ```
-
-输出目录：
-
-```text
-{outputRoot}/raw/{YYYY}/{MM}/{YYYY-MM-DD}_{YYYY-MM-DD}/
-```
-
-### `weekly skill install`
-
-把 Agent Skill 安装到当前项目：
-
-```sh
-weekly skill install
-weekly skill install --target opencode
-weekly skill install --target claude
-weekly skill install --target codex
-weekly skill install --target all
-weekly skill install --force
-```
-
-不传 `--target` 时会交互选择目标；非 TTY 环境默认安装到 `opencode`。
-
-支持的目标：
-
-| Target | 写入位置 | 说明 |
-| --- | --- | --- |
-| `opencode` | `.opencode/skills/weekly-git-report/SKILL.md` | opencode 项目 Skill。 |
-| `claude` | `.claude/skills/weekly-git-report/SKILL.md` | Claude Code 项目 Skill。 |
-| `codex` | `.codex/skills/weekly-git-report/SKILL.md` | Codex 项目 Skill。 |
-| `all` | 以上全部位置 | 同时安装 opencode、Claude Code 和 Codex。 |
-
-`--force` 会覆盖已有 Skill 文件。
-
-opencode 安装位置：
-
-```text
-.opencode/skills/weekly-git-report/SKILL.md
-```
-
-安装后需要重启对应 Agent 客户端。
 
 ## 发布内容
 
-npm 包包含：
-
-- `dist`：CLI 构建产物。
-- `skills/weekly-git-report/SKILL.md`：Agent Skill 模板。
-- `README.md`。
-
-## 依赖关系
-
-`@weekly-git-report/cli` 直接调用 `@weekly-git-report/core`，用于初始化、扫描、采集和写入 raw。它不依赖 `@weekly-git-report/agent-cli`，Skill 只是通过模板中的 `npx` 命令按需调用 agent CLI。
+- `dist`：`weekly` 命令构建产物
+- `README.md`

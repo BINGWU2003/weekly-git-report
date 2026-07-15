@@ -1,4 +1,10 @@
-# @weekly-git-report/mcp-server
+# @weekly-git-report/mcp
+
+## 1.0.3
+
+### Patch Changes
+
+- 将 npm 包名从 `@weekly-git-report/mcp-server` 迁移为 `@weekly-git-report/mcp`。
 
 ## 1.0.2
 

@@ -1,9 +1,9 @@
 {
-  "name": "@weekly-git-report/mcp-server",
-  "version": "1.0.2",
+  "name": "@weekly-git-report/skill",
+  "version": "1.0.0",
   "type": "module",
   "bin": {
-    "weekly-git-report-mcp": "./dist/index.js"
+    "weekly-skill": "./dist/index.js"
   },
   "exports": {
     ".": {
@@ -13,6 +13,7 @@
   },
   "files": [
     "dist",
+    "skills",
     "README.md"
   ],
   "scripts": {
@@ -21,16 +22,14 @@
     "lint": "eslint . --max-warnings 0"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "catalog:",
-    "zod": "catalog:"
+    "kolorist": "catalog:",
+    "prompts": "catalog:"
   },
   "devDependencies": {
     "@weekly-git-report/eslint-config": "workspace:*",
-    "@weekly-git-report/core": "workspace:*",
-    "@weekly-git-report/shared": "workspace:*",
     "@weekly-git-report/typescript-config": "workspace:*",
-    "@weekly-git-report/workflow": "workspace:*",
     "@types/node": "catalog:",
+    "@types/prompts": "catalog:",
     "eslint": "catalog:",
     "tsup": "catalog:",
     "typescript": "catalog:"

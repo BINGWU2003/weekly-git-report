@@ -12,7 +12,7 @@ description: Use when the user asks to generate, summarize, or save weekly repor
 ## 工作流程
 
 1. 确定周报周期，格式为 `YYYY-MM-DD` 的开始日期和结束日期。
-2. 如果本地配置或项目索引不存在，先让用户执行 `weekly init` 和 `weekly scan`；如果 roots 明确，也可以执行 `weekly-agent projects scan`。
+2. 如果本地配置不存在，先让用户执行 `weekly init`。如果项目索引不存在，执行 `weekly-agent projects scan`。
 3. 采集 Git 原始记录：
 
 ```sh
