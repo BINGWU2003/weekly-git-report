@@ -1,5 +1,13 @@
 # @weekly-git-report/mcp
 
+## 2.0.0
+
+### Major Changes
+
+- b0c5160: 使用显式仓库、分支和作者身份配置替代目录扫描，并在采集前自动同步远程提交。
+
+  开发工具链迁移到 oxlint、oxfmt 与 Vitest，最低 Node.js 版本提升到 20.19。
+
 ## 1.0.3
 
 ### Patch Changes
@@ -11,16 +19,16 @@
 ### Patch Changes
 
 - d90389e: Add an on-demand Agent CLI for generating weekly summaries without loading MCP tools permanently. Move Skill installation into the human-facing CLI and refactor the MCP server to reuse the shared private workflow layer.
-- 支持skill调用，抽离公共逻辑
+- 支持 skill 调用，抽离公共逻辑
 
 ## 1.0.1
 
 ### Patch Changes
 
-- 新增save_week_summary
+- 新增 save_week_summary
 
 ## 1.0.0
 
 ### Major Changes
 
-- 发布mcp 和 cli
+- 发布 mcp 和 cli
