@@ -1,0 +1,4 @@
+{
+  "recommendations": ["oxc.oxc-vscode", "redhat.vscode-yaml", "vitest.explorer"],
+  "unwantedRecommendations": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode"]
+}

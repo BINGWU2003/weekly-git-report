@@ -145,4 +145,12 @@ pnpm build
 
 代码检查、格式化和测试分别由 oxlint、oxfmt 与 Vitest 负责。
 
+### VS Code
+
+打开工作区后安装推荐扩展，即可在保存时使用 oxfmt 格式化，并在编辑器中查看 oxlint 和 Vitest 结果。
+
+- 通过 `Tasks: Run Task` 执行单项检查或 `quality: verify all`。
+- 按 `F5` 可调试交互式 CLI、项目列表、doctor、Agent CLI 或当前 Vitest 测试文件。
+- CLI 调试会先以单并发构建自身及内部依赖，并在集成终端中运行，以支持交互输入。
+
 项目使用 Changesets 发布：`pnpm changeset`、`pnpm version-packages`、`pnpm release`。

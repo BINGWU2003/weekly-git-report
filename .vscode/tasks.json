@@ -1,0 +1,93 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "pnpm: install",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["install", "--frozen-lockfile"],
+      "problemMatcher": []
+    },
+    {
+      "label": "quality: format check",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["format:check"],
+      "problemMatcher": []
+    },
+    {
+      "label": "quality: lint",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["lint"],
+      "problemMatcher": []
+    },
+    {
+      "label": "quality: test",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["test"],
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "quality: check types",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["check-types"],
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "build: all",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["turbo", "run", "build", "--concurrency=1"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "build: CLI with dependencies",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["turbo", "run", "build", "--filter=@weekly-git-report/cli...", "--concurrency=1"],
+      "problemMatcher": []
+    },
+    {
+      "label": "build: Agent CLI with dependencies",
+      "type": "shell",
+      "command": "pnpm",
+      "args": [
+        "turbo",
+        "run",
+        "build",
+        "--filter=@weekly-git-report/agent-cli...",
+        "--concurrency=1"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "test: core watch",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["--filter", "@weekly-git-report/core", "exec", "vitest"],
+      "isBackground": true,
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "quality: verify all",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "quality: format check",
+        "quality: lint",
+        "quality: test",
+        "quality: check types",
+        "build: all"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}

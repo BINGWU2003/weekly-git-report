@@ -1,0 +1,71 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "CLI: interactive menu",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/packages/cli/dist/index.js",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "runtimeArgs": ["--enable-source-maps"],
+      "sourceMaps": true,
+      "outFiles": ["${workspaceFolder}/packages/*/dist/**/*.js"],
+      "skipFiles": ["<node_internals>/**"],
+      "preLaunchTask": "build: CLI with dependencies"
+    },
+    {
+      "name": "CLI: projects list",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/packages/cli/dist/index.js",
+      "args": ["projects", "list"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "runtimeArgs": ["--enable-source-maps"],
+      "sourceMaps": true,
+      "outFiles": ["${workspaceFolder}/packages/*/dist/**/*.js"],
+      "skipFiles": ["<node_internals>/**"],
+      "preLaunchTask": "build: CLI with dependencies"
+    },
+    {
+      "name": "CLI: doctor",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/packages/cli/dist/index.js",
+      "args": ["doctor"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "runtimeArgs": ["--enable-source-maps"],
+      "sourceMaps": true,
+      "outFiles": ["${workspaceFolder}/packages/*/dist/**/*.js"],
+      "skipFiles": ["<node_internals>/**"],
+      "preLaunchTask": "build: CLI with dependencies"
+    },
+    {
+      "name": "Agent CLI: projects list",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/packages/agent-cli/dist/index.js",
+      "args": ["projects", "list"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "runtimeArgs": ["--enable-source-maps"],
+      "sourceMaps": true,
+      "outFiles": ["${workspaceFolder}/packages/*/dist/**/*.js"],
+      "skipFiles": ["<node_internals>/**"],
+      "preLaunchTask": "build: Agent CLI with dependencies"
+    },
+    {
+      "name": "Vitest: current test file",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/packages/core/node_modules/vitest/vitest.mjs",
+      "args": ["run", "${file}", "--no-file-parallelism"],
+      "cwd": "${workspaceFolder}/packages/core",
+      "console": "integratedTerminal",
+      "autoAttachChildProcesses": true,
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ]
+}
