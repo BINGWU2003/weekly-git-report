@@ -2,25 +2,15 @@ export const WORK_DIR = "~/.weekly-git-report";
 export const CONFIG_FILE_NAME = "config.json";
 export const PROJECTS_FILE_NAME = "projects.json";
 export const DEFAULT_OUTPUT_ROOT = "~/weekly-reports";
-
-export const DEFAULT_EXCLUDE_DIRS = [
-  "node_modules",
-  ".cache",
-  "dist",
-  "build",
-  "vendor",
-  "tmp",
-] as const;
+export const DEFAULT_REPOSITORY_CACHE_ROOT = "~/.weekly-git-report/repositories";
 
 export const DEFAULT_CONFIG = {
-  roots: ["~/work", "~/Code", "~/Projects"],
-  excludeDirs: [...DEFAULT_EXCLUDE_DIRS],
-  maxDepth: 5,
   outputRoot: DEFAULT_OUTPUT_ROOT,
-  author: [],
+  repositoryCacheRoot: DEFAULT_REPOSITORY_CACHE_ROOT,
   defaultSince: "last monday",
   defaultUntil: "now",
   includeEmptyProjects: false,
+  identities: [],
 } as const;
 
 export const RAW_DIR_NAME = "raw";

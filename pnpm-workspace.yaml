@@ -1,22 +1,20 @@
 packages:
-  - "packages/*"
+  - packages/*
 
 catalog:
-  "@eslint/js": ^9.39.1
   "@changesets/cli": ^2.29.7
   "@modelcontextprotocol/sdk": ^1.22.0
-  "@types/node": ^22.15.3
+  "@types/node": 22.15.3
   "@types/prompts": ^2.4.9
-  eslint: ^9.39.1
-  eslint-config-prettier: ^10.1.1
-  eslint-plugin-only-warn: ^1.1.0
-  eslint-plugin-turbo: ^2.7.1
-  globals: ^16.5.0
-  prettier: ^3.7.4
   kolorist: ^1.8.0
+  oxfmt: ^0.65.0
+  oxlint: ^1.80.0
   prompts: ^2.4.2
-  turbo: ^2.9.16
   tsup: ^8.5.1
+  turbo: ^2.9.16
   typescript: 5.9.2
-  typescript-eslint: ^8.50.0
+  vitest: ^4.1.11
   zod: ^4.2.1
+
+onlyBuiltDependencies:
+  - esbuild

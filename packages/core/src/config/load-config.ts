@@ -1,4 +1,5 @@
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import path from "node:path";
 
 import { ConfigSchema } from "@weekly-git-report/shared";
 import type { Config } from "@weekly-git-report/shared";
@@ -26,6 +27,23 @@ export async function loadConfig(configFile = getConfigFilePath()): Promise<Conf
   }
 
   return ConfigSchema.parse(JSON.parse(content));
+}
+
+export async function writeConfig(config: Config, configFile = getConfigFilePath()): Promise<void> {
+  const parsed = ConfigSchema.parse(config);
+  await writeJsonAtomic(configFile, parsed);
+}
+
+async function writeJsonAtomic(file: string, value: unknown): Promise<void> {
+  await mkdir(path.dirname(file), { recursive: true });
+  const temporaryFile = `${file}.${process.pid}.${Date.now()}.tmp`;
+  try {
+    await writeFile(temporaryFile, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+    await rename(temporaryFile, file);
+  } catch (error) {
+    await rm(temporaryFile, { force: true });
+    throw error;
+  }
 }
 
 function isNodeError(error: unknown): error is NodeJS.ErrnoException {

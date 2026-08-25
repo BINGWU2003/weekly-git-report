@@ -2,7 +2,6 @@ import { mkdir, writeFile } from "node:fs/promises";
 
 import type { Config } from "@weekly-git-report/shared";
 
-import { createDefaultConfig } from "./defaults.js";
 import {
   getConfigFilePath,
   getOutputRoot,
@@ -20,9 +19,7 @@ export interface InitConfigResult {
   createdConfig: boolean;
 }
 
-export async function initConfig(
-  config: Config = createDefaultConfig(),
-): Promise<InitConfigResult> {
+export async function initConfig(config: Config): Promise<InitConfigResult> {
   const workDir = getWorkDir();
   const configFile = getConfigFilePath();
   const outputRoot = getOutputRoot(config.outputRoot);
@@ -45,10 +42,7 @@ export async function initConfig(
   };
 }
 
-async function writeConfigIfMissing(
-  configFile: string,
-  config: Config,
-): Promise<boolean> {
+async function writeConfigIfMissing(configFile: string, config: Config): Promise<boolean> {
   try {
     await writeFile(configFile, `${JSON.stringify(config, null, 2)}\n`, {
       encoding: "utf8",

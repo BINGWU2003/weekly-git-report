@@ -5,10 +5,7 @@ export interface ResolvePeriodOptions {
   until?: string;
 }
 
-export function resolvePeriod(
-  config: Config,
-  options: ResolvePeriodOptions = {},
-): Period {
+export function resolvePeriod(config: Config, options: ResolvePeriodOptions = {}): Period {
   const since = options.since ?? config.defaultSince;
   const until = options.until ?? config.defaultUntil;
 

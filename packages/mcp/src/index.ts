@@ -8,7 +8,7 @@ import {
   ListProjectsInputSchema,
   ReadWeekRawInputSchema,
   SaveWeekSummaryInputSchema,
-  ScanProjectsInputSchema,
+  SyncProjectsInputSchema,
 } from "@weekly-git-report/shared";
 
 import { collectGitLogs } from "./tools/collect-git-logs.js";
@@ -17,7 +17,7 @@ import { listProjects } from "./tools/list-projects.js";
 import { jsonResponse } from "./tools/response.js";
 import { readWeekRaw } from "./tools/read-week-raw.js";
 import { saveWeekSummary } from "./tools/save-week-summary.js";
-import { scanProjects } from "./tools/scan-projects.js";
+import { syncProjects } from "./tools/sync-projects.js";
 
 const server = new McpServer({
   name: "weekly-git-report",
@@ -27,21 +27,19 @@ const server = new McpServer({
 server.registerTool(
   "list_projects",
   {
-    description:
-      "列出已扫描的 Git 项目，数据来源为 ~/.weekly-git-report/projects.json。",
+    description: "列出 ~/.weekly-git-report/projects.json 中显式配置的 Git 项目。",
     inputSchema: ListProjectsInputSchema,
   },
   async (input) => jsonResponse(await listProjects(input)),
 );
 
 server.registerTool(
-  "scan_projects",
+  "sync_projects",
   {
-    description:
-      "扫描配置中或参数指定的根目录，并更新 projects.json 项目索引。",
-    inputSchema: ScanProjectsInputSchema,
+    description: "同步显式配置的远程 Git 项目和分支。",
+    inputSchema: SyncProjectsInputSchema,
   },
-  async (input) => jsonResponse(await scanProjects(input)),
+  async (input) => jsonResponse(await syncProjects(input)),
 );
 
 server.registerTool(

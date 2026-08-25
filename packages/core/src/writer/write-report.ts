@@ -13,10 +13,7 @@ import type { CollectCommitsResult } from "../collector/collect-commits.js";
 import { sha256 } from "../utils/hash.js";
 import { getOutputRoot, getPeriodOutputDir } from "../utils/path.js";
 import { renderIndexMarkdown } from "./index-markdown.js";
-import {
-  renderProjectMarkdown,
-  renderProjectMarkdownForHash,
-} from "./project-markdown.js";
+import { renderProjectMarkdown, renderProjectMarkdownForHash } from "./project-markdown.js";
 
 export interface WriteReportOptions {
   config: Config;
@@ -36,9 +33,7 @@ export interface WriteReportResult {
   errors: ManifestError[];
 }
 
-export async function writeReport(
-  options: WriteReportOptions,
-): Promise<WriteReportResult> {
+export async function writeReport(options: WriteReportOptions): Promise<WriteReportResult> {
   const generatedAt = new Date().toISOString();
   const outputRoot = getOutputRoot(options.config.outputRoot);
   const outputDir = getPeriodOutputDir(options.config.outputRoot, options.period);

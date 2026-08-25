@@ -1,10 +1,7 @@
 import type { Manifest, ManifestProject } from "@weekly-git-report/shared";
 
 export function renderIndexMarkdown(manifest: Manifest): string {
-  const totalCommits = manifest.projects.reduce(
-    (total, project) => total + project.commitCount,
-    0,
-  );
+  const totalCommits = manifest.projects.reduce((total, project) => total + project.commitCount, 0);
 
   return `# Git 原始记录索引
 

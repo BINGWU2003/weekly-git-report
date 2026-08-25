@@ -19,10 +19,12 @@ jobs:
           run_install: false
       - uses: actions/setup-node@v6
         with:
-          node-version: lts/*
+          node-version: 20.19
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+      - run: pnpm run format:check
+      - run: pnpm run test
       - run: pnpm run lint
       - run: pnpm run check-types
 
@@ -31,7 +33,7 @@ jobs:
 
     strategy:
       matrix:
-        node: [lts/*]
+        node: [20.19, lts/*]
         os: [ubuntu-latest, windows-latest, macos-latest]
       fail-fast: false
 

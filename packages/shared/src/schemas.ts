@@ -4,58 +4,63 @@ import { DEFAULT_CONFIG } from "./constants.js";
 
 const dateStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
-export const AuthorListSchema = z.preprocess(
-  (value) => {
-    if (typeof value === "string") {
-      const author = value.trim();
-      return author ? [author] : [];
-    }
+export const AuthorListSchema = z.preprocess((value) => {
+  if (typeof value === "string") {
+    const author = value.trim();
+    return author ? [author] : [];
+  }
 
-    if (Array.isArray(value)) {
-      return value
-        .filter((item): item is string => typeof item === "string")
-        .map((item) => item.trim())
-        .filter(Boolean);
-    }
+  if (Array.isArray(value)) {
+    return value
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
 
-    return value;
-  },
-  z.array(z.string()).default([]),
-);
+  return value;
+}, z.array(z.string()).default([]));
+
+export const IdentitySchema = z.object({
+  name: z.string().trim().min(1),
+  email: z.string().trim().email(),
+});
 
 export const PeriodSchema = z.object({
   start: dateStringSchema,
   end: dateStringSchema,
 });
 
-export const ConfigSchema = z.object({
-  roots: z.array(z.string()).min(1).default([...DEFAULT_CONFIG.roots]),
-  excludeDirs: z.array(z.string()).default([...DEFAULT_CONFIG.excludeDirs]),
-  maxDepth: z.number().int().positive().default(DEFAULT_CONFIG.maxDepth),
-  outputRoot: z.string().default(DEFAULT_CONFIG.outputRoot),
-  author: AuthorListSchema,
-  defaultSince: z.string().optional().default(DEFAULT_CONFIG.defaultSince),
-  defaultUntil: z.string().optional().default(DEFAULT_CONFIG.defaultUntil),
-  includeEmptyProjects: z
-    .boolean()
-    .default(DEFAULT_CONFIG.includeEmptyProjects),
+export const ConfigSchema = z
+  .object({
+    outputRoot: z.string().default(DEFAULT_CONFIG.outputRoot),
+    repositoryCacheRoot: z.string().default(DEFAULT_CONFIG.repositoryCacheRoot),
+    defaultSince: z.string().optional().default(DEFAULT_CONFIG.defaultSince),
+    defaultUntil: z.string().optional().default(DEFAULT_CONFIG.defaultUntil),
+    includeEmptyProjects: z.boolean().default(DEFAULT_CONFIG.includeEmptyProjects),
+    identities: z.array(IdentitySchema).min(1),
+  })
+  .strict();
+
+export const RepositoryProjectSchema = z.object({
+  id: z.string(),
+  name: z.string().trim().min(1),
+  url: z.string().trim().min(1),
+  branch: z.string().trim().min(1),
+  localPath: z.string().trim().min(1),
+  authors: z.array(IdentitySchema).min(1).optional(),
+  enabled: z.boolean().default(true),
 });
 
-export const ProjectSchema = z.object({
-  id: z.string(),
-  name: z.string(),
+export const ProjectsIndexSchema = z
+  .object({
+    projects: z.array(RepositoryProjectSchema),
+  })
+  .strict();
+
+export const ProjectSchema = RepositoryProjectSchema.extend({
   fileName: z.string(),
   path: z.string(),
-  remote: z.string().optional(),
-  branch: z.string().optional(),
-  lastCommitAt: z.string().optional(),
-  isDuplicate: z.boolean().default(false),
-});
-
-export const ProjectsIndexSchema = z.object({
-  version: z.literal(1),
-  generatedAt: z.string(),
-  projects: z.array(ProjectSchema),
+  remote: z.string(),
 });
 
 export const CollectOptionsSchema = z.object({
@@ -96,9 +101,8 @@ export const ManifestSchema = z.object({
 
 export const ListProjectsInputSchema = z.object({});
 
-export const ScanProjectsInputSchema = z.object({
-  roots: z.array(z.string()).optional(),
-  maxDepth: z.number().int().positive().optional(),
+export const SyncProjectsInputSchema = z.object({
+  projectIds: z.array(z.string()).default([]),
 });
 
 export const CollectGitLogsInputSchema = z.object({
@@ -116,7 +120,7 @@ export const SaveWeekSummaryInputSchema = PeriodSchema.extend({
 
 export const McpToolInputSchema = z.union([
   ListProjectsInputSchema,
-  ScanProjectsInputSchema,
+  SyncProjectsInputSchema,
   CollectGitLogsInputSchema,
   GetWeekIndexInputSchema,
   ReadWeekRawInputSchema,

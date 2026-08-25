@@ -2,13 +2,10 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import {
-  buildProjectIndex,
   collectCommits,
-  getProjectsFilePath,
   loadConfig,
   loadProjectsIndex,
-  resolveAuthor,
-  writeProjectsIndex,
+  syncRepositories,
   writeReport,
 } from "@weekly-git-report/core";
 import {
@@ -17,7 +14,7 @@ import {
   ListProjectsInputSchema,
   ReadWeekRawInputSchema,
   SaveWeekSummaryInputSchema,
-  ScanProjectsInputSchema,
+  SyncProjectsInputSchema,
 } from "@weekly-git-report/shared";
 
 import {
@@ -34,24 +31,32 @@ export async function listProjects(input: unknown) {
     projects: index.projects.map((project) => ({
       id: project.id,
       name: project.name,
-      path: project.path,
-      remote: project.remote,
+      path: project.localPath,
+      remote: project.url,
       branch: project.branch,
+      enabled: project.enabled,
+      authors: project.authors,
     })),
   };
 }
 
-export async function scanProjects(input: unknown) {
-  const args = ScanProjectsInputSchema.parse(input);
-  const config = await loadConfig();
-  const result = await buildProjectIndex(config, args);
-
-  await writeProjectsIndex(result.index);
-
+export async function syncProjects(input: unknown) {
+  const args = SyncProjectsInputSchema.parse(input);
+  const projectsIndex = await loadProjectsIndex();
+  const repositories = selectProjects(
+    projectsIndex.projects.filter((project) => project.enabled),
+    args.projectIds,
+  );
+  const result = await syncRepositories(repositories);
   return {
-    projectCount: result.index.projects.length,
-    projectsFile: getProjectsFilePath(),
-    warnings: result.warnings,
+    projectCount: result.projects.length,
+    projects: result.projects.map((project) => ({
+      id: project.id,
+      name: project.name,
+      branch: project.branch,
+      path: project.path,
+    })),
+    errors: result.errors,
   };
 }
 
@@ -59,16 +64,19 @@ export async function collectGitLogs(input: unknown) {
   const args = CollectGitLogsInputSchema.parse(input);
   const config = await loadConfig();
   const projectsIndex = await loadProjectsIndex();
-  const selected = new Set(args.projectIds);
-  const projects =
-    args.projectIds.length === 0
-      ? projectsIndex.projects
-      : projectsIndex.projects.filter(
-          (project) => selected.has(project.id) || selected.has(project.name),
-        );
-  const authors = await resolveAuthor(config, args.author);
+  const repositories = selectProjects(
+    projectsIndex.projects.filter((project) => project.enabled),
+    args.projectIds,
+  );
+  const syncResult = await syncRepositories(repositories);
   const period = { start: args.since, end: args.until };
-  const collectResult = await collectCommits({ projects, period, authors });
+  const collectResult = await collectCommits({
+    projects: syncResult.projects,
+    period,
+    authorOverrides: args.author,
+    identities: config.identities,
+  });
+  collectResult.errors.unshift(...syncResult.errors);
   const report = await writeReport({
     config,
     period,
@@ -84,6 +92,23 @@ export async function collectGitLogs(input: unknown) {
     commitCount: report.commitCount,
     errors: report.errors,
   };
+}
+
+function selectProjects<T extends { id: string; name: string }>(
+  projects: T[],
+  projectIds: string[],
+): T[] {
+  if (projectIds.length === 0) return projects;
+  const selected = new Set(projectIds);
+  const matches = projects.filter(
+    (project) => selected.has(project.id) || selected.has(project.name),
+  );
+  const matchedIds = new Set(matches.flatMap((project) => [project.id, project.name]));
+  const unknown = projectIds.filter((projectId) => !matchedIds.has(projectId));
+  if (unknown.length > 0) {
+    throw new Error(`Unknown or disabled projects: ${unknown.join(", ")}`);
+  }
+  return matches;
 }
 
 export async function getWeekIndex(input: unknown) {

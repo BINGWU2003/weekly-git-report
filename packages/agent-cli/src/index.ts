@@ -9,24 +9,28 @@ import {
   listProjects,
   readWeekRaw,
   saveWeekSummary,
-  scanProjects,
+  syncProjects,
 } from "@weekly-git-report/workflow";
 
-const [command, subcommand, ...args] = process.argv.slice(2);
+const [command, subcommand, ...commandArgs] = process.argv.slice(2);
 
 try {
   switch (command) {
     case "projects":
-      await runProjectsCommand(subcommand, args);
+      await runProjectsCommand(subcommand, commandArgs);
       break;
     case "collect":
-      await printJson(await collectGitLogs(parseCollectArgs(subcommand ? [subcommand, ...args] : args)));
+      await printJson(
+        await collectGitLogs(
+          parseCollectArgs(subcommand ? [subcommand, ...commandArgs] : commandArgs),
+        ),
+      );
       break;
     case "raw":
-      await runRawCommand(subcommand, args);
+      await runRawCommand(subcommand, commandArgs);
       break;
     case "summary":
-      await runSummaryCommand(subcommand, args);
+      await runSummaryCommand(subcommand, commandArgs);
       break;
     case undefined:
     case "--help":
@@ -48,18 +52,15 @@ async function runProjectsCommand(
     case "list":
       await printJson(await listProjects({}));
       break;
-    case "scan":
-      await printJson(await scanProjects(parseScanArgs(args)));
+    case "sync":
+      await printJson(await syncProjects(parseProjectSelectionArgs(args)));
       break;
     default:
       throw new Error(`Unknown projects command: ${subcommandName ?? ""}`);
   }
 }
 
-async function runRawCommand(
-  subcommandName: string | undefined,
-  args: string[],
-): Promise<void> {
+async function runRawCommand(subcommandName: string | undefined, args: string[]): Promise<void> {
   const period = parsePeriodArgs(args);
 
   switch (subcommandName) {
@@ -136,32 +137,27 @@ function parseCollectArgs(args: string[]): unknown {
   return parsed;
 }
 
-function parseScanArgs(args: string[]): unknown {
-  const roots: string[] = [];
-  let maxDepth: number | undefined;
+function parseProjectSelectionArgs(args: string[]): unknown {
+  const projectIds: string[] = [];
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
 
-    if (arg === "--root") {
-      roots.push(readOptionValue(args, index, arg));
+    if (arg === "--project") {
+      projectIds.push(readOptionValue(args, index, arg));
       index += 1;
       continue;
     }
 
-    if (arg === "--max-depth") {
-      maxDepth = Number(readOptionValue(args, index, arg));
-      index += 1;
+    if (arg === "--all") {
+      projectIds.length = 0;
       continue;
     }
 
-    throw new Error(`Unknown projects scan option: ${arg}`);
+    throw new Error(`Unknown projects sync option: ${arg}`);
   }
 
-  return {
-    ...(roots.length > 0 ? { roots } : {}),
-    ...(maxDepth !== undefined ? { maxDepth } : {}),
-  };
+  return { projectIds };
 }
 
 function parsePeriodArgs(args: string[]) {
@@ -243,7 +239,7 @@ function handleError(error: unknown): void {
     console.error("Config not found. Please run: weekly init");
     process.exitCode = 1;
   } else if (error instanceof ProjectsIndexNotFoundError) {
-    console.error("Projects index not found. Please run: weekly-agent projects scan");
+    console.error("Projects config not found. Please run: weekly");
     process.exitCode = 1;
   } else if (error instanceof Error) {
     console.error(error.message);
@@ -258,8 +254,8 @@ function printHelp(): void {
 
 Usage:
   weekly-agent projects list
-  weekly-agent projects scan [--root <path>] [--max-depth <number>]
-  weekly-agent collect --since <YYYY-MM-DD> --until <YYYY-MM-DD> [--author <name>] [--project <id>] [--all]
+  weekly-agent projects sync [--project <id>] [--all]
+  weekly-agent collect --since <YYYY-MM-DD> --until <YYYY-MM-DD> [--author <name-or-email>] [--project <id>] [--all]
   weekly-agent raw index --start <YYYY-MM-DD> --end <YYYY-MM-DD>
   weekly-agent raw read --start <YYYY-MM-DD> --end <YYYY-MM-DD>
   weekly-agent summary save --start <YYYY-MM-DD> --end <YYYY-MM-DD> [--file <path>]

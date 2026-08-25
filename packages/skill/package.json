@@ -6,41 +6,38 @@
     "url": "https://github.com/BINGWU2003/weekly-git-report",
     "directory": "packages/skill"
   },
-  "type": "module",
   "bin": {
     "weekly-skill": "./dist/index.js"
-  },
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    }
   },
   "files": [
     "dist",
     "skills",
     "README.md"
   ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
     "build": "tsup",
-    "check-types": "tsc --noEmit",
-    "lint": "eslint . --max-warnings 0"
+    "check-types": "tsc --noEmit"
   },
   "dependencies": {
     "kolorist": "catalog:",
     "prompts": "catalog:"
   },
   "devDependencies": {
-    "@weekly-git-report/eslint-config": "workspace:*",
-    "@weekly-git-report/typescript-config": "workspace:*",
     "@types/node": "catalog:",
     "@types/prompts": "catalog:",
-    "eslint": "catalog:",
+    "@weekly-git-report/typescript-config": "workspace:*",
     "tsup": "catalog:",
     "typescript": "catalog:"
-  },
-  "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org/"
   }
 }

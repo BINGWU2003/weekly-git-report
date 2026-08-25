@@ -3,13 +3,11 @@ import type { Config } from "@weekly-git-report/shared";
 
 export function createDefaultConfig(): Config {
   return {
-    roots: [...DEFAULT_CONFIG.roots],
-    excludeDirs: [...DEFAULT_CONFIG.excludeDirs],
-    maxDepth: DEFAULT_CONFIG.maxDepth,
     outputRoot: DEFAULT_CONFIG.outputRoot,
-    author: [...DEFAULT_CONFIG.author],
+    repositoryCacheRoot: DEFAULT_CONFIG.repositoryCacheRoot,
     defaultSince: DEFAULT_CONFIG.defaultSince,
     defaultUntil: DEFAULT_CONFIG.defaultUntil,
     includeEmptyProjects: DEFAULT_CONFIG.includeEmptyProjects,
+    identities: [],
   };
 }

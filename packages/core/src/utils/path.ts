@@ -38,6 +38,10 @@ export function getProjectsFilePath(): string {
   return path.join(getWorkDir(), PROJECTS_FILE_NAME);
 }
 
+export function getRepositoryCacheRoot(repositoryCacheRoot: string): string {
+  return normalizeAbsolutePath(repositoryCacheRoot);
+}
+
 export function getOutputRoot(outputRoot: string): string {
   return normalizeAbsolutePath(outputRoot);
 }

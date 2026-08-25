@@ -4,7 +4,7 @@
 
 ## 环境要求
 
-- Node.js 18 或更高版本
+- Node.js 20.19 或更高版本
 - 在希望写入 Skill 配置的项目根目录执行命令
 
 所有安装路径都相对于命令执行时的当前工作目录。
@@ -90,12 +90,12 @@ Restart Codex to load the new skill.
 
 1. 重启对应 Agent 客户端。
 2. 在对话中要求 Agent 根据 Git 提交生成周报。
-3. Skill 会按需执行 `@weekly-git-report/agent-cli`，扫描项目、采集 raw、生成总结并保存 summary。
+3. Skill 会按需同步显式配置的项目、采集 raw、生成总结并保存 summary。
 
 首次使用前需要初始化 weekly-git-report 配置：
 
 ```sh
-npx -y @weekly-git-report/cli@latest init
+npx -y @weekly-git-report/cli@latest
 ```
 
 ## 更新与卸载

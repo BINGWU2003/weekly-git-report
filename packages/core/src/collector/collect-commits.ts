@@ -1,4 +1,4 @@
-import type { ManifestError, Period, Project } from "@weekly-git-report/shared";
+import type { Identity, ManifestError, Period, Project } from "@weekly-git-report/shared";
 
 import { runGit } from "../git/git-command.js";
 
@@ -6,6 +6,7 @@ export interface GitCommit {
   committedAt: string;
   hash: string;
   author: string;
+  authorEmail: string;
   subject: string;
 }
 
@@ -17,7 +18,8 @@ export interface ProjectCommitResult {
 export interface CollectCommitsOptions {
   projects: Project[];
   period: Period;
-  authors?: string[];
+  authorOverrides?: string[];
+  identities: Identity[];
 }
 
 export interface CollectCommitsResult {
@@ -33,7 +35,12 @@ export async function collectCommits(
 
   for (const project of options.projects) {
     try {
-      const commits = await collectProjectCommits(project, options.period, options.authors ?? []);
+      const commits = await collectProjectCommits(
+        project,
+        options.period,
+        options.authorOverrides ?? [],
+        project.authors ?? options.identities,
+      );
       projects.push({ project, commits });
     } catch (error) {
       errors.push({
@@ -51,41 +58,30 @@ export async function collectCommits(
 async function collectProjectCommits(
   project: Project,
   period: Period,
-  authors: string[],
+  authorOverrides: string[],
+  identities: Identity[],
 ): Promise<GitCommit[]> {
-  if (authors.length === 0) {
-    return collectProjectCommitsByAuthor(project, period);
-  }
-
-  const commitsByHash = new Map<string, GitCommit>();
-
-  for (const author of authors) {
-    const commits = await collectProjectCommitsByAuthor(project, period, author);
-    for (const commit of commits) {
-      commitsByHash.set(commit.hash, commit);
-    }
-  }
-
-  return [...commitsByHash.values()].sort((left, right) =>
-    right.committedAt.localeCompare(left.committedAt),
+  const commits = await collectProjectCommitsFromBranch(project, period);
+  return commits.filter((commit) =>
+    authorOverrides.length > 0
+      ? authorOverrides.some((author) => matchesAuthorOverride(commit, author))
+      : identities.some(
+          (identity) => identity.email.toLowerCase() === commit.authorEmail.toLowerCase(),
+        ),
   );
 }
 
-async function collectProjectCommitsByAuthor(
+async function collectProjectCommitsFromBranch(
   project: Project,
   period: Period,
-  author?: string,
 ): Promise<GitCommit[]> {
   const args = [
     "log",
+    `refs/remotes/origin/${project.branch}`,
     `--since=${period.start} 00:00:00`,
     `--until=${period.end} 23:59:59`,
-    "--pretty=format:%cI%x1f%h%x1f%an%x1f%s",
+    "--pretty=format:%cI%x1f%h%x1f%an%x1f%ae%x1f%s",
   ];
-
-  if (author) {
-    args.splice(3, 0, `--author=${author}`);
-  }
 
   const output = await runGit(args, project.path);
   return parseGitLog(output);
@@ -100,9 +96,17 @@ function parseGitLog(output: string): GitCommit[] {
     .split(/\r?\n/)
     .filter(Boolean)
     .map((line) => {
-      const [committedAt = "", hash = "", author = "", subject = ""] = line.split("\x1f");
-      return { committedAt, hash, author, subject };
+      const [committedAt = "", hash = "", author = "", authorEmail = "", subject = ""] =
+        line.split("\x1f");
+      return { committedAt, hash, author, authorEmail, subject };
     });
+}
+
+function matchesAuthorOverride(commit: GitCommit, author: string): boolean {
+  const normalized = author.trim().toLowerCase();
+  return (
+    commit.author.toLowerCase() === normalized || commit.authorEmail.toLowerCase() === normalized
+  );
 }
 
 function getErrorMessage(error: unknown): string {

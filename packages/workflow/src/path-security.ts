@@ -1,16 +1,8 @@
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
-import {
-  getOutputRoot,
-  getPeriodOutputDir,
-  getSummaryDir,
-} from "@weekly-git-report/core";
-import {
-  INDEX_FILE_NAME,
-  MANIFEST_FILE_NAME,
-  ManifestSchema,
-} from "@weekly-git-report/shared";
+import { getOutputRoot, getPeriodOutputDir, getSummaryDir } from "@weekly-git-report/core";
+import { INDEX_FILE_NAME, MANIFEST_FILE_NAME, ManifestSchema } from "@weekly-git-report/shared";
 import type { Manifest, Period } from "@weekly-git-report/shared";
 
 export function assertWithinOutputRoot(targetPath: string, outputRoot: string): void {
@@ -29,20 +21,14 @@ export function getSafePeriodOutputDir(outputRoot: string, period: Period): stri
   return outputDir;
 }
 
-export async function readWeekIndexFile(
-  outputRoot: string,
-  period: Period,
-): Promise<string> {
+export async function readWeekIndexFile(outputRoot: string, period: Period): Promise<string> {
   const outputDir = getSafePeriodOutputDir(outputRoot, period);
   const indexFile = path.join(outputDir, INDEX_FILE_NAME);
   assertWithinOutputRoot(indexFile, outputRoot);
   return readFile(indexFile, "utf8");
 }
 
-export async function readWeekManifest(
-  outputRoot: string,
-  period: Period,
-): Promise<Manifest> {
+export async function readWeekManifest(outputRoot: string, period: Period): Promise<Manifest> {
   const outputDir = getSafePeriodOutputDir(outputRoot, period);
   const manifestFile = path.join(outputDir, MANIFEST_FILE_NAME);
   assertWithinOutputRoot(manifestFile, outputRoot);
@@ -52,7 +38,9 @@ export async function readWeekManifest(
 export async function readWeekProjectFiles(outputRoot: string, period: Period) {
   const outputDir = getSafePeriodOutputDir(outputRoot, period);
   const manifest = await readWeekManifest(outputRoot, period);
-  const manifestFiles = new Set(manifest.projects.map((project) => project.file.replace(/^\.\//, "")));
+  const manifestFiles = new Set(
+    manifest.projects.map((project) => project.file.replace(/^\.\//, "")),
+  );
   const entries = await readdir(outputDir, { withFileTypes: true });
   const files = [];
 

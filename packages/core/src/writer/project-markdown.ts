@@ -50,12 +50,13 @@ function renderCommitsTable(commits: GitCommit[]): string {
     const date = commit.committedAt.slice(0, 10);
     const subject = escapeMarkdownTableCell(commit.subject);
     const author = escapeMarkdownTableCell(commit.author);
-    return `| ${date} | ${commit.hash} | ${author} | ${subject} |`;
+    const email = escapeMarkdownTableCell(commit.authorEmail);
+    return `| ${date} | ${commit.hash} | ${author} | ${email} | ${subject} |`;
   });
 
   return [
-    "| 日期 | Hash | 作者 | Commit |",
-    "| ---- | ---- | ---- | ------ |",
+    "| 日期 | Hash | 作者 | 邮箱 | Commit |",
+    "| ---- | ---- | ---- | ---- | ------ |",
     ...rows,
   ].join("\n");
 }
@@ -64,7 +65,7 @@ function renderRawCommits(commits: GitCommit[]): string {
   return commits
     .map(
       (commit) =>
-        `${commit.committedAt} ${commit.hash} ${commit.author} ${commit.subject.replace(/\r?\n/g, " ")}`,
+        `${commit.committedAt} ${commit.hash} ${commit.author} <${commit.authorEmail}> ${commit.subject.replace(/\r?\n/g, " ")}`,
     )
     .join("\n");
 }

@@ -6,39 +6,36 @@
     "url": "https://github.com/BINGWU2003/weekly-git-report",
     "directory": "packages/agent-cli"
   },
-  "type": "module",
   "bin": {
     "weekly-agent": "./dist/index.js"
   },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
     "build": "tsup",
-    "check-types": "tsc --noEmit",
-    "lint": "eslint . --max-warnings 0"
+    "check-types": "tsc --noEmit"
   },
   "dependencies": {},
   "devDependencies": {
-    "@weekly-git-report/eslint-config": "workspace:*",
+    "@types/node": "catalog:",
     "@weekly-git-report/core": "workspace:*",
     "@weekly-git-report/shared": "workspace:*",
     "@weekly-git-report/typescript-config": "workspace:*",
     "@weekly-git-report/workflow": "workspace:*",
-    "@types/node": "catalog:",
-    "eslint": "catalog:",
     "tsup": "catalog:",
     "typescript": "catalog:"
-  },
-  "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org/"
   }
 }

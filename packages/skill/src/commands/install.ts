@@ -91,9 +91,7 @@ async function promptSkillTarget(): Promise<SkillTarget> {
   return parseSkillTarget(String(answer.target ?? "opencode"));
 }
 
-async function installSkill(
-  options: Required<SkillInstallOptions>,
-): Promise<void> {
+async function installSkill(options: Required<SkillInstallOptions>): Promise<void> {
   if (options.target === "all") {
     for (const target of SKILL_TARGETS) {
       await installSkillFile(target, options.force);
@@ -121,19 +119,11 @@ async function installSkillFile(
   });
 
   console.log(`Installed ${targetName} skill: ${target}`);
-  console.log(
-    `Restart ${getRestartTargetName(targetName)} to load the new skill.`,
-  );
+  console.log(`Restart ${getRestartTargetName(targetName)} to load the new skill.`);
 }
 
 function getSkillFilePath(target: SkillTarget): string {
-  return path.resolve(
-    process.cwd(),
-    `.${target}`,
-    "skills",
-    "weekly-git-report",
-    "SKILL.md",
-  );
+  return path.resolve(process.cwd(), `.${target}`, "skills", "weekly-git-report", "SKILL.md");
 }
 
 function getSkillTemplatePath(): string {
@@ -168,11 +158,7 @@ function getRestartTargetName(target: Exclude<SkillTarget, "all">): string {
   }
 }
 
-function readOptionValue(
-  args: string[],
-  index: number,
-  option: string,
-): string {
+function readOptionValue(args: string[], index: number, option: string): string {
   const value = args[index + 1];
   if (!value) {
     throw new Error(`Missing value for ${option}`);

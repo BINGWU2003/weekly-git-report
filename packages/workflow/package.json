@@ -1,8 +1,8 @@
 {
   "name": "@weekly-git-report/workflow",
   "version": "0.0.0",
-  "type": "module",
   "private": true,
+  "type": "module",
   "exports": {
     ".": {
       "types": "./src/index.ts",
@@ -11,18 +11,15 @@
   },
   "scripts": {
     "build": "tsup",
-    "check-types": "tsc --noEmit",
-    "lint": "eslint . --max-warnings 0"
+    "check-types": "tsc --noEmit"
   },
   "dependencies": {
     "@weekly-git-report/core": "workspace:*",
     "@weekly-git-report/shared": "workspace:*"
   },
   "devDependencies": {
-    "@weekly-git-report/eslint-config": "workspace:*",
-    "@weekly-git-report/typescript-config": "workspace:*",
     "@types/node": "catalog:",
-    "eslint": "catalog:",
+    "@weekly-git-report/typescript-config": "workspace:*",
     "tsup": "catalog:",
     "typescript": "catalog:"
   }

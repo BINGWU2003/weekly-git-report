@@ -5,20 +5,24 @@
     "build": "turbo run build",
     "changeset": "changeset",
     "dev": "turbo run dev",
-    "lint": "turbo run lint --concurrency=1",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "lint": "oxlint . --deny-warnings",
+    "test": "turbo run test",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
     "check-types": "turbo run check-types",
     "release": "pnpm build && changeset publish",
     "version-packages": "changeset version"
   },
   "devDependencies": {
     "@changesets/cli": "catalog:",
-    "prettier": "catalog:",
+    "@types/node": "catalog:",
+    "oxfmt": "catalog:",
+    "oxlint": "catalog:",
     "turbo": "catalog:",
     "typescript": "catalog:"
   },
-  "packageManager": "pnpm@10.25.0",
   "engines": {
-    "node": ">=18"
-  }
+    "node": ">=20.19"
+  },
+  "packageManager": "pnpm@10.25.0"
 }

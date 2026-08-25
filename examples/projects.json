@@ -1,0 +1,12 @@
+{
+  "projects": [
+    {
+      "id": "github.com/example/project-a",
+      "name": "project-a",
+      "url": "git@github.com:example/project-a.git",
+      "branch": "main",
+      "localPath": "~/.weekly-git-report/repositories/project-a-a1b2c3d4",
+      "enabled": true
+    }
+  ]
+}

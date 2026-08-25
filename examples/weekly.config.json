@@ -1,10 +1,13 @@
 {
-  "roots": ["~/work", "~/Code", "~/Projects"],
-  "excludeDirs": ["node_modules", ".cache", "dist", "build", "vendor", "tmp"],
-  "maxDepth": 5,
   "outputRoot": "~/weekly-reports",
-  "author": [],
+  "repositoryCacheRoot": "~/.weekly-git-report/repositories",
   "defaultSince": "last monday",
   "defaultUntil": "now",
-  "includeEmptyProjects": false
+  "includeEmptyProjects": false,
+  "identities": [
+    {
+      "name": "张三",
+      "email": "zhangsan@example.com"
+    }
+  ]
 }

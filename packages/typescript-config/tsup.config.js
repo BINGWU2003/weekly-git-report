@@ -9,7 +9,7 @@ const baseNodeConfig = {
   platform: "node",
   sourcemap: true,
   splitting: false,
-  target: "node18",
+  target: "node20",
 };
 
 export const nodeLibraryConfig = defineConfig(baseNodeConfig);

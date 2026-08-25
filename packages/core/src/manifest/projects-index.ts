@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { ProjectsIndexSchema } from "@weekly-git-report/shared";
@@ -19,7 +19,14 @@ export async function writeProjectsIndex(
 ): Promise<void> {
   const parsed = ProjectsIndexSchema.parse(index);
   await mkdir(path.dirname(projectsFile), { recursive: true });
-  await writeFile(projectsFile, `${JSON.stringify(parsed, null, 2)}\n`, "utf8");
+  const temporaryFile = `${projectsFile}.${process.pid}.${Date.now()}.tmp`;
+  try {
+    await writeFile(temporaryFile, `${JSON.stringify(parsed, null, 2)}\n`, "utf8");
+    await rename(temporaryFile, projectsFile);
+  } catch (error) {
+    await rm(temporaryFile, { force: true });
+    throw error;
+  }
 }
 
 export async function loadProjectsIndex(

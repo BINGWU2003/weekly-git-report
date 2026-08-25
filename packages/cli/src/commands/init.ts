@@ -1,81 +1,188 @@
 import {
   ConfigNotFoundError,
+  ProjectsIndexNotFoundError,
   createDefaultConfig,
+  getConfigFilePath,
+  getProjectsFilePath,
   initConfig,
   loadConfig,
+  loadProjectsIndex,
+  writeConfig,
+  writeProjectsIndex,
 } from "@weekly-git-report/core";
-import type { Config } from "@weekly-git-report/shared";
+import type { Config, Identity } from "@weekly-git-report/shared";
 
+import { runAddProjectCommand } from "./projects.js";
 import { intro, outro, promptOptions, prompts } from "../utils/prompt.js";
 
 export async function runInitCommand(): Promise<void> {
-  const config = await getInitConfig();
-  const result = await initConfig(config);
+  assertInteractive();
+  let existing: Config | undefined;
 
-  if (result.createdConfig) {
-    console.log(`Created config: ${result.configFile}`);
-  } else {
-    console.log(`Config already exists: ${result.configFile}`);
+  try {
+    existing = await loadConfig();
+  } catch (error) {
+    if (!(error instanceof ConfigNotFoundError)) throw error;
   }
 
-  console.log(`Roots: ${config.roots.join(", ")}`);
-  console.log(`Work dir: ${result.workDir}`);
-  console.log(`Output root: ${result.outputRoot}`);
-  console.log(`Raw dir: ${result.rawDir}`);
-  console.log(`Summary dir: ${result.summaryDir}`);
-}
+  if (existing) {
+    const createdProjects = await ensureProjectsIndex();
+    await initConfig(existing);
 
-async function getInitConfig(): Promise<Config> {
-  try {
-    return await loadConfig();
-  } catch (error) {
-    if (error instanceof ConfigNotFoundError) {
-      return await promptInitConfig(createDefaultConfig());
+    if (!createdProjects) {
+      console.log(`Configuration already initialized: ${getConfigFilePath()}`);
+      console.log(`Default identity: ${formatIdentities(existing.identities)}`);
+      return;
     }
 
-    throw error;
+    console.log(`Projects: ${getProjectsFilePath()}`);
+    await promptAddRepository();
+    return;
+  }
+
+  intro("weekly-git-report setup");
+  const config = await promptConfig(createDefaultConfig());
+  await writeConfig(config);
+  await ensureProjectsIndex();
+  const result = await initConfig(config);
+
+  console.log(`Config: ${result.configFile}`);
+  console.log(`Projects: ${getProjectsFilePath()}`);
+  console.log(`Output root: ${result.outputRoot}`);
+  outro("Configuration initialized.");
+
+  await promptAddRepository();
+}
+
+async function ensureProjectsIndex(): Promise<boolean> {
+  try {
+    await loadProjectsIndex();
+    return false;
+  } catch (error) {
+    if (!(error instanceof ProjectsIndexNotFoundError)) throw error;
+  }
+
+  await writeProjectsIndex({ projects: [] });
+  return true;
+}
+
+async function promptAddRepository(): Promise<void> {
+  const answer = await prompts(
+    {
+      type: "confirm",
+      name: "add",
+      message: "Add a repository now?",
+      initial: true,
+    },
+    promptOptions(),
+  );
+  if (answer.add) await runAddProjectCommand();
+}
+
+export async function runEditConfigCommand(): Promise<void> {
+  assertInteractive();
+  const config = await loadConfig();
+  intro("edit global configuration");
+  const updated = await promptConfig(config);
+  await writeConfig(updated);
+  await initConfig(updated);
+  outro(`Updated ${getConfigFilePath()}`);
+}
+
+export async function promptIdentities(
+  initial: Identity[] = [],
+  label = "Git identity",
+): Promise<Identity[]> {
+  const identities: Identity[] = [];
+  let index = 0;
+  let addMore = true;
+
+  while (addMore) {
+    const current = initial[index];
+    const answer = await prompts(
+      [
+        {
+          type: "text",
+          name: "name",
+          message: `${label} name`,
+          initial: current?.name ?? "",
+          validate: (value: string) => (value.trim() ? true : "Name is required"),
+        },
+        {
+          type: "text",
+          name: "email",
+          message: `${label} email`,
+          initial: current?.email ?? "",
+          validate: (value: string) =>
+            /^\S+@\S+\.\S+$/.test(value.trim()) || "Valid email is required",
+        },
+      ],
+      promptOptions(),
+    );
+    identities.push({
+      name: String(answer.name).trim(),
+      email: String(answer.email).trim(),
+    });
+    index += 1;
+
+    const more = await prompts(
+      {
+        type: "confirm",
+        name: "value",
+        message: "Add another identity?",
+        initial: index < initial.length,
+      },
+      promptOptions(),
+    );
+    addMore = Boolean(more.value);
+  }
+
+  return identities;
+}
+
+export function assertInteractive(): void {
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    throw new Error("This command requires an interactive terminal.");
   }
 }
 
-async function promptInitConfig(defaultConfig: Config): Promise<Config> {
-  if (!process.stdin.isTTY || !process.stdout.isTTY) {
-    return defaultConfig;
-  }
-
-  intro("weekly-git-report config");
-
-  const answers = await prompts(
+async function promptConfig(initial: Config): Promise<Config> {
+  const answer = await prompts(
     [
       {
         type: "text",
-        name: "roots",
-        message: "Project roots, separated by ，",
-        initial: defaultConfig.roots.join("，"),
+        name: "outputRoot",
+        message: "Weekly report output root",
+        initial: initial.outputRoot,
+        validate: (value: string) => (value.trim() ? true : "Output root is required"),
       },
       {
         type: "text",
-        name: "outputRoot",
-        message: "Output root",
-        initial: defaultConfig.outputRoot,
+        name: "repositoryCacheRoot",
+        message: "Repository cache root",
+        initial: initial.repositoryCacheRoot,
+        validate: (value: string) => (value.trim() ? true : "Cache root is required"),
+      },
+      {
+        type: "confirm",
+        name: "includeEmptyProjects",
+        message: "Include projects without matching commits?",
+        initial: initial.includeEmptyProjects,
       },
     ],
     promptOptions(),
   );
-
-  outro("Config ready.");
+  const identities = await promptIdentities(initial.identities, "Default Git identity");
 
   return {
-    ...defaultConfig,
-    roots: parseRoots(String(answers.roots ?? ""), defaultConfig.roots),
-    outputRoot: String(answers.outputRoot ?? "").trim() || defaultConfig.outputRoot,
+    ...initial,
+    outputRoot: String(answer.outputRoot).trim(),
+    repositoryCacheRoot: String(answer.repositoryCacheRoot).trim(),
+    includeEmptyProjects: Boolean(answer.includeEmptyProjects),
+    identities,
   };
 }
 
-function parseRoots(answer: string, defaultRoots: string[]): string[] {
-  const roots = answer
-    .split(/[，,]/)
-    .map((root) => root.trim())
-    .filter(Boolean);
-
-  return roots.length > 0 ? roots : defaultRoots;
+function formatIdentities(identities: Identity[]): string {
+  return identities.map((identity) => `${identity.name} <${identity.email}>`).join(", ");
 }
