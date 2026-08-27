@@ -1,6 +1,6 @@
 # weekly-git-report
 
-一个本地 Node.js + TypeScript 工具集。用户显式配置 Git 仓库、分支和作者身份，工具在采集前自动同步远程分支，生成结构化 Markdown 原始记录，并由 Agent 或 MCP 保存周报总结。
+一个本地运行的 Git 周报工具集。它只处理你显式配置的仓库、分支和作者身份：采集前同步远程分支，将提交整理为结构化 Markdown，再交给 Agent 或 MCP 客户端生成并保存周报总结。
 
 ## 环境要求
 
@@ -10,39 +10,52 @@
 
 ## 快速开始
 
-### 1. 交互式配置
+### 1. 初始化配置
+
+在交互式终端运行：
 
 ```sh
 npx -y @weekly-git-report/cli@latest
 ```
 
-`weekly` 菜单可以初始化全局配置，添加、编辑、删除、查看或同步仓库，以及运行环境检查。添加仓库时会询问：
+选择 `Initialize configuration`，按提示设置输出目录和 Git 作者身份，然后添加至少一个仓库。添加仓库时会配置：
 
-- 仓库 URL
-- 分支
+- 仓库 URL 和分支
 - 仓库名称
-- 本地缓存路径（留空使用默认值）
-- 是否使用全局作者姓名和邮箱
+- 本地缓存路径
+- 使用全局身份或项目专属身份
+- 是否启用该仓库
 
-仓库会以裸仓库形式缓存在本地，不检出源码。自定义路径也可以指向 remote 匹配的已有普通 Git 仓库。
+仓库默认以裸仓库形式缓存在本地，不检出工作区。自定义缓存路径也可以指向已有 Git 仓库，但其 `origin` 必须与配置的 URL 一致。
 
-### 2. Agent Skill 模式
+### 2. 选择使用方式
+
+| 方式        | 适合场景                                               | 入口                                                           |
+| ----------- | ------------------------------------------------------ | -------------------------------------------------------------- |
+| Agent Skill | 希望直接在 Codex、Claude Code 或 opencode 中生成周报   | [`@weekly-git-report/skill`](packages/skill/README.md)         |
+| MCP         | 使用支持 MCP 的客户端，并希望通过 tools 编排采集与保存 | [`@weekly-git-report/mcp`](packages/mcp/README.md)             |
+| Agent CLI   | Agent、脚本或 CI 需要稳定的 JSON 输入输出              | [`@weekly-git-report/agent-cli`](packages/agent-cli/README.md) |
+| 交互式 CLI  | 初始化配置、维护仓库和排查环境问题                     | [`@weekly-git-report/cli`](packages/cli/README.md)             |
+
+#### Agent Skill
+
+进入希望安装 Skill 的项目目录，并选择目标客户端：
 
 ```sh
 npx -y @weekly-git-report/skill@latest install --target codex
 ```
 
-安装后，Agent 按需执行：
+重启客户端后，可以直接要求 Agent：
 
-```sh
-npx -y @weekly-git-report/agent-cli@latest projects sync --all
-npx -y @weekly-git-report/agent-cli@latest collect --since 2026-08-18 --until 2026-08-24 --all
-npx -y @weekly-git-report/agent-cli@latest raw read --start 2026-08-18 --end 2026-08-24
+```text
+根据 2026-08-18 到 2026-08-24 的 Git 提交生成周报并保存。
 ```
 
-`collect` 自身也会先同步选中的仓库，因此手动执行 `projects sync` 不是必需的。
+Skill 会指导 Agent 调用 Agent CLI，完成同步、采集、读取 raw 和保存 summary。
 
-### 3. MCP 模式
+#### MCP
+
+将 stdio server 加入 MCP 客户端配置：
 
 ```json
 {
@@ -55,7 +68,35 @@ npx -y @weekly-git-report/agent-cli@latest raw read --start 2026-08-18 --end 202
 }
 ```
 
-MCP 提供：`list_projects`、`sync_projects`、`collect_git_logs`、`get_week_index`、`read_week_raw`、`save_week_summary`。
+MCP 提供 `list_projects`、`sync_projects`、`collect_git_logs`、`get_week_index`、`read_week_raw` 和 `save_week_summary` 六个 tool。
+
+#### Agent CLI
+
+以下命令形成一个完整的数据流程：
+
+```sh
+npx -y @weekly-git-report/agent-cli@latest collect --since 2026-08-18 --until 2026-08-24 --all
+npx -y @weekly-git-report/agent-cli@latest raw read --start 2026-08-18 --end 2026-08-24
+npx -y @weekly-git-report/agent-cli@latest summary save --start 2026-08-18 --end 2026-08-24 --file ./weekly-summary.md
+```
+
+`collect` 会先同步选中的仓库，因此通常不需要提前执行 `projects sync`。命令成功后分别返回包含输出路径、raw 内容或 summary 路径的 JSON。
+
+## 工作流程
+
+一次采集会依次执行：
+
+1. 从显式配置中选择已启用的项目。
+2. 验证本地仓库的 `origin`。
+3. fetch 配置的远程分支到 `refs/remotes/origin/{branch}`。
+4. 从该远程引用读取指定日期范围内的提交，不依赖本地 `HEAD`。
+5. 按命令行作者、项目作者或全局身份的优先级过滤提交。
+6. 写入 raw 索引、manifest 和各项目 Markdown。
+7. 由 Agent 或 MCP 客户端生成总结，并写入 summary 文件。
+
+命令行传入的作者按完整姓名或完整邮箱匹配，不区分大小写。未传作者时，项目的 `authors` 优先于全局 `identities`。
+
+单个项目同步或采集失败时，其他项目会继续处理，错误会进入结果的 `errors`。失败项目不会回退到旧缓存来冒充最新结果。
 
 ## 配置文件
 
@@ -71,6 +112,14 @@ MCP 提供：`list_projects`、`sync_projects`、`collect_git_logs`、`get_week_
   "identities": [{ "name": "张三", "email": "zhangsan@example.com" }]
 }
 ```
+
+| 字段                           | 说明                                                      |
+| ------------------------------ | --------------------------------------------------------- |
+| `outputRoot`                   | raw 和 summary 的根目录                                   |
+| `repositoryCacheRoot`          | 默认仓库缓存目录                                          |
+| `defaultSince`、`defaultUntil` | Core API 的默认周期；当前 Agent CLI 和 MCP 仍要求显式日期 |
+| `includeEmptyProjects`         | 是否为没有匹配提交的项目生成 raw 文件                     |
+| `identities`                   | 默认 Git 作者身份，至少配置一个                           |
 
 项目配置位于 `~/.weekly-git-report/projects.json`：
 
@@ -89,21 +138,9 @@ MCP 提供：`list_projects`、`sync_projects`、`collect_git_logs`、`get_week_
 }
 ```
 
-项目可以通过 `authors` 覆盖全局身份。`localPath` 在添加项目时计算并保存；默认目录名包含 URL 短哈希，避免同名仓库冲突。
+项目可以通过 `authors` 覆盖全局身份。`localPath` 在添加项目时计算并保存；默认目录名包含 URL 的 8 位短哈希，避免同名仓库冲突。
 
-## 同步与采集
-
-每次采集会依次：
-
-1. 读取启用的显式项目。
-2. 验证本地仓库的 `origin`。
-3. fetch 配置的远程分支到 `refs/remotes/origin/{branch}`。
-4. 从该远程引用读取指定周期提交，不依赖本地 HEAD。
-5. 优先按命令行作者过滤，否则使用项目作者或全局身份邮箱。
-
-单项目同步失败会进入报告的 `errors`，其他项目继续处理；失败项目不会使用旧缓存冒充最新结果。
-
-## 数据目录
+## 输出目录
 
 ```text
 ~/.weekly-git-report/
@@ -119,18 +156,45 @@ MCP 提供：`list_projects`、`sync_projects`、`collect_git_logs`、`get_week_
   summary/{YYYY}/{MM}/{start}_{end}.md
 ```
 
+- `index.md`：本周期的项目索引。
+- `manifest.json`：周期、项目文件、提交数量和错误等结构化元数据。
+- `{project}-{urlHash}.md`：单个项目的提交记录。
+- `summary/...md`：Agent 或 MCP 客户端生成的最终周报。
+
+raw 读取和 summary 写入都限制在配置的 `outputRoot` 内。
+
+## 常见问题
+
+### 提示配置不存在
+
+先在交互式终端运行 `npx -y @weekly-git-report/cli@latest init`。
+
+### 本地仓库无法同步
+
+运行以下命令检查 Git、配置文件、本地路径和 `origin`：
+
+```sh
+npx -y @weekly-git-report/cli@latest doctor
+```
+
+如果自定义路径已存在，它必须是空目录，或是 `origin` 与配置 URL 一致的 Git 仓库。
+
+### 周报中没有某些提交
+
+依次检查项目是否已启用、配置分支是否正确、日期范围是否覆盖提交时间，以及作者姓名或邮箱是否完整匹配。
+
 ## Monorepo
 
-| 包                           | 职责                            |
-| ---------------------------- | ------------------------------- |
-| `packages/cli`               | 交互式配置和项目管理            |
-| `packages/agent-cli`         | 面向 Agent/脚本的 JSON CLI      |
-| `packages/mcp`               | MCP stdio server                |
-| `packages/skill`             | Agent Skill 安装器              |
-| `packages/workflow`          | CLI 与 MCP 共用工作流           |
-| `packages/core`              | Git、配置、同步、采集和报告写入 |
-| `packages/shared`            | 常量、Schema 和类型             |
-| `packages/typescript-config` | 共享 TypeScript 与 tsup 配置    |
+| 包                                                   | 职责                            |
+| ---------------------------------------------------- | ------------------------------- |
+| [`packages/cli`](packages/cli/README.md)             | 交互式配置和项目管理            |
+| [`packages/agent-cli`](packages/agent-cli/README.md) | 面向 Agent 和脚本的 JSON CLI    |
+| [`packages/mcp`](packages/mcp/README.md)             | MCP stdio server                |
+| [`packages/skill`](packages/skill/README.md)         | Agent Skill 安装器              |
+| [`packages/workflow`](packages/workflow/README.md)   | CLI 与 MCP 共用工作流           |
+| [`packages/core`](packages/core/README.md)           | Git、配置、同步、采集和报告写入 |
+| [`packages/shared`](packages/shared/README.md)       | 常量、Schema 和类型             |
+| `packages/typescript-config`                         | 共享 TypeScript 与 tsup 配置    |
 
 ## 本地开发
 
