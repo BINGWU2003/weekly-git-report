@@ -31,10 +31,17 @@ function createWindow(): void {
     webPreferences: {
       preload: join(__dirname, "../preload/index.cjs"),
       contextIsolation: true,
+      devTools: is.dev,
       nodeIntegration: false,
       sandbox: true,
     },
   });
+
+  if (is.dev) {
+    mainWindow.webContents.once("did-finish-load", () => {
+      mainWindow.webContents.openDevTools({ mode: "detach" });
+    });
+  }
 
   mainWindow.once("ready-to-show", () => {
     mainWindow.show();

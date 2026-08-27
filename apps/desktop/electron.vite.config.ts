@@ -1,6 +1,7 @@
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
+import { codeInspectorPlugin } from "code-inspector-plugin";
 import { defineConfig, externalizeDepsPlugin } from "electron-vite";
 import path from "node:path";
 
@@ -45,6 +46,27 @@ export default defineConfig({
       strictPort: true,
     },
     plugins: [
+      {
+        name: "code-inspector-dev-csp",
+        apply: "serve",
+        transformIndexHtml(html) {
+          return html
+            .replace(
+              "img-src 'self' data:;",
+              "img-src 'self' data: http://127.0.0.1:*;",
+            )
+            .replace(
+              "connect-src 'self' ws://127.0.0.1:*;",
+              "connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:*;",
+            );
+        },
+      },
+      codeInspectorPlugin({
+        bundler: "vite",
+        ip: "127.0.0.1",
+        lang: "zh",
+        showSwitch: true,
+      }),
       tanstackRouter({
         target: "react",
         autoCodeSplitting: true,

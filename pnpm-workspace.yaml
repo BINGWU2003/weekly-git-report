@@ -78,6 +78,7 @@ catalogs:
     vitest: ^4.1.11
     vitest-browser-react: ^2.2.0
     zod: ^4.3.6
+    code-inspector-plugin: ^2.0.8
 
 onlyBuiltDependencies:
   - electron

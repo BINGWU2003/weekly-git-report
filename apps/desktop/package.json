@@ -75,6 +75,7 @@
     "@vitejs/plugin-react": "catalog:desktop",
     "@vitest/browser-playwright": "catalog:desktop",
     "@vitest/coverage-v8": "catalog:desktop",
+    "code-inspector-plugin": "catalog:desktop",
     "electron": "catalog:desktop",
     "electron-builder": "catalog:desktop",
     "electron-vite": "catalog:desktop",
