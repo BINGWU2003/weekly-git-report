@@ -1,5 +1,11 @@
 # @weekly-git-report/skill
 
+## 1.1.1
+
+### Patch Changes
+
+- 18bde2f: 完善项目使用文档，统一安装方式，并补充完整流程、参数语义和错误处理说明。
+
 ## 1.1.0
 
 ### Minor Changes

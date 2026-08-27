@@ -1,5 +1,11 @@
 # @weekly-git-report/cli
 
+## 3.0.1
+
+### Patch Changes
+
+- 18bde2f: 完善项目使用文档，统一安装方式，并补充完整流程、参数语义和错误处理说明。
+
 ## 3.0.0
 
 ### Major Changes
