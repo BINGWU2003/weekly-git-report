@@ -1,39 +1,40 @@
-import { ConfigDrawer } from '@/components/config-drawer'
+import { CalendarClock, Plus } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
-import { ProfileDropdown } from '@/components/profile-dropdown'
-import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { TasksDialogs } from './components/tasks-dialogs'
-import { TasksPrimaryButtons } from './components/tasks-primary-buttons'
-import { TasksProvider } from './components/tasks-provider'
-import { TasksTable } from './components/tasks-table'
-import { tasks } from './data/tasks'
 
 export function Tasks() {
   return (
-    <TasksProvider>
-      <Header fixed>
-        <Search className='me-auto' />
+    <>
+      <Header>
+        <div className='me-auto text-sm font-medium'>Electron 专属自动化</div>
         <ThemeSwitch />
-        <ConfigDrawer />
-        <ProfileDropdown />
       </Header>
-
-      <Main className='flex flex-1 flex-col gap-4 sm:gap-6'>
-        <div className='flex flex-wrap items-end justify-between gap-2'>
+      <Main className='space-y-6'>
+        <div className='flex flex-wrap items-end justify-between gap-3'>
           <div>
-            <h2 className='text-2xl font-bold tracking-tight'>Tasks</h2>
-            <p className='text-muted-foreground'>
-              Here&apos;s a list of your tasks for this month!
-            </p>
+            <h1 className='text-2xl font-bold tracking-tight md:text-3xl'>报告任务</h1>
+            <p className='text-muted-foreground'>配置周期、仓库、LLM 和飞书推送。</p>
           </div>
-          <TasksPrimaryButtons />
+          <Button disabled>
+            <Plus />
+            新建任务
+          </Button>
         </div>
-        <TasksTable data={tasks} />
+        <Card className='border-dashed'>
+          <CardHeader className='items-center py-14 text-center'>
+            <div className='mb-2 rounded-full bg-muted p-3'>
+              <CalendarClock className='size-6 text-muted-foreground' />
+            </div>
+            <CardTitle>自动任务即将接入</CardTitle>
+            <CardDescription className='max-w-lg'>
+              当前阶段先打通共享配置、仓库和报告读取。下一阶段会加入 tasks.json、周期计算和手动运行。
+            </CardDescription>
+          </CardHeader>
+        </Card>
       </Main>
-
-      <TasksDialogs />
-    </TasksProvider>
+    </>
   )
 }

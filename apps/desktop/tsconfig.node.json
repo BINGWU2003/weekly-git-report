@@ -23,5 +23,5 @@
     /* Electron */
     "types": ["node", "electron-vite/node"]
   },
-  "include": ["vitest.config.ts", "electron.vite.config.ts", "electron/**/*.ts"]
+  "include": ["vitest.config.ts", "electron.vite.config.ts", "electron/**/*.ts", "shared/**/*.ts"]
 }

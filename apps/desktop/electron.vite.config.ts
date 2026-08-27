@@ -6,7 +6,14 @@ import path from "node:path";
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [
+      externalizeDepsPlugin({
+        exclude: [
+          "@weekly-git-report/core",
+          "@weekly-git-report/shared",
+        ],
+      }),
+    ],
     build: {
       rollupOptions: {
         input: path.resolve(__dirname, "electron/main/index.ts"),
@@ -22,6 +29,10 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: path.resolve(__dirname, "electron/preload/index.ts"),
+        output: {
+          format: "cjs",
+          entryFileNames: "index.cjs",
+        },
       },
     },
   },

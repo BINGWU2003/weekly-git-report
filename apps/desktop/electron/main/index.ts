@@ -2,6 +2,8 @@ import { electronApp, is, optimizer } from "@electron-toolkit/utils";
 import { BrowserWindow, app, shell } from "electron";
 import { join } from "node:path";
 
+import { registerIpcHandlers } from "./ipc/register-ipc.js";
+
 function isExternalUrl(url: string): boolean {
   try {
     const target = new URL(url);
@@ -27,7 +29,7 @@ function createWindow(): void {
     autoHideMenuBar: true,
     backgroundColor: "#09090b",
     webPreferences: {
-      preload: join(__dirname, "../preload/index.mjs"),
+      preload: join(__dirname, "../preload/index.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -59,6 +61,7 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   electronApp.setAppUserModelId("com.weeklygitreport.desktop");
+  registerIpcHandlers();
 
   app.on("browser-window-created", (_event, window) => {
     optimizer.watchWindowShortcuts(window);

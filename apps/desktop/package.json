@@ -20,7 +20,6 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@clerk/react": "catalog:desktop",
     "@electron-toolkit/utils": "catalog:desktop",
     "@hookform/resolvers": "catalog:desktop",
     "@radix-ui/react-alert-dialog": "catalog:desktop",
@@ -45,7 +44,8 @@
     "@tanstack/react-query": "catalog:desktop",
     "@tanstack/react-router": "catalog:desktop",
     "@tanstack/react-table": "catalog:desktop",
-    "axios": "catalog:desktop",
+    "@weekly-git-report/core": "workspace:*",
+    "@weekly-git-report/shared": "workspace:*",
     "class-variance-authority": "catalog:desktop",
     "clsx": "catalog:desktop",
     "cmdk": "catalog:desktop",
@@ -56,17 +56,16 @@
     "react-day-picker": "catalog:desktop",
     "react-dom": "catalog:desktop",
     "react-hook-form": "catalog:desktop",
+    "react-markdown": "catalog:desktop",
     "react-top-loading-bar": "catalog:desktop",
-    "recharts": "catalog:desktop",
+    "remark-gfm": "catalog:desktop",
     "sonner": "catalog:desktop",
     "tailwind-merge": "catalog:desktop",
     "tailwindcss": "catalog:desktop",
     "tw-animate-css": "catalog:desktop",
-    "zod": "catalog:desktop",
-    "zustand": "catalog:desktop"
+    "zod": "catalog:desktop"
   },
   "devDependencies": {
-    "@faker-js/faker": "catalog:desktop",
     "@tanstack/react-query-devtools": "catalog:desktop",
     "@tanstack/react-router-devtools": "catalog:desktop",
     "@tanstack/router-plugin": "catalog:desktop",

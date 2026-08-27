@@ -1,14 +1,11 @@
 /// <reference types="vite/client" />
 
-interface ElectronAPI {
-  readonly platform: string
-  readonly versions: Readonly<{
-    chrome: string
-    electron: string
-    node: string
-  }>
+import type { DesktopAPI } from '../shared/ipc'
+
+declare global {
+  interface Window {
+    readonly electronAPI: DesktopAPI
+  }
 }
 
-interface Window {
-  readonly electronAPI: ElectronAPI
-}
+export {}
