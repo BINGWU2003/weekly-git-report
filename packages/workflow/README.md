@@ -1,9 +1,9 @@
 # @weekly-git-report/workflow
 
-内部工作流包，供 MCP 和 Agent CLI 复用。
+内部工作流包，供 MCP 和统一 CLI 复用。
 
 ```text
-mcp / agent-cli -> workflow -> core -> shared
+mcp / cli -> workflow -> core -> shared
 ```
 
 主要导出：`listProjects`、`syncProjects`、`collectGitLogs`、`getWeekIndex`、`readWeekRaw`、`saveWeekSummary`。

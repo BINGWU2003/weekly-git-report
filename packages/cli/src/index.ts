@@ -2,6 +2,7 @@
 
 import { runDoctorCommand } from "./commands/doctor.js";
 import { runEditConfigCommand, runInitCommand } from "./commands/init.js";
+import { runCollectCommand, runRawCommand, runSummaryCommand } from "./commands/report.js";
 import {
   runAddProjectCommand,
   runEditProjectCommand,
@@ -9,9 +10,10 @@ import {
   runRemoveProjectCommand,
   runSyncProjectsCommand,
 } from "./commands/projects.js";
+import { handleCliError } from "./utils/error.js";
 import { promptOptions, prompts } from "./utils/prompt.js";
 
-const [command, subcommand, ...commandArgs] = process.argv.slice(2);
+const [command, ...commandArgs] = process.argv.slice(2);
 
 try {
   switch (command) {
@@ -21,12 +23,25 @@ try {
     case "init":
       await runInitCommand();
       break;
-    case "config":
-      if (subcommand !== "edit") throw new Error(`Unknown config command: ${subcommand ?? ""}`);
+    case "config": {
+      const [configSubcommand] = commandArgs;
+      if (configSubcommand !== "edit") {
+        throw new Error(`Unknown config command: ${configSubcommand ?? ""}`);
+      }
       await runEditConfigCommand();
       break;
+    }
     case "projects":
-      await runProjectsCommand(subcommand, commandArgs);
+      await runProjectsCommand(commandArgs[0], commandArgs.slice(1));
+      break;
+    case "collect":
+      await runCollectCommand(commandArgs);
+      break;
+    case "raw":
+      await runRawCommand(commandArgs[0], commandArgs.slice(1));
+      break;
+    case "summary":
+      await runSummaryCommand(commandArgs[0], commandArgs.slice(1));
       break;
     case "doctor":
       await runDoctorCommand();
@@ -39,8 +54,7 @@ try {
       throw new Error(`Unknown command: ${command}`);
   }
 } catch (error) {
-  console.error(error instanceof Error ? error.message : error);
-  process.exitCode = 1;
+  handleCliError(error);
 }
 
 async function runMenu(): Promise<void> {
@@ -80,7 +94,7 @@ async function runMenu(): Promise<void> {
     case "list":
       return runListProjectsCommand();
     case "sync":
-      return runSyncProjectsCommand();
+      return runSyncProjectsCommand([]);
     case "doctor":
       return runDoctorCommand();
   }
@@ -100,7 +114,7 @@ async function runProjectsCommand(
     case "list":
       return runListProjectsCommand();
     case "sync":
-      return runSyncProjectsCommand(args[0]);
+      return runSyncProjectsCommand(args);
     default:
       throw new Error(`Unknown projects command: ${subcommandName ?? ""}`);
   }
@@ -114,7 +128,11 @@ Usage:
   weekly init
   weekly config edit
   weekly projects add|edit|remove|list
-  weekly projects sync [id-or-name]
+  weekly projects sync [id-or-name|--project <id-or-name>|--all]
+  weekly collect --since <YYYY-MM-DD> --until <YYYY-MM-DD> [--author <name-or-email>] [--project <id-or-name>] [--all]
+  weekly raw index --start <YYYY-MM-DD> --end <YYYY-MM-DD>
+  weekly raw read --start <YYYY-MM-DD> --end <YYYY-MM-DD>
+  weekly summary save --start <YYYY-MM-DD> --end <YYYY-MM-DD> [--file <path>]
   weekly doctor
 `);
 }

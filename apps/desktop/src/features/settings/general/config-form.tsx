@@ -208,8 +208,10 @@ export function ConfigForm({ initialConfig, state, isInitializing }: ConfigFormP
               render={({ field }) => (
                 <FormItem className='flex items-center justify-between gap-4 rounded-lg border p-4'>
                   <div>
-                    <FormLabel>包含无提交仓库</FormLabel>
-                    <FormDescription>报告中保留当前周期没有匹配提交的仓库。</FormDescription>
+                    <FormLabel>显示无提交仓库</FormLabel>
+                    <FormDescription>
+                      在报告中显示当前周期没有匹配提交的已启用仓库。
+                    </FormDescription>
                   </div>
                   <FormControl>
                     <Switch checked={field.value} onCheckedChange={field.onChange} />

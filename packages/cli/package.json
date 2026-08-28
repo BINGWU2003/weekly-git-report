@@ -26,7 +26,8 @@
   },
   "scripts": {
     "build": "tsup",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "kolorist": "catalog:",
@@ -39,7 +40,9 @@
     "@weekly-git-report/core": "workspace:*",
     "@weekly-git-report/shared": "workspace:*",
     "@weekly-git-report/typescript-config": "workspace:*",
+    "@weekly-git-report/workflow": "workspace:*",
     "tsup": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

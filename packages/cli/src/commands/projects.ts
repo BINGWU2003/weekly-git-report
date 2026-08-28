@@ -9,13 +9,15 @@ import {
   normalizeAbsolutePath,
   normalizeRepositoryUrl,
   removeRepositoryProject,
-  syncRepositories,
   syncRepository,
   writeProjectsIndex,
 } from "@weekly-git-report/core";
 import type { Config, Identity, RepositoryProject } from "@weekly-git-report/shared";
+import { listProjects, syncProjects } from "@weekly-git-report/workflow";
 
 import { assertInteractive, promptIdentities } from "./init.js";
+import { parseProjectSelectionArgs } from "../utils/args.js";
+import { printOperationResult, printJson } from "../utils/output.js";
 import { intro, outro, promptOptions, prompts } from "../utils/prompt.js";
 
 export async function runAddProjectCommand(): Promise<void> {
@@ -95,46 +97,37 @@ export async function runRemoveProjectCommand(): Promise<void> {
 }
 
 export async function runListProjectsCommand(): Promise<void> {
-  console.log(JSON.stringify(await loadProjectsIndex(), null, 2));
+  printJson(await listProjects({}));
 }
 
-export async function runSyncProjectsCommand(projectId?: string): Promise<void> {
-  const index = await loadProjectsIndex();
-  let projects = index.projects.filter((project) => project.enabled);
-  if (projectId) {
-    projects = projects.filter((project) => project.id === projectId || project.name === projectId);
-  } else if (process.stdin.isTTY && process.stdout.isTTY && projects.length > 1) {
-    const answer = await prompts(
-      {
-        type: "select",
-        name: "id",
-        message: "Repositories to sync",
-        choices: [
-          { title: "All enabled repositories", value: "*" },
-          ...projects.map((project) => ({
-            title: project.name,
-            value: project.id,
-          })),
-        ],
-      },
-      promptOptions(),
-    );
-    if (answer.id !== "*") projects = projects.filter((project) => project.id === answer.id);
+export async function runSyncProjectsCommand(args: string[]): Promise<void> {
+  const selection = parseProjectSelectionArgs(args);
+  let projectIds = selection.projectIds;
+
+  if (!selection.explicit && process.stdin.isTTY && process.stdout.isTTY) {
+    const { projects } = await listProjects({});
+    const enabledProjects = projects.filter((project) => project.enabled);
+    if (enabledProjects.length > 1) {
+      const answer = await prompts(
+        {
+          type: "select",
+          name: "id",
+          message: "Repositories to sync",
+          choices: [
+            { title: "All enabled repositories", value: "*" },
+            ...enabledProjects.map((project) => ({
+              title: project.name,
+              value: project.id,
+            })),
+          ],
+        },
+        promptOptions(),
+      );
+      if (answer.id !== "*") projectIds = [String(answer.id)];
+    }
   }
 
-  if (projects.length === 0) throw new Error("No matching enabled repositories.");
-  const result = await syncRepositories(projects);
-  console.log(
-    JSON.stringify(
-      {
-        synced: result.projects.map((project) => project.id),
-        errors: result.errors,
-      },
-      null,
-      2,
-    ),
-  );
-  if (result.errors.length > 0) process.exitCode = 1;
+  printOperationResult(await syncProjects({ projectIds }));
 }
 
 async function promptProject(

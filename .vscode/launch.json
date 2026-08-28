@@ -43,18 +43,18 @@
       "preLaunchTask": "build: CLI with dependencies"
     },
     {
-      "name": "Agent CLI: projects list",
+      "name": "CLI: collect current example period",
       "type": "node",
       "request": "launch",
-      "program": "${workspaceFolder}/packages/agent-cli/dist/index.js",
-      "args": ["projects", "list"],
+      "program": "${workspaceFolder}/packages/cli/dist/index.js",
+      "args": ["collect", "--since", "2026-08-18", "--until", "2026-08-24", "--all"],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "runtimeArgs": ["--enable-source-maps"],
       "sourceMaps": true,
       "outFiles": ["${workspaceFolder}/packages/*/dist/**/*.js"],
       "skipFiles": ["<node_internals>/**"],
-      "preLaunchTask": "build: Agent CLI with dependencies"
+      "preLaunchTask": "build: CLI with dependencies"
     },
     {
       "name": "Vitest: current test file",

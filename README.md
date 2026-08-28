@@ -30,20 +30,19 @@ npx -y @weekly-git-report/cli@latest
 
 ### 2. 选择使用方式
 
-| 方式        | 适合场景                                               | 入口                                                           |
-| ----------- | ------------------------------------------------------ | -------------------------------------------------------------- |
-| Agent Skill | 希望直接在 Codex、Claude Code 或 opencode 中生成周报   | [`@weekly-git-report/skill`](packages/skill/README.md)         |
-| MCP         | 使用支持 MCP 的客户端，并希望通过 tools 编排采集与保存 | [`@weekly-git-report/mcp`](packages/mcp/README.md)             |
-| Agent CLI   | Agent、脚本或 CI 需要稳定的 JSON 输入输出              | [`@weekly-git-report/agent-cli`](packages/agent-cli/README.md) |
-| 交互式 CLI  | 初始化配置、维护仓库和排查环境问题                     | [`@weekly-git-report/cli`](packages/cli/README.md)             |
-| Electron    | 通过 GUI 初始化配置、维护仓库和浏览 Markdown 报告      | [`apps/desktop`](apps/desktop/README.md)                       |
+| 方式        | 适合场景                                               | 入口                                                     |
+| ----------- | ------------------------------------------------------ | -------------------------------------------------------- |
+| Agent Skill | 希望直接在 Codex、Claude Code 或其他 Agent 中生成周报  | [`weekly-git-report`](skills/weekly-git-report/SKILL.md) |
+| MCP         | 使用支持 MCP 的客户端，并希望通过 tools 编排采集与保存 | [`@weekly-git-report/mcp`](packages/mcp/README.md)       |
+| CLI         | 交互配置，或由 Agent、脚本和 CI 使用稳定 JSON 命令     | [`@weekly-git-report/cli`](packages/cli/README.md)       |
+| Electron    | 通过 GUI 初始化配置、维护仓库和浏览 Markdown 报告      | [`apps/desktop`](apps/desktop/README.md)                 |
 
 #### Agent Skill
 
-进入希望安装 Skill 的项目目录，并选择目标客户端：
+使用通用 Skills CLI 从仓库安装：
 
 ```sh
-npx -y @weekly-git-report/skill@latest install --target codex
+npx skills add BINGWU2003/weekly-git-report
 ```
 
 重启客户端后，可以直接要求 Agent：
@@ -52,7 +51,7 @@ npx -y @weekly-git-report/skill@latest install --target codex
 根据 2026-08-18 到 2026-08-24 的 Git 提交生成周报并保存。
 ```
 
-Skill 会指导 Agent 调用 Agent CLI，完成同步、采集、读取 raw 和保存 summary。
+Skill 会指导 Agent 调用统一 CLI，完成同步、采集、读取 raw 和保存 summary。
 
 #### MCP
 
@@ -71,14 +70,14 @@ Skill 会指导 Agent 调用 Agent CLI，完成同步、采集、读取 raw 和�
 
 MCP 提供 `list_projects`、`sync_projects`、`collect_git_logs`、`get_week_index`、`read_week_raw` 和 `save_week_summary` 六个 tool。
 
-#### Agent CLI
+#### CLI 自动化
 
 以下命令形成一个完整的数据流程：
 
 ```sh
-npx -y @weekly-git-report/agent-cli@latest collect --since 2026-08-18 --until 2026-08-24 --all
-npx -y @weekly-git-report/agent-cli@latest raw read --start 2026-08-18 --end 2026-08-24
-npx -y @weekly-git-report/agent-cli@latest summary save --start 2026-08-18 --end 2026-08-24 --file ./weekly-summary.md
+npx -y @weekly-git-report/cli@latest collect --since 2026-08-18 --until 2026-08-24 --all
+npx -y @weekly-git-report/cli@latest raw read --start 2026-08-18 --end 2026-08-24
+npx -y @weekly-git-report/cli@latest summary save --start 2026-08-18 --end 2026-08-24 --file ./weekly-summary.md
 ```
 
 `collect` 会先同步选中的仓库，因此通常不需要提前执行 `projects sync`。命令成功后分别返回包含输出路径、raw 内容或 summary 路径的 JSON。
@@ -97,7 +96,7 @@ npx -y @weekly-git-report/agent-cli@latest summary save --start 2026-08-18 --end
 
 命令行传入的作者按完整姓名或完整邮箱匹配，不区分大小写。未传作者时，项目的 `authors` 优先于全局 `identities`。
 
-单个项目同步或采集失败时，其他项目会继续处理，错误会进入结果的 `errors`。失败项目不会回退到旧缓存来冒充最新结果。
+单个项目同步或采集失败时，其他项目会继续处理，错误会进入结果的 `errors`，命令退出码为 `1`。失败项目不会回退到旧缓存来冒充最新结果。
 
 ## 配置文件
 
@@ -114,13 +113,13 @@ npx -y @weekly-git-report/agent-cli@latest summary save --start 2026-08-18 --end
 }
 ```
 
-| 字段                           | 说明                                                      |
-| ------------------------------ | --------------------------------------------------------- |
-| `outputRoot`                   | raw 和 summary 的根目录                                   |
-| `repositoryCacheRoot`          | 默认仓库缓存目录                                          |
-| `defaultSince`、`defaultUntil` | Core API 的默认周期；当前 Agent CLI 和 MCP 仍要求显式日期 |
-| `includeEmptyProjects`         | 是否为没有匹配提交的项目生成 raw 文件                     |
-| `identities`                   | 默认 Git 作者身份，至少配置一个                           |
+| 字段                           | 说明                                                          |
+| ------------------------------ | ------------------------------------------------------------- |
+| `outputRoot`                   | raw 和 summary 的根目录                                       |
+| `repositoryCacheRoot`          | 默认仓库缓存目录                                              |
+| `defaultSince`、`defaultUntil` | Core API 的默认周期；当前 CLI 自动化命令和 MCP 仍要求显式日期 |
+| `includeEmptyProjects`         | 是否为没有匹配提交的项目生成 raw 文件                         |
+| `identities`                   | 默认 Git 作者身份，至少配置一个                               |
 
 项目配置位于 `~/.weekly-git-report/projects.json`：
 
@@ -187,17 +186,21 @@ npx -y @weekly-git-report/cli@latest doctor
 
 ## Monorepo
 
-| 包                                                   | 职责                            |
-| ---------------------------------------------------- | ------------------------------- |
-| [`packages/cli`](packages/cli/README.md)             | 交互式配置和项目管理            |
-| [`packages/agent-cli`](packages/agent-cli/README.md) | 面向 Agent 和脚本的 JSON CLI    |
-| [`packages/mcp`](packages/mcp/README.md)             | MCP stdio server                |
-| [`packages/skill`](packages/skill/README.md)         | Agent Skill 安装器              |
-| [`packages/workflow`](packages/workflow/README.md)   | CLI 与 MCP 共用工作流           |
-| [`packages/core`](packages/core/README.md)           | Git、配置、同步、采集和报告写入 |
-| [`packages/shared`](packages/shared/README.md)       | 常量、Schema 和类型             |
-| `packages/typescript-config`                         | 共享 TypeScript 与 tsup 配置    |
-| [`apps/desktop`](apps/desktop/README.md)             | Electron 配置、仓库与报告 GUI   |
+| 包                                                 | 职责                                      |
+| -------------------------------------------------- | ----------------------------------------- |
+| [`packages/cli`](packages/cli/README.md)           | 交互配置、项目管理及面向自动化的 JSON CLI |
+| [`packages/mcp`](packages/mcp/README.md)           | MCP stdio server                          |
+| [`packages/workflow`](packages/workflow/README.md) | CLI 与 MCP 共用工作流                     |
+| [`packages/core`](packages/core/README.md)         | Git、配置、同步、采集和报告写入           |
+| [`packages/shared`](packages/shared/README.md)     | 常量、Schema 和类型                       |
+| `packages/typescript-config`                       | 共享 TypeScript 与 tsup 配置              |
+| [`apps/desktop`](apps/desktop/README.md)           | Electron 配置、仓库与报告 GUI             |
+
+标准 Agent Skill 位于 [`skills/weekly-git-report`](skills/weekly-git-report/SKILL.md)，不再作为独立 npm 包发布。
+
+### 从旧命令迁移
+
+CLI v4 将原 `@weekly-git-report/agent-cli` 合并到了 `@weekly-git-report/cli`：把包名替换为 `@weekly-git-report/cli`，并把全局命令 `weekly-agent` 替换为 `weekly`。原 `@weekly-git-report/skill` 安装器由 `npx skills add BINGWU2003/weekly-git-report` 取代。
 
 ## 本地开发
 
@@ -217,7 +220,7 @@ pnpm build
 打开工作区后安装推荐扩展，即可在保存时使用 oxfmt 格式化，并在编辑器中查看 oxlint 和 Vitest 结果。
 
 - 通过 `Tasks: Run Task` 执行单项检查或 `quality: verify all`。
-- 按 `F5` 可调试交互式 CLI、项目列表、doctor、Agent CLI 或当前 Vitest 测试文件。
+- 按 `F5` 可调试交互式 CLI、项目列表、自动化采集、doctor 或当前 Vitest 测试文件。
 - CLI 调试会先以单并发构建自身及内部依赖，并在集成终端中运行，以支持交互输入。
 
 项目使用 Changesets 发布：`pnpm changeset`、`pnpm version-packages`、`pnpm release`。

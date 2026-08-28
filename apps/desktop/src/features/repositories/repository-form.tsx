@@ -165,9 +165,9 @@ export function RepositoryForm({ open, onOpenChange, project, state }: Repositor
             {project ? '远程地址不可修改；保存前会同步所选分支。' : '使用系统 Git 和本机凭据检查并缓存远程仓库。'}
           </SheetDescription>
         </SheetHeader>
-        <ScrollArea className='min-h-0 flex-1 px-4'>
+        <ScrollArea className='min-h-0 flex-1'>
           <Form {...form}>
-            <form id='repository-form' onSubmit={form.handleSubmit((value) => save.mutate(value))} className='space-y-5 pb-6'>
+            <form id='repository-form' onSubmit={form.handleSubmit((value) => save.mutate(value))} className='space-y-5 px-4 pb-6'>
               <FormField
                 control={form.control}
                 name='url'

@@ -10,7 +10,7 @@
 
 - 默认配置常量：`DEFAULT_CONFIG`、`DEFAULT_OUTPUT_ROOT`。
 - 目录和文件名常量：`WORK_DIR`、`RAW_DIR_NAME`、`SUMMARY_DIR_NAME` 等。
-- Zod schema：配置、项目索引、采集参数、MCP/Agent 输入等。
+- Zod schema：配置、项目索引、采集参数、MCP/CLI 自动化输入等。
 - 类型导出：由 schema 推导的 `Config`、`Project`、`Manifest`、`Period` 等。
 
 ## 常用导出
@@ -26,7 +26,7 @@ import type { Config, Period } from "@weekly-git-report/shared";
 
 ## 依赖关系
 
-只依赖 `zod`。它位于依赖链底层，被 `core`、`workflow`、`cli`、`mcp` 和 `agent-cli` 复用。
+只依赖 `zod`。它位于依赖链底层，被 `core`、`workflow`、`cli` 和 `mcp` 复用。
 
 ## 开发命令
 
