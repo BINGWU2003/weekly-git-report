@@ -60,12 +60,12 @@ weekly
 | `weekly collect [options]`                  | 否       | 同步并采集指定周期的 Git 提交            |
 | `weekly raw index --start ... --end ...`    | 否       | 读取周期 raw 索引                        |
 | `weekly raw read --start ... --end ...`     | 否       | 读取周期内的项目 Markdown                |
-| `weekly summary save --start ... --end ...` | 否       | 从文件或 stdin 保存最终总结              |
-| `weekly templates init`                     | 否       | 初始化缺失的默认周报生成模板             |
-| `weekly templates read [period]`            | 否       | 读取模板及可选的日期变量渲染结果         |
+| `weekly summary save --type ... [period]`   | 否       | 保存日报、周报或月报及其 Sidecar         |
+| `weekly templates init [--type ...\|--all]` | 否       | 初始化缺失的默认生成模板                 |
+| `weekly templates read --type ... [period]` | 否       | 读取指定类型模板及日期变量渲染结果       |
 | `weekly templates write [options]`          | 否       | 从文件或 stdin 安全更新模板              |
 | `weekly templates reset --force`            | 否       | 恢复当前版本的内置默认模板               |
-| `weekly doctor`                             | 否       | 检查 Git、配置、项目路径和 `origin`      |
+| `weekly doctor`                             | 否       | 检查环境、模板、Sidecar 和仓库           |
 | `weekly --help`                             | 否       | 显示命令帮助                             |
 
 使用 `npx` 时，将表中的 `weekly` 替换为 `npx -y @weekly-git-report/cli@latest`。
@@ -83,33 +83,36 @@ npx -y @weekly-git-report/cli@latest init
 ```text
 ~/.weekly-git-report/config.json
 ~/.weekly-git-report/projects.json
+~/.weekly-git-report/templates/daily/summary.md
 ~/.weekly-git-report/templates/weekly/summary.md
+~/.weekly-git-report/templates/monthly/summary.md
 ```
 
-`init` 会创建输出目录、项目索引和默认周报生成模板。如果全局配置已经存在，它会保留现有配置与模板内容，只补齐缺失文件。
+`init` 会创建输出目录、项目索引和默认日报、周报、月报生成模板。如果全局配置已经存在，它会保留现有配置与模板内容，只补齐缺失文件。
 
-### 管理周报生成模板
+### 管理报告生成模板
 
 读取原始模板，或按指定周期渲染 `{{startDate}}`、`{{endDate}}`：
 
 ```sh
 npx -y @weekly-git-report/cli@latest templates read
-npx -y @weekly-git-report/cli@latest templates read --start 2026-08-18 --end 2026-08-24
+npx -y @weekly-git-report/cli@latest templates read --type daily --start 2026-08-28 --end 2026-08-28
+npx -y @weekly-git-report/cli@latest templates read --type monthly --start 2026-08-01 --end 2026-08-28
 ```
 
-模板正文保存在 `~/.weekly-git-report/templates/weekly/summary.md`，CLI stdout 返回包含正文、渲染结果、路径、revision 和默认状态的稳定 JSON。读取时若文件缺失会自动创建，但绝不会覆盖已有内容。
+未传 `--type` 时默认 `weekly`。三种模板分别保存在 `templates/daily`、`templates/weekly`、`templates/monthly` 下。CLI stdout 返回正文、渲染结果、路径、revision 和默认状态。读取时若文件缺失会自动创建，但绝不会覆盖已有内容。`templates init --all` 可一次补齐全部模板。
 
 更新模板前先读取 revision，然后从文件或 stdin 写入：
 
 ```sh
-npx -y @weekly-git-report/cli@latest templates write --file ./summary-template.md --revision REVISION
-Get-Content ./summary-template.md | npx -y @weekly-git-report/cli@latest templates write --revision REVISION
+npx -y @weekly-git-report/cli@latest templates write --type monthly --file ./summary-template.md --revision REVISION
+Get-Content ./summary-template.md | npx -y @weekly-git-report/cli@latest templates write --type monthly --revision REVISION
 ```
 
 模板必须非空，同时包含 `{{startDate}}`、`{{endDate}}`，不接受其他变量。确实需要跳过 revision 冲突保护时可使用 `--force`。恢复内置默认模板必须显式确认：
 
 ```sh
-npx -y @weekly-git-report/cli@latest templates reset --force
+npx -y @weekly-git-report/cli@latest templates reset --type monthly --force
 ```
 
 ### 添加或编辑项目
@@ -228,17 +231,19 @@ npx -y @weekly-git-report/cli@latest projects sync --all
 以下命令构成完整的总结流程：
 
 ```sh
-npx -y @weekly-git-report/cli@latest collect --since 2026-08-18 --until 2026-08-24 --all
-npx -y @weekly-git-report/cli@latest templates read --start 2026-08-18 --end 2026-08-24
-npx -y @weekly-git-report/cli@latest raw read --start 2026-08-18 --end 2026-08-24
-npx -y @weekly-git-report/cli@latest summary save --start 2026-08-18 --end 2026-08-24 --file ./weekly-summary.md
+npx -y @weekly-git-report/cli@latest collect --since 2026-08-17 --until 2026-08-23 --all
+npx -y @weekly-git-report/cli@latest templates read --type weekly --start 2026-08-17 --end 2026-08-23
+npx -y @weekly-git-report/cli@latest raw read --start 2026-08-17 --end 2026-08-23
+npx -y @weekly-git-report/cli@latest summary save --type weekly --start 2026-08-17 --end 2026-08-23 --file ./weekly-summary.md
 ```
 
 `collect` 支持重复的 `--author <name-or-email>` 和 `--project <id-or-name>`。`summary save` 未传 `--file` 时从 stdin 读取 Markdown：
 
 ```sh
-Get-Content ./weekly-summary.md | npx -y @weekly-git-report/cli@latest summary save --start 2026-08-18 --end 2026-08-24
+Get-Content ./weekly-summary.md | npx -y @weekly-git-report/cli@latest summary save --type weekly --start 2026-08-17 --end 2026-08-23
 ```
+
+Raw 与报告类型无关，只按日期范围保存。Summary Markdown 继续写入 `summary/{year}/{month}/{start}_{end}.md`，同时生成同名 `.meta.json`，记录类型、周期、保存时间和内容 Hash。旧 Markdown 没有 Sidecar 时按 legacy 周报展示；同类型重复保存会备份到 `.history`，跨类型覆盖必须显式传入 `--force`。
 
 自动化命令只向 stdout 写入 JSON。配置错误、参数错误等诊断写入 stderr 并返回退出码 `1`；同步或采集出现项目级错误时，也会保留完整 JSON 并返回退出码 `1`。
 

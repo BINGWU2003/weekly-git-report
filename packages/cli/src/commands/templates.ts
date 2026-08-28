@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 
 import {
   initializeSummaryTemplate,
+  initializeSummaryTemplates,
   readSummaryTemplate,
   resetSummaryTemplate,
   saveSummaryTemplate,
@@ -9,6 +10,7 @@ import {
 
 import {
   parseTemplateReadArgs,
+  parseTemplateInitArgs,
   parseTemplateResetArgs,
   parseTemplateWriteArgs,
 } from "../utils/args.js";
@@ -20,12 +22,18 @@ export async function runTemplatesCommand(
 ): Promise<void> {
   switch (subcommandName) {
     case "init":
-      if (args.length > 0) throw new Error(`Unknown templates init option: ${args[0]}`);
-      printJson(await initializeSummaryTemplate());
+      {
+        const parsed = parseTemplateInitArgs(args);
+        printJson(
+          parsed.all
+            ? await initializeSummaryTemplates()
+            : await initializeSummaryTemplate({ cadence: parsed.cadence }),
+        );
+      }
       return;
     case "read": {
-      const { period } = parseTemplateReadArgs(args);
-      printJson(await readSummaryTemplate(period ? { period } : {}));
+      const { cadence, period } = parseTemplateReadArgs(args);
+      printJson(await readSummaryTemplate({ cadence, ...(period ? { period } : {}) }));
       return;
     }
     case "write": {
@@ -39,6 +47,7 @@ export async function runTemplatesCommand(
       printJson(
         await saveSummaryTemplate({
           content,
+          cadence: parsed.cadence,
           expectedRevision: parsed.revision ?? null,
           force: parsed.force,
         }),
@@ -46,8 +55,10 @@ export async function runTemplatesCommand(
       return;
     }
     case "reset":
-      parseTemplateResetArgs(args);
-      printJson(await resetSummaryTemplate({ force: true }));
+      {
+        const parsed = parseTemplateResetArgs(args);
+        printJson(await resetSummaryTemplate({ force: true, cadence: parsed.cadence }));
+      }
       return;
     default:
       throw new Error(`Unknown templates command: ${subcommandName ?? ""}`);

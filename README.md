@@ -1,6 +1,6 @@
 # weekly-git-report
 
-一个本地运行的 Git 周报工具集。它只处理你显式配置的仓库、分支和作者身份：采集前同步远程分支，将提交整理为结构化 Markdown，再交给 Agent 或 MCP 客户端生成并保存周报总结。
+一个本地运行的 Git 报告工具集，支持日报、周报和月报。它只处理你显式配置的仓库、分支和作者身份：采集前同步远程分支，将提交整理为结构化 Markdown，再交给 Agent 生成并保存周期总结。现有 MCP 接口继续兼容周报流程。
 
 ## 环境要求
 
@@ -40,7 +40,7 @@ npx -y @weekly-git-report/cli@latest projects import /path/to/code
 
 | 方式        | 适合场景                                               | 入口                                                     |
 | ----------- | ------------------------------------------------------ | -------------------------------------------------------- |
-| Agent Skill | 希望直接在 Codex、Claude Code 或其他 Agent 中生成周报  | [`weekly-git-report`](skills/weekly-git-report/SKILL.md) |
+| Agent Skill | 希望直接在 Codex、Claude Code 或其他 Agent 中生成报告  | [`weekly-git-report`](skills/weekly-git-report/SKILL.md) |
 | MCP         | 使用支持 MCP 的客户端，并希望通过 tools 编排采集与保存 | [`@weekly-git-report/mcp`](packages/mcp/README.md)       |
 | CLI         | 交互配置，或由 Agent、脚本和 CI 使用稳定 JSON 命令     | [`@weekly-git-report/cli`](packages/cli/README.md)       |
 | Electron    | 通过 GUI 初始化配置、维护仓库和浏览 Markdown 报告      | [`apps/desktop`](apps/desktop/README.md)                 |
@@ -56,7 +56,7 @@ npx skills add BINGWU2003/weekly-git-report
 重启客户端后，可以直接要求 Agent：
 
 ```text
-根据 2026-08-18 到 2026-08-24 的 Git 提交生成周报并保存。
+根据 2026-08-17 到 2026-08-23 的 Git 提交生成周报并保存。
 ```
 
 Skill 会指导 Agent 调用统一 CLI，读取可编辑的生成模板，完成同步、采集、读取 raw 和保存 summary。
@@ -83,10 +83,10 @@ MCP 提供 `list_projects`、`sync_projects`、`collect_git_logs`、`get_week_in
 以下命令形成一个完整的数据流程：
 
 ```sh
-npx -y @weekly-git-report/cli@latest collect --since 2026-08-18 --until 2026-08-24 --all
-npx -y @weekly-git-report/cli@latest templates read --start 2026-08-18 --end 2026-08-24
-npx -y @weekly-git-report/cli@latest raw read --start 2026-08-18 --end 2026-08-24
-npx -y @weekly-git-report/cli@latest summary save --start 2026-08-18 --end 2026-08-24 --file ./weekly-summary.md
+npx -y @weekly-git-report/cli@latest collect --since 2026-08-17 --until 2026-08-23 --all
+npx -y @weekly-git-report/cli@latest templates read --type weekly --start 2026-08-17 --end 2026-08-23
+npx -y @weekly-git-report/cli@latest raw read --start 2026-08-17 --end 2026-08-23
+npx -y @weekly-git-report/cli@latest summary save --type weekly --start 2026-08-17 --end 2026-08-23 --file ./weekly-summary.md
 ```
 
 `collect` 会先同步选中的仓库，因此通常不需要提前执行 `projects sync`。命令成功后分别返回包含输出路径、raw 内容或 summary 路径的 JSON。
@@ -101,7 +101,7 @@ npx -y @weekly-git-report/cli@latest summary save --start 2026-08-18 --end 2026-
 4. 从该远程引用读取指定日期范围内的提交，不依赖本地 `HEAD`。
 5. 按命令行作者、项目作者或全局身份的优先级过滤提交。
 6. 写入 raw 索引、manifest 和各项目 Markdown。
-7. Agent 读取共享提示词模板，根据 raw 内容生成总结，并写入 summary 文件。
+7. Agent 按报告类型读取共享提示词模板，根据 Raw 内容生成总结，并通过 CLI 写入 Summary Markdown 和 Sidecar。
 
 命令行传入的作者按完整姓名或完整邮箱匹配，不区分大小写。未传作者时，项目的 `authors` 优先于全局 `identities`。
 
@@ -158,21 +158,27 @@ Electron 仓库页和 `projects list/sync` JSON 会从本地缓存的 `refs/remo
   config.json
   projects.json
   repositories/
-  templates/weekly/summary.md
+  templates/
+    daily/summary.md
+    weekly/summary.md
+    monthly/summary.md
 
 {outputRoot}/
   raw/{YYYY}/{MM}/{start}_{end}/
     index.md
     manifest.json
     {project}-{urlHash}.md
-  summary/{YYYY}/{MM}/{start}_{end}.md
+  summary/{YYYY}/{MM}/
+    {start}_{end}.md
+    {start}_{end}.meta.json
 ```
 
 - `index.md`：本周期的项目索引。
 - `manifest.json`：周期、项目文件、提交数量和错误等结构化元数据。
 - `{project}-{urlHash}.md`：单个项目的提交记录。
-- `summary/...md`：Agent 或 MCP 客户端生成的最终周报。
-- `templates/weekly/summary.md`：CLI 与 Electron 共用的周报生成提示词，支持日期变量。
+- `summary/...md`：Agent 生成的最终日报、周报或月报；无 Sidecar 的旧文件兼容为 legacy 周报。
+- `summary/...meta.json`：报告类型、周期、保存时间和 Markdown 内容 Hash。
+- `templates/{daily,weekly,monthly}/summary.md`：CLI 与 Electron 共用的三种生成提示词，支持日期变量。
 
 raw 读取和 summary 写入都限制在配置的 `outputRoot` 内。
 

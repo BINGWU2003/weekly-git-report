@@ -2,8 +2,12 @@ export const WORK_DIR = "~/.weekly-git-report";
 export const CONFIG_FILE_NAME = "config.json";
 export const PROJECTS_FILE_NAME = "projects.json";
 export const TEMPLATES_DIR_NAME = "templates";
+export const DAILY_TEMPLATE_DIR_NAME = "daily";
 export const WEEKLY_TEMPLATE_DIR_NAME = "weekly";
+export const MONTHLY_TEMPLATE_DIR_NAME = "monthly";
 export const SUMMARY_TEMPLATE_FILE_NAME = "summary.md";
+export const SUMMARY_METADATA_SUFFIX = ".meta.json";
+export const REPORT_CADENCES = ["daily", "weekly", "monthly"] as const;
 export const DEFAULT_OUTPUT_ROOT = "~/weekly-reports";
 export const DEFAULT_REPOSITORY_CACHE_ROOT = "~/.weekly-git-report/repositories";
 

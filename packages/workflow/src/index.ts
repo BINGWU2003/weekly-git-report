@@ -1,28 +1,31 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { access, copyFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 
 import {
   collectCommits,
+  createSummaryMetadata,
+  getSummaryMetadataFilePath,
   getRepositoriesRuntimeState,
+  inspectSummaryMetadata,
   loadConfig,
   loadProjectsIndex,
   syncRepositories,
+  validateSummaryPeriod,
+  writeJsonAtomic,
   writeReport,
+  writeTextAtomic,
 } from "@weekly-git-report/core";
 import {
   CollectGitLogsInputSchema,
   GetWeekIndexInputSchema,
   ListProjectsInputSchema,
   ReadWeekRawInputSchema,
+  SaveSummaryInputSchema,
   SaveWeekSummaryInputSchema,
   SyncProjectsInputSchema,
 } from "@weekly-git-report/shared";
 
-import {
-  getSafeWeekSummaryFile,
-  readWeekIndexFile,
-  readWeekProjectFiles,
-} from "./path-security.js";
+import { getSafeSummaryFile, readWeekIndexFile, readWeekProjectFiles } from "./path-security.js";
 
 export async function listProjects(input: unknown) {
   ListProjectsInputSchema.parse(input);
@@ -139,15 +142,74 @@ export async function readWeekRaw(input: unknown) {
 
 export async function saveWeekSummary(input: unknown) {
   const args = SaveWeekSummaryInputSchema.parse(input);
+  return saveSummary({ ...args, cadence: "weekly", force: false });
+}
+
+export async function saveSummary(input: unknown) {
+  const args = SaveSummaryInputSchema.parse(input);
   const config = await loadConfig();
-  const summaryFile = getSafeWeekSummaryFile(config.outputRoot, args);
+  validateSummaryPeriod(args.cadence, args);
+  const summaryFile = getSafeSummaryFile(config.outputRoot, args);
+  const metadataFile = getSummaryMetadataFilePath(summaryFile);
   const content = args.content.endsWith("\n") ? args.content : `${args.content}\n`;
+  const replaced = await fileExists(summaryFile);
+  const backupFiles: string[] = [];
+
+  if (replaced) {
+    const current = await inspectSummaryMetadata(summaryFile, args);
+    if (current.status === "invalid" && !args.force) {
+      throw new Error("Existing summary metadata is invalid. Pass --force to replace it.");
+    }
+    if (current.cadence && current.cadence !== args.cadence && !args.force) {
+      throw new Error(
+        `Existing summary is ${current.cadence}; pass --force to replace it with ${args.cadence}.`,
+      );
+    }
+    backupFiles.push(...(await backupSummaryFiles(summaryFile, metadataFile)));
+  }
+
+  const metadata = createSummaryMetadata(args.cadence, args, content);
 
   await mkdir(path.dirname(summaryFile), { recursive: true });
-  await writeFile(summaryFile, content, "utf8");
+  await writeTextAtomic(summaryFile, content);
+  await writeJsonAtomic(metadataFile, metadata);
 
   return {
     summaryFile,
+    metadataFile,
+    cadence: args.cadence,
     bytes: Buffer.byteLength(content, "utf8"),
+    replaced,
+    backupFiles,
   };
+}
+
+async function backupSummaryFiles(summaryFile: string, metadataFile: string): Promise<string[]> {
+  const historyDir = path.join(path.dirname(summaryFile), ".history");
+  await mkdir(historyDir, { recursive: true });
+  const timestamp = new Date().toISOString().replaceAll(":", "-").replaceAll(".", "-");
+  const baseName = path.basename(summaryFile, path.extname(summaryFile));
+  const summaryBackup = path.join(historyDir, `${baseName}.${timestamp}.md`);
+  await copyFile(summaryFile, summaryBackup);
+  const backupFiles = [summaryBackup];
+  if (await fileExists(metadataFile)) {
+    const metadataBackup = path.join(historyDir, `${baseName}.${timestamp}.meta.json`);
+    await copyFile(metadataFile, metadataBackup);
+    backupFiles.push(metadataBackup);
+  }
+  return backupFiles;
+}
+
+async function fileExists(file: string): Promise<boolean> {
+  try {
+    await access(file);
+    return true;
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") return false;
+    throw error;
+  }
+}
+
+function isNodeError(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error && "code" in error;
 }

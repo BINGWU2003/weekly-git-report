@@ -12,6 +12,8 @@ export * from "./repository/project-management.js";
 export * from "./repository/repository-runtime.js";
 export * from "./repository/sync-repository.js";
 export * from "./report/report-index.js";
+export * from "./report/report-cadence.js";
+export * from "./report/summary-metadata.js";
 export * from "./template/summary-template.js";
 export * from "./utils/hash.js";
 export * from "./utils/markdown.js";

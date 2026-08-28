@@ -13,6 +13,7 @@ import type { ReportFile } from '../../../shared/ipc'
 export type ReportTypeFilter = 'all' | 'summary' | 'raw' | 'task'
 export type ReportRangePreset = 'month' | 'three-months' | 'year' | 'all' | 'custom'
 export type RawRoleFilter = 'all' | 'index' | 'project' | 'history'
+export type SummaryCadenceFilter = 'all' | 'daily' | 'weekly' | 'monthly'
 
 export interface ReportSearchParams {
   type: ReportTypeFilter
@@ -21,6 +22,7 @@ export interface ReportSearchParams {
   to?: string
   query?: string
   rawRole: RawRoleFilter
+  cadence: SummaryCadenceFilter
   includeHistory: boolean
 }
 
@@ -38,6 +40,7 @@ export const DEFAULT_REPORT_SEARCH: ReportSearchParams = {
   type: 'all',
   range: 'three-months',
   rawRole: 'all',
+  cadence: 'all',
   includeHistory: false,
 }
 
@@ -50,6 +53,12 @@ const RANGE_VALUES = new Set<ReportRangePreset>([
   'custom',
 ])
 const RAW_ROLE_VALUES = new Set<RawRoleFilter>(['all', 'index', 'project', 'history'])
+const SUMMARY_CADENCE_VALUES = new Set<SummaryCadenceFilter>([
+  'all',
+  'daily',
+  'weekly',
+  'monthly',
+])
 const ROLE_ORDER: Record<ReportFile['role'], number> = {
   summary: 0,
   task: 1,
@@ -77,6 +86,12 @@ export function parseReportSearch(search: Record<string, unknown>): Partial<Repo
   if (RAW_ROLE_VALUES.has(search.rawRole as RawRoleFilter) && search.rawRole !== 'all') {
     result.rawRole = search.rawRole as RawRoleFilter
   }
+  if (
+    SUMMARY_CADENCE_VALUES.has(search.cadence as SummaryCadenceFilter) &&
+    search.cadence !== 'all'
+  ) {
+    result.cadence = search.cadence as SummaryCadenceFilter
+  }
   if (search.includeHistory === true || search.includeHistory === 'true') {
     result.includeHistory = true
   }
@@ -95,10 +110,32 @@ export function filterReportFiles(
     if (search.type !== 'all' && report.kind !== search.type) return false
     if (!search.includeHistory && report.role === 'raw-history') return false
     if (report.kind === 'raw' && !matchesRawRole(report, search.rawRole)) return false
+    if (
+      search.cadence !== 'all' &&
+      (report.kind !== 'summary' || report.cadence !== search.cadence)
+    ) return false
     if (range && !matchesDateRange(report, range)) return false
     if (query && !getSearchText(report).includes(query)) return false
     return true
   })
+}
+
+export function getSummaryCadenceCounts(
+  reports: ReportFile[],
+  search: ReportSearchParams,
+  now = new Date(),
+): Record<SummaryCadenceFilter, number> {
+  const visible = filterReportFiles(
+    reports,
+    { ...search, type: 'summary', cadence: 'all' },
+    now,
+  )
+  return {
+    all: visible.length,
+    daily: visible.filter((report) => report.cadence === 'daily').length,
+    weekly: visible.filter((report) => report.cadence === 'weekly').length,
+    monthly: visible.filter((report) => report.cadence === 'monthly').length,
+  }
 }
 
 export function getReportTypeCounts(
@@ -106,7 +143,7 @@ export function getReportTypeCounts(
   search: ReportSearchParams,
   now = new Date(),
 ): Record<ReportTypeFilter, number> {
-  const commonSearch = { ...search, type: 'all' as const }
+  const commonSearch = { ...search, type: 'all' as const, cadence: 'all' as const }
   const visible = filterReportFiles(reports, commonSearch, now)
   return {
     all: visible.length,

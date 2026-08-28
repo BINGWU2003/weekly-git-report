@@ -1,3 +1,6 @@
+import { ReportCadenceSchema } from "@weekly-git-report/shared";
+import type { ReportCadence } from "@weekly-git-report/shared";
+
 export interface ProjectSelection {
   explicit: boolean;
   projectIds: string[];
@@ -9,10 +12,12 @@ export interface ProjectImportArgs {
 }
 
 export interface TemplateReadArgs {
+  cadence: ReportCadence;
   period?: { start: string; end: string };
 }
 
 export interface TemplateWriteArgs {
+  cadence: ReportCadence;
   file?: string;
   revision?: string;
   force: boolean;
@@ -142,9 +147,14 @@ export function parsePeriodArgs(args: string[]): { start?: string; end?: string 
 export function parseSummarySaveArgs(args: string[]): {
   file?: string;
   period: { start?: string; end?: string };
+  cadence: ReportCadence;
+  force: boolean;
 } {
   const periodArgs: string[] = [];
   let file: string | undefined;
+  let cadence: ReportCadence = "weekly";
+  let cadenceSet = false;
+  let force = false;
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -153,24 +163,41 @@ export function parseSummarySaveArgs(args: string[]): {
       index += 1;
       continue;
     }
+    if (arg === "--type") {
+      if (cadenceSet) throw new Error("--type cannot be repeated.");
+      cadence = parseCadence(readOptionValue(args, index, arg));
+      cadenceSet = true;
+      index += 1;
+      continue;
+    }
+    if (arg === "--force") {
+      if (force) throw new Error("--force cannot be repeated.");
+      force = true;
+      continue;
+    }
     if (arg) periodArgs.push(arg);
   }
 
-  return { file, period: parsePeriodArgs(periodArgs) };
+  return { file, period: parsePeriodArgs(periodArgs), cadence, force };
 }
 
 export function parseTemplateReadArgs(args: string[]): TemplateReadArgs {
-  const period = parsePeriodArgs(args);
+  const { cadence, remaining } = extractCadence(args);
+  const period = parsePeriodArgs(remaining);
   if ((period.start && !period.end) || (!period.start && period.end)) {
     throw new Error("--start and --end must be provided together.");
   }
-  return period.start && period.end ? { period: { start: period.start, end: period.end } } : {};
+  return period.start && period.end
+    ? { cadence, period: { start: period.start, end: period.end } }
+    : { cadence };
 }
 
 export function parseTemplateWriteArgs(args: string[]): TemplateWriteArgs {
   let file: string | undefined;
   let revision: string | undefined;
   let force = false;
+  let cadence: ReportCadence = "weekly";
+  let cadenceSet = false;
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -191,23 +218,69 @@ export function parseTemplateWriteArgs(args: string[]): TemplateWriteArgs {
       force = true;
       continue;
     }
+    if (arg === "--type") {
+      if (cadenceSet) throw new Error("--type cannot be repeated.");
+      cadence = parseCadence(readOptionValue(args, index, arg));
+      cadenceSet = true;
+      index += 1;
+      continue;
+    }
     throw new Error(`Unknown templates write option: ${arg}`);
   }
 
   if (revision && force) throw new Error("--revision cannot be combined with --force.");
   if (!revision && !force) throw new Error("Pass --revision <revision> or --force.");
   return {
+    cadence,
     ...(file ? { file } : {}),
     ...(revision ? { revision } : {}),
     force,
   };
 }
 
-export function parseTemplateResetArgs(args: string[]): { force: true } {
-  if (args.length !== 1 || args[0] !== "--force") {
-    throw new Error("templates reset requires --force.");
+export function parseTemplateResetArgs(args: string[]): { force: true; cadence: ReportCadence } {
+  const { cadence, remaining } = extractCadence(args);
+  if (remaining.length !== 1 || remaining[0] !== "--force") {
+    throw new Error("templates reset requires --force and accepts an optional --type.");
   }
-  return { force: true };
+  return { force: true, cadence };
+}
+
+export function parseTemplateInitArgs(args: string[]): {
+  all: boolean;
+  cadence: ReportCadence;
+} {
+  if (args.includes("--all")) {
+    if (args.length !== 1) throw new Error("--all cannot be combined with other options.");
+    return { all: true, cadence: "weekly" };
+  }
+  const { cadence, remaining } = extractCadence(args);
+  if (remaining.length > 0) throw new Error(`Unknown templates init option: ${remaining[0]}`);
+  return { all: false, cadence };
+}
+
+function extractCadence(args: string[]): { cadence: ReportCadence; remaining: string[] } {
+  let cadence: ReportCadence = "weekly";
+  let found = false;
+  const remaining: string[] = [];
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--type") {
+      if (found) throw new Error("--type cannot be repeated.");
+      cadence = parseCadence(readOptionValue(args, index, arg));
+      found = true;
+      index += 1;
+    } else if (arg) {
+      remaining.push(arg);
+    }
+  }
+  return { cadence, remaining };
+}
+
+function parseCadence(value: string): ReportCadence {
+  const result = ReportCadenceSchema.safeParse(value);
+  if (!result.success) throw new Error(`Invalid report type: ${value}`);
+  return result.data;
 }
 
 function readOptionValue(args: string[], index: number, option: string): string {

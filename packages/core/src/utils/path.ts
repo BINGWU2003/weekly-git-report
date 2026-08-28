@@ -3,6 +3,8 @@ import path from "node:path";
 
 import {
   CONFIG_FILE_NAME,
+  DAILY_TEMPLATE_DIR_NAME,
+  MONTHLY_TEMPLATE_DIR_NAME,
   PROJECTS_FILE_NAME,
   RAW_DIR_NAME,
   SUMMARY_TEMPLATE_FILE_NAME,
@@ -11,7 +13,7 @@ import {
   WEEKLY_TEMPLATE_DIR_NAME,
   WORK_DIR,
 } from "@weekly-git-report/shared";
-import type { Period } from "@weekly-git-report/shared";
+import type { Period, ReportCadence } from "@weekly-git-report/shared";
 
 export function expandHomePath(inputPath: string): string {
   if (inputPath === "~") {
@@ -46,11 +48,20 @@ export function getTemplatesDir(): string {
 }
 
 export function getWeeklyTemplateDir(): string {
-  return path.join(getTemplatesDir(), WEEKLY_TEMPLATE_DIR_NAME);
+  return getTemplateDir("weekly");
 }
 
-export function getSummaryTemplateFilePath(): string {
-  return path.join(getWeeklyTemplateDir(), SUMMARY_TEMPLATE_FILE_NAME);
+export function getTemplateDir(cadence: ReportCadence): string {
+  const directory = {
+    daily: DAILY_TEMPLATE_DIR_NAME,
+    weekly: WEEKLY_TEMPLATE_DIR_NAME,
+    monthly: MONTHLY_TEMPLATE_DIR_NAME,
+  }[cadence];
+  return path.join(getTemplatesDir(), directory);
+}
+
+export function getSummaryTemplateFilePath(cadence: ReportCadence = "weekly"): string {
+  return path.join(getTemplateDir(cadence), SUMMARY_TEMPLATE_FILE_NAME);
 }
 
 export function getRepositoryCacheRoot(repositoryCacheRoot: string): string {

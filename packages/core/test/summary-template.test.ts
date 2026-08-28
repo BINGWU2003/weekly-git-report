@@ -24,10 +24,10 @@ describe("summary template management", () => {
 
       const existing = await readSummaryTemplate({
         templateFile,
-        period: { start: "2026-08-18", end: "2026-08-24" },
+        period: { start: "2026-08-17", end: "2026-08-23" },
       });
       expect(existing.created).toBe(false);
-      expect(existing.template.renderedContent).toContain("2026-08-18 ~ 2026-08-24");
+      expect(existing.template.renderedContent).toContain("2026-08-17 ~ 2026-08-23");
       expect(existing.template.renderedContent).not.toContain("{{startDate}}");
     });
   });
@@ -93,6 +93,34 @@ describe("summary template management", () => {
       await writeFile(templateFile, custom, "utf8");
       await resetSummaryTemplate({ templateFile, force: true });
       expect(await readFile(templateFile, "utf8")).toBe(DEFAULT_SUMMARY_TEMPLATE);
+    });
+  });
+
+  test("uses cadence-specific defaults and validates period boundaries", async () => {
+    await withTemplate(async (templateFile) => {
+      const daily = await initializeSummaryTemplate({ cadence: "daily", templateFile });
+      expect(daily.type).toBe("daily");
+      expect(daily.template.content).toContain("今日工作概览");
+      await expect(
+        readSummaryTemplate({
+          cadence: "daily",
+          templateFile,
+          period: { start: "2026-08-17", end: "2026-08-18" },
+        }),
+      ).rejects.toThrow(/same start and end/);
+    });
+
+    await withTemplate(async (templateFile) => {
+      const monthly = await initializeSummaryTemplate({ cadence: "monthly", templateFile });
+      expect(monthly.type).toBe("monthly");
+      expect(monthly.template.content).toContain("主要工作主题");
+      await expect(
+        readSummaryTemplate({
+          cadence: "monthly",
+          templateFile,
+          period: { start: "2026-08-02", end: "2026-08-28" },
+        }),
+      ).rejects.toThrow(/day 01/);
     });
   });
 });

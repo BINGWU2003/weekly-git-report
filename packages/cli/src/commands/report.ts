@@ -4,7 +4,7 @@ import {
   collectGitLogs,
   getWeekIndex,
   readWeekRaw,
-  saveWeekSummary,
+  saveSummary,
 } from "@weekly-git-report/workflow";
 
 import { parseCollectArgs, parsePeriodArgs, parseSummarySaveArgs } from "../utils/args.js";
@@ -40,7 +40,7 @@ export async function runSummaryCommand(
     throw new Error(`Unknown summary command: ${subcommandName ?? ""}`);
   }
 
-  const { file, period } = parseSummarySaveArgs(args);
+  const { file, period, cadence, force } = parseSummarySaveArgs(args);
   const content = file ? await readFile(file, "utf8") : await readStdin();
-  printJson(await saveWeekSummary({ ...period, content }));
+  printJson(await saveSummary({ ...period, content, cadence, force }));
 }

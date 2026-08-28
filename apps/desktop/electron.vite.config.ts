@@ -9,10 +9,7 @@ export default defineConfig({
   main: {
     build: {
       externalizeDeps: {
-        exclude: [
-          "@weekly-git-report/core",
-          "@weekly-git-report/shared",
-        ],
+        exclude: ["@weekly-git-report/core", "@weekly-git-report/shared"],
       },
       rollupOptions: {
         input: path.resolve(__dirname, "electron/main/index.ts"),
@@ -49,10 +46,7 @@ export default defineConfig({
         apply: "serve",
         transformIndexHtml(html) {
           return html
-            .replace(
-              "img-src 'self' data:;",
-              "img-src 'self' data: http://127.0.0.1:*;",
-            )
+            .replace("img-src 'self' data:;", "img-src 'self' data: http://127.0.0.1:*;")
             .replace(
               "connect-src 'self' ws://127.0.0.1:*;",
               "connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:*;",
