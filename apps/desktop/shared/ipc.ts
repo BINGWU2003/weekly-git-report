@@ -1,6 +1,7 @@
 import type {
   Config,
   Identity,
+  IndexedReportFile,
   ManifestError,
   RepositoryFolderScanResult,
   RepositoryProject,
@@ -71,14 +72,7 @@ export interface DesktopOverview {
   diagnostics: DiagnosticCheck[];
 }
 
-export interface ReportFile {
-  id: string;
-  name: string;
-  relativePath: string;
-  kind: "raw" | "summary" | "task" | "other";
-  modifiedAt: string;
-  size: number;
-}
+export type ReportFile = IndexedReportFile;
 
 export interface ReportDocument extends ReportFile {
   content: string;

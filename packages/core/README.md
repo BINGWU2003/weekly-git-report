@@ -9,5 +9,6 @@
 - 从配置分支远程引用读取最新提交运行状态
 - 按周期和作者身份采集 Git 提交
 - raw Markdown、manifest、索引和 summary 路径生成
+- 规范报告目录索引、Raw manifest 元数据关联和严格完整性检查
 
 该包不直接提供用户命令，由 CLI、Electron、workflow 和 MCP 组合使用。

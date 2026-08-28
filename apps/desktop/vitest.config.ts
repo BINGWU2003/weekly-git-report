@@ -27,6 +27,7 @@ export default defineConfig({
       "@radix-ui/react-select",
       "@radix-ui/react-switch",
       "@tanstack/react-query",
+      "date-fns",
       "sonner",
       "zod",
     ],

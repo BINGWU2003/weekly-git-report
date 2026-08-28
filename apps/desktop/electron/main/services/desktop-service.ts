@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { access, readFile, readdir, stat } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 
@@ -17,6 +17,7 @@ import {
   getProjectsFilePath,
   initConfig,
   importRepositoryProjects,
+  indexReportFiles,
   inspectRemoteRepository,
   loadConfig,
   loadConfigSnapshot,
@@ -54,7 +55,6 @@ import type {
 } from "../../../shared/ipc.js";
 
 const execFileAsync = promisify(execFile);
-const MAX_REPORT_FILES = 2_000;
 
 export async function getDesktopOverview(): Promise<DesktopOverview> {
   const [config, projects, diagnostics] = await Promise.all([
@@ -257,9 +257,7 @@ export async function listReportFiles(config?: Config): Promise<ReportFile[]> {
   if (!loadedConfig) return [];
 
   const outputRoot = getOutputRoot(loadedConfig.outputRoot);
-  const files: ReportFile[] = [];
-  await walkMarkdownFiles(outputRoot, outputRoot, files);
-  return files.sort((left, right) => right.modifiedAt.localeCompare(left.modifiedAt));
+  return indexReportFiles(outputRoot);
 }
 
 export async function readReportFile(id: string): Promise<ReportDocument> {
@@ -267,16 +265,11 @@ export async function readReportFile(id: string): Promise<ReportDocument> {
   if (!config) throw new Error("请先完成全局配置。");
 
   const outputRoot = getOutputRoot(config.outputRoot);
+  const report = (await indexReportFiles(outputRoot)).find((item) => item.id === id);
+  if (!report) throw new Error(`报告不存在或不属于规范报告目录：${id}`);
   const absolutePath = resolveReportPath(outputRoot, id);
-  const fileStat = await stat(absolutePath);
-  const relativePath = path.relative(outputRoot, absolutePath);
   return {
-    id: relativePath.replaceAll("\\", "/"),
-    name: path.basename(absolutePath),
-    relativePath,
-    kind: getReportKind(relativePath),
-    modifiedAt: fileStat.mtime.toISOString(),
-    size: fileStat.size,
+    ...report,
     content: await readFile(absolutePath, "utf8"),
   };
 }
@@ -340,50 +333,6 @@ async function checkOutputRoot(config: Config | null): Promise<DiagnosticCheck> 
       message: `目录尚未创建：${outputRoot}`,
     };
   }
-}
-
-async function walkMarkdownFiles(
-  root: string,
-  current: string,
-  files: ReportFile[],
-): Promise<void> {
-  if (files.length >= MAX_REPORT_FILES) return;
-
-  let entries;
-  try {
-    entries = await readdir(current, { withFileTypes: true });
-  } catch {
-    return;
-  }
-
-  for (const entry of entries) {
-    if (files.length >= MAX_REPORT_FILES) return;
-    const absolutePath = path.join(current, entry.name);
-    if (entry.isDirectory()) {
-      await walkMarkdownFiles(root, absolutePath, files);
-      continue;
-    }
-    if (!entry.isFile() || path.extname(entry.name).toLowerCase() !== ".md") continue;
-
-    const relativePath = path.relative(root, absolutePath);
-    const fileStat = await stat(absolutePath);
-    files.push({
-      id: relativePath.replaceAll("\\", "/"),
-      name: entry.name,
-      relativePath,
-      kind: getReportKind(relativePath),
-      modifiedAt: fileStat.mtime.toISOString(),
-      size: fileStat.size,
-    });
-  }
-}
-
-function getReportKind(relativePath: string): ReportFile["kind"] {
-  const firstSegment = relativePath.split(path.sep)[0]?.toLowerCase();
-  if (firstSegment === "raw") return "raw";
-  if (firstSegment === "summary") return "summary";
-  if (firstSegment === "tasks") return "task";
-  return "other";
 }
 
 function resolveReportPath(outputRoot: string, id: string): string {

@@ -51,3 +51,22 @@ export type GetWeekIndexInput = z.infer<typeof GetWeekIndexInputSchema>;
 export type ReadWeekRawInput = z.infer<typeof ReadWeekRawInputSchema>;
 export type SaveWeekSummaryInput = z.infer<typeof SaveWeekSummaryInputSchema>;
 export type McpToolInput = z.infer<typeof McpToolInputSchema>;
+
+export type ReportKind = "raw" | "summary" | "task";
+
+export type ReportRole = "summary" | "task" | "raw-index" | "raw-project" | "raw-history";
+
+export interface IndexedReportFile {
+  id: string;
+  name: string;
+  title: string;
+  relativePath: string;
+  kind: ReportKind;
+  role: ReportRole;
+  period: Period | null;
+  generatedAt: string | null;
+  modifiedAt: string;
+  size: number;
+  projectId?: string;
+  projectName?: string;
+}
