@@ -592,7 +592,6 @@ function ReportPreview({
             <div className='min-w-0 flex-1'>
               <div className='flex items-center gap-2'>
                 <OverflowTooltip text={report.title} className='flex-1 font-medium' />
-                <ReportKind kind={report.kind} />
                 {report.summaryMetadataStatus === 'invalid' ? (
                   <Badge variant='destructive' title={report.summaryMetadataMessage}>元数据异常</Badge>
                 ) : null}
