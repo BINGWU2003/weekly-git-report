@@ -2,20 +2,18 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import { codeInspectorPlugin } from "code-inspector-plugin";
-import { defineConfig, externalizeDepsPlugin } from "electron-vite";
+import { defineConfig } from "electron-vite";
 import path from "node:path";
 
 export default defineConfig({
   main: {
-    plugins: [
-      externalizeDepsPlugin({
+    build: {
+      externalizeDeps: {
         exclude: [
           "@weekly-git-report/core",
           "@weekly-git-report/shared",
         ],
-      }),
-    ],
-    build: {
+      },
       rollupOptions: {
         input: path.resolve(__dirname, "electron/main/index.ts"),
         output: {
@@ -26,8 +24,8 @@ export default defineConfig({
     },
   },
   preload: {
-    plugins: [externalizeDepsPlugin()],
     build: {
+      externalizeDeps: true,
       rollupOptions: {
         input: path.resolve(__dirname, "electron/preload/index.ts"),
         output: {
