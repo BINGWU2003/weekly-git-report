@@ -29,8 +29,10 @@ export async function runInitCommand(): Promise<void> {
     const createdProjects = await ensureProjectsIndex();
     const result = await initConfig(existing);
 
-    if (result.createdSummaryTemplate) {
-      console.log(`Summary template: ${result.summaryTemplateFile}`);
+    if (result.createdSummaryTemplates.length > 0) {
+      for (const cadence of result.createdSummaryTemplates) {
+        console.log(`Summary template (${cadence}): ${result.summaryTemplateFiles[cadence]}`);
+      }
     }
 
     if (!createdProjects) {
@@ -53,7 +55,9 @@ export async function runInitCommand(): Promise<void> {
   console.log(`Config: ${result.configFile}`);
   console.log(`Projects: ${getProjectsFilePath()}`);
   console.log(`Output root: ${result.outputRoot}`);
-  console.log(`Summary template: ${result.summaryTemplateFile}`);
+  for (const [cadence, file] of Object.entries(result.summaryTemplateFiles)) {
+    console.log(`Summary template (${cadence}): ${file}`);
+  }
   outro("Configuration initialized.");
 
   await promptAddRepository();

@@ -39,11 +39,13 @@ import {
   filterReportFiles,
   formatPeriod,
   getReportTypeCounts,
+  getSummaryCadenceCounts,
   groupReportFiles,
   type RawRoleFilter,
   type ReportRangePreset,
   type ReportSearchParams,
   type ReportTypeFilter,
+  type SummaryCadenceFilter,
 } from './report-library'
 
 const TYPE_TABS: Array<{ value: ReportTypeFilter; label: string }> = [
@@ -59,6 +61,13 @@ const RANGE_LABELS: Record<ReportRangePreset, string> = {
   year: '今年',
   all: '全部时间',
   custom: '自定义范围',
+}
+
+const CADENCE_LABELS: Record<SummaryCadenceFilter, string> = {
+  all: '全部周期',
+  daily: '日报',
+  weekly: '周报',
+  monthly: '月报',
 }
 
 const ReportDateRangePicker = lazy(() => import('./report-date-range-picker'))
@@ -93,6 +102,10 @@ export function Reports({
     () => getReportTypeCounts(reports.data ?? [], search),
     [reports.data, search],
   )
+  const cadenceCounts = useMemo(
+    () => getSummaryCadenceCounts(reports.data ?? [], search),
+    [reports.data, search],
+  )
   const effectiveSelectedId = filteredReports.some((report) => report.id === selectedId)
     ? selectedId
     : groups[0]?.reports[0]?.id
@@ -112,6 +125,7 @@ export function Reports({
       to: undefined,
       query: undefined,
       rawRole: undefined,
+      cadence: undefined,
       includeHistory: undefined,
     })
   }
@@ -120,7 +134,13 @@ export function Reports({
     updateSearch({
       type: value === 'all' ? undefined : (value as ReportTypeFilter),
       rawRole: undefined,
+      cadence: undefined,
     })
+  }
+
+  function selectCadence(value: string) {
+    const cadence = value as SummaryCadenceFilter
+    updateSearch({ cadence: cadence === 'all' ? undefined : cadence })
   }
 
   function selectRange(value: string) {
@@ -214,6 +234,7 @@ export function Reports({
             <ReportFilters
               search={search}
               counts={counts}
+              cadenceCounts={cadenceCounts}
               customRange={customRange}
               shownCount={filteredReports.length}
               totalCount={reports.data?.length ?? 0}
@@ -223,6 +244,7 @@ export function Reports({
               onQueryChange={(query) => updateSearch({ query: query || undefined })}
               onClearQuery={() => updateSearch({ query: undefined })}
               onRawRoleChange={selectRawRole}
+              onCadenceChange={selectCadence}
               onIncludeHistoryChange={setHistoryIncluded}
             />
 
@@ -294,6 +316,7 @@ export function Reports({
 function ReportFilters({
   search,
   counts,
+  cadenceCounts,
   customRange,
   shownCount,
   totalCount,
@@ -303,10 +326,12 @@ function ReportFilters({
   onQueryChange,
   onClearQuery,
   onRawRoleChange,
+  onCadenceChange,
   onIncludeHistoryChange,
 }: {
   search: ReportSearchParams
   counts: Record<ReportTypeFilter, number>
+  cadenceCounts: Record<SummaryCadenceFilter, number>
   customRange?: DateRange
   shownCount: number
   totalCount: number
@@ -316,6 +341,7 @@ function ReportFilters({
   onQueryChange(value: string): void
   onClearQuery(): void
   onRawRoleChange(value: string): void
+  onCadenceChange(value: string): void
   onIncludeHistoryChange(checked: boolean): void
 }) {
   return (
@@ -398,6 +424,21 @@ function ReportFilters({
               <SelectItem value='index'>周期索引</SelectItem>
               <SelectItem value='project'>仓库明细</SelectItem>
               {search.includeHistory ? <SelectItem value='history'>历史版本</SelectItem> : null}
+            </SelectContent>
+          </Select>
+        ) : null}
+
+        {search.type === 'summary' ? (
+          <Select value={search.cadence} onValueChange={onCadenceChange}>
+            <SelectTrigger className='w-36' aria-label='Summary 周期类型'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(CADENCE_LABELS).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}（{cadenceCounts[value as SummaryCadenceFilter]}）
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         ) : null}
@@ -501,6 +542,9 @@ export function ReportListItem({
               focusable={false}
             />
             <ReportKind kind={report.kind} />
+            {report.summaryMetadataStatus === 'invalid' ? (
+              <Badge variant='destructive' title={report.summaryMetadataMessage}>元数据异常</Badge>
+            ) : null}
           </div>
           <OverflowTooltip
             text={detail}
@@ -549,6 +593,9 @@ function ReportPreview({
               <div className='flex items-center gap-2'>
                 <OverflowTooltip text={report.title} className='flex-1 font-medium' />
                 <ReportKind kind={report.kind} />
+                {report.summaryMetadataStatus === 'invalid' ? (
+                  <Badge variant='destructive' title={report.summaryMetadataMessage}>元数据异常</Badge>
+                ) : null}
               </div>
               <OverflowTooltip
                 text={metadata}

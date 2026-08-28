@@ -61,7 +61,7 @@ export async function readWeekProjectFiles(outputRoot: string, period: Period) {
   return files;
 }
 
-export function getSafeWeekSummaryFile(outputRoot: string, period: Period): string {
+export function getSafeSummaryFile(outputRoot: string, period: Period): string {
   const [year, month] = period.start.split("-");
 
   if (!year || !month) {
@@ -77,3 +77,5 @@ export function getSafeWeekSummaryFile(outputRoot: string, period: Period): stri
   assertWithinOutputRoot(summaryFile, outputRoot);
   return summaryFile;
 }
+
+export const getSafeWeekSummaryFile = getSafeSummaryFile;

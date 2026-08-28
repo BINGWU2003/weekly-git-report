@@ -7,6 +7,7 @@ import type {
   RepositoryProject,
   RepositoryRuntimeState,
   Period,
+  ReportCadence,
   SummaryTemplateResult,
 } from "@weekly-git-report/shared";
 
@@ -57,17 +58,20 @@ export interface RepositorySyncResult {
 }
 
 export interface SummaryTemplateSaveRequest {
+  cadence: ReportCadence;
   content: string;
   expectedRevision: string;
   period?: Period;
 }
 
 export interface SummaryTemplateResetRequest {
+  cadence: ReportCadence;
   expectedRevision: string;
   period?: Period;
 }
 
 export interface SummaryTemplatePreviewRequest {
+  cadence: ReportCadence;
   content: string;
   period: Period;
 }
@@ -114,7 +118,7 @@ export interface DesktopAPI {
     save(config: Config, expectedRevision: string): Promise<ConfigState>;
   };
   templates: {
-    read(period?: Period): Promise<SummaryTemplateResult>;
+    read(cadence?: ReportCadence, period?: Period): Promise<SummaryTemplateResult>;
     preview(request: SummaryTemplatePreviewRequest): Promise<string>;
     save(request: SummaryTemplateSaveRequest): Promise<SummaryTemplateResult>;
     reset(request: SummaryTemplateResetRequest): Promise<SummaryTemplateResult>;

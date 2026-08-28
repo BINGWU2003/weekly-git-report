@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { Config } from "@weekly-git-report/shared";
+import type { Config, Period, ReportCadence } from "@weekly-git-report/shared";
 
 import type {
   DesktopAPI,
@@ -9,7 +9,6 @@ import type {
   SummaryTemplateResetRequest,
   SummaryTemplateSaveRequest,
 } from "../../shared/ipc.js";
-import type { Period } from "@weekly-git-report/shared";
 import { IPC_CHANNELS } from "../../shared/ipc.js";
 
 const electronAPI: DesktopAPI = Object.freeze({
@@ -31,7 +30,8 @@ const electronAPI: DesktopAPI = Object.freeze({
       ipcRenderer.invoke(IPC_CHANNELS.configSave, config, expectedRevision),
   }),
   templates: Object.freeze({
-    read: (period?: Period) => ipcRenderer.invoke(IPC_CHANNELS.templatesRead, period),
+    read: (cadence?: ReportCadence, period?: Period) =>
+      ipcRenderer.invoke(IPC_CHANNELS.templatesRead, cadence, period),
     preview: (request: SummaryTemplatePreviewRequest) =>
       ipcRenderer.invoke(IPC_CHANNELS.templatesPreview, request),
     save: (request: SummaryTemplateSaveRequest) =>

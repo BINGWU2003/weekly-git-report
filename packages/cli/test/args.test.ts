@@ -6,6 +6,7 @@ import {
   parseProjectImportArgs,
   parseProjectSelectionArgs,
   parseSummarySaveArgs,
+  parseTemplateInitArgs,
   parseTemplateReadArgs,
   parseTemplateResetArgs,
   parseTemplateWriteArgs,
@@ -88,31 +89,63 @@ describe("automation argument parsing", () => {
         "summary.md",
       ]),
     ).toEqual({
+      cadence: "weekly",
       file: "summary.md",
+      force: false,
       period: { start: "2026-08-18", end: "2026-08-24" },
     });
   });
 
   test("parses optional template rendering dates", () => {
-    expect(parseTemplateReadArgs([])).toEqual({});
+    expect(parseTemplateReadArgs([])).toEqual({ cadence: "weekly" });
     expect(parseTemplateReadArgs(["--start", "2026-08-18", "--end", "2026-08-24"])).toEqual({
+      cadence: "weekly",
       period: { start: "2026-08-18", end: "2026-08-24" },
     });
+    expect(parseTemplateReadArgs(["--type", "monthly"])).toEqual({ cadence: "monthly" });
     expect(() => parseTemplateReadArgs(["--start", "2026-08-18"])).toThrow(/provided together/);
   });
 
   test("requires revision safety for template writes and force for reset", () => {
     expect(parseTemplateWriteArgs(["--file", "template.md", "--revision", "abc"])).toEqual({
+      cadence: "weekly",
       file: "template.md",
       revision: "abc",
       force: false,
     });
-    expect(parseTemplateWriteArgs(["--force"])).toEqual({ force: true });
+    expect(parseTemplateWriteArgs(["--type", "daily", "--force"])).toEqual({
+      cadence: "daily",
+      force: true,
+    });
     expect(() => parseTemplateWriteArgs([])).toThrow(/--revision/);
     expect(() => parseTemplateWriteArgs(["--revision", "abc", "--force"])).toThrow(
       /cannot be combined/,
     );
-    expect(parseTemplateResetArgs(["--force"])).toEqual({ force: true });
+    expect(parseTemplateResetArgs(["--force"])).toEqual({ force: true, cadence: "weekly" });
     expect(() => parseTemplateResetArgs([])).toThrow(/requires --force/);
+  });
+
+  test("supports cadence-aware template initialization and forced summary replacement", () => {
+    expect(parseTemplateInitArgs([])).toEqual({ all: false, cadence: "weekly" });
+    expect(parseTemplateInitArgs(["--type", "monthly"])).toEqual({
+      all: false,
+      cadence: "monthly",
+    });
+    expect(parseTemplateInitArgs(["--all"])).toEqual({ all: true, cadence: "weekly" });
+    expect(
+      parseSummarySaveArgs([
+        "--type",
+        "daily",
+        "--start",
+        "2026-08-28",
+        "--end",
+        "2026-08-28",
+        "--force",
+      ]),
+    ).toEqual({
+      cadence: "daily",
+      force: true,
+      period: { start: "2026-08-28", end: "2026-08-28" },
+    });
   });
 });

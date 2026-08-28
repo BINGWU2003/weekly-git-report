@@ -143,11 +143,11 @@ Usage:
   weekly collect --since <YYYY-MM-DD> --until <YYYY-MM-DD> [--author <name-or-email>] [--project <id-or-name>] [--all]
   weekly raw index --start <YYYY-MM-DD> --end <YYYY-MM-DD>
   weekly raw read --start <YYYY-MM-DD> --end <YYYY-MM-DD>
-  weekly summary save --start <YYYY-MM-DD> --end <YYYY-MM-DD> [--file <path>]
-  weekly templates init
-  weekly templates read [--start <YYYY-MM-DD> --end <YYYY-MM-DD>]
-  weekly templates write [--file <path>] (--revision <revision>|--force)
-  weekly templates reset --force
+  weekly summary save [--type daily|weekly|monthly] --start <YYYY-MM-DD> --end <YYYY-MM-DD> [--file <path>] [--force]
+  weekly templates init [--type daily|weekly|monthly|--all]
+  weekly templates read [--type daily|weekly|monthly] [--start <YYYY-MM-DD> --end <YYYY-MM-DD>]
+  weekly templates write [--type daily|weekly|monthly] [--file <path>] (--revision <revision>|--force)
+  weekly templates reset [--type daily|weekly|monthly] --force
   weekly doctor
 `);
 }

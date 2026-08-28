@@ -40,6 +40,7 @@ import { ConfigSchema, DEFAULT_CONFIG, RepositoryProjectSchema } from "@weekly-g
 import type {
   Config,
   Period,
+  ReportCadence,
   RepositoryFolderScanResult,
   RepositoryProject,
   RepositoryRuntimeState,
@@ -144,18 +145,19 @@ export async function saveDesktopConfig(
   return { config: snapshot.config, revision: snapshot.revision };
 }
 
-export async function getDesktopSummaryTemplate(period?: Period) {
-  return readSummaryTemplate(period ? { period } : {});
+export async function getDesktopSummaryTemplate(cadence: ReportCadence, period?: Period) {
+  return readSummaryTemplate({ cadence, ...(period ? { period } : {}) });
 }
 
 export function previewDesktopSummaryTemplate(request: SummaryTemplatePreviewRequest): string {
   const content = validateSummaryTemplate(request.content);
-  return renderSummaryTemplate(content, request.period);
+  return renderSummaryTemplate(content, request.period, request.cadence);
 }
 
 export async function saveDesktopSummaryTemplate(request: SummaryTemplateSaveRequest) {
   return saveSummaryTemplate({
     content: request.content,
+    cadence: request.cadence,
     expectedRevision: request.expectedRevision,
     ...(request.period ? { period: request.period } : {}),
   });
@@ -163,6 +165,7 @@ export async function saveDesktopSummaryTemplate(request: SummaryTemplateSaveReq
 
 export async function resetDesktopSummaryTemplate(request: SummaryTemplateResetRequest) {
   return resetSummaryTemplate({
+    cadence: request.cadence,
     expectedRevision: request.expectedRevision,
     ...(request.period ? { period: request.period } : {}),
   });

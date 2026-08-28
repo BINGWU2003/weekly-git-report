@@ -3,6 +3,7 @@ import { getOutputRoot, normalizeAbsolutePath } from "@weekly-git-report/core";
 import {
   ConfigSchema,
   PeriodSchema,
+  ReportCadenceSchema,
   ProjectsIndexSchema,
   RepositoryProjectSchema,
 } from "@weekly-git-report/shared";
@@ -47,12 +48,15 @@ export function registerIpcHandlers(): void {
     if (typeof expectedRevision !== "string") throw new Error("配置版本不能为空。");
     return saveDesktopConfig(ConfigSchema.parse(input), expectedRevision);
   });
-  ipcMain.handle(IPC_CHANNELS.templatesRead, (_event, period: unknown) =>
-    getDesktopSummaryTemplate(period === undefined ? undefined : PeriodSchema.parse(period)),
+  ipcMain.handle(IPC_CHANNELS.templatesRead, (_event, cadence: unknown, period: unknown) =>
+    getDesktopSummaryTemplate(
+      cadence === undefined ? "weekly" : ReportCadenceSchema.parse(cadence),
+      period === undefined ? undefined : PeriodSchema.parse(period),
+    ),
   );
   ipcMain.handle(IPC_CHANNELS.templatesPreview, (_event, input: unknown) => {
     const request = parseTemplateContentRequest(input);
-    return previewDesktopSummaryTemplate({ content: request.content, period: request.period });
+    return previewDesktopSummaryTemplate(request);
   });
   ipcMain.handle(IPC_CHANNELS.templatesSave, (_event, input: unknown) => {
     const request = parseTemplateRevisionRequest(input);
@@ -159,7 +163,11 @@ function parseTemplateContentRequest(input: unknown) {
   if (!isRecord(input) || typeof input.content !== "string") {
     throw new Error("模板内容无效。");
   }
-  return { content: input.content, period: PeriodSchema.parse(input.period) };
+  return {
+    cadence: parseTemplateCadence(input.cadence),
+    content: input.content,
+    period: PeriodSchema.parse(input.period),
+  };
 }
 
 function parseTemplateRevisionRequest(input: unknown) {
@@ -167,8 +175,13 @@ function parseTemplateRevisionRequest(input: unknown) {
     throw new Error("模板版本不能为空。");
   }
   return {
+    cadence: parseTemplateCadence(input.cadence),
     expectedRevision: input.expectedRevision,
     ...(typeof input.content === "string" ? { content: input.content } : {}),
     ...(input.period === undefined ? {} : { period: PeriodSchema.parse(input.period) }),
   };
+}
+
+function parseTemplateCadence(value: unknown) {
+  return value === undefined ? "weekly" : ReportCadenceSchema.parse(value);
 }

@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { AlertCircle, Loader2, RefreshCw, RotateCcw, Save } from 'lucide-react'
 import { toast } from 'sonner'
-import type { Period, SummaryTemplateResult } from '@weekly-git-report/shared'
+import type { Period, ReportCadence, SummaryTemplateResult } from '@weekly-git-report/shared'
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes'
 import { MarkdownViewer } from '@/components/markdown-viewer'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -27,43 +27,71 @@ import { showSuccessToast } from '@/lib/toast'
 import { ContentSection } from '../components/content-section'
 
 export function SettingsTemplate() {
-  const [period] = useState(getExamplePeriod)
+  const [cadence, setCadence] = useState<ReportCadence>('weekly')
+  const [dirty, setDirty] = useState(false)
+  const period = useMemo(() => getExamplePeriod(cadence), [cadence])
   const template = useQuery({
-    queryKey: ['summary-template', period.start, period.end],
-    queryFn: () => window.electronAPI.templates.read(period),
+    queryKey: getTemplateQueryKey(cadence, period),
+    queryFn: () => window.electronAPI.templates.read(cadence, period),
   })
+
+  function selectCadence(value: string) {
+    const next = value as ReportCadence
+    if (next === cadence) return
+    if (dirty && !window.confirm('当前模板有未保存的修改，确定切换模板吗？')) return
+    setDirty(false)
+    setCadence(next)
+  }
 
   return (
     <ContentSection
       title='生成模板'
-      desc='CLI、Agent 与 Electron 共同读取这一份周报生成提示词。'
+      desc='CLI、Agent 与 Electron 共同读取日报、周报和月报生成提示词。'
       contentClassName='lg:max-w-none'
     >
-      {template.isLoading && <Loading />}
-      {template.isError && (
-        <Alert variant='destructive'>
-          <AlertCircle />
-          <AlertTitle>无法读取生成模板</AlertTitle>
-          <AlertDescription>{getErrorMessage(template.error)}</AlertDescription>
-        </Alert>
-      )}
-      {template.data && (
-        <SummaryTemplateEditor
-          key={template.data.template.revision}
-          initial={template.data}
-          period={period}
-        />
-      )}
+      <Tabs value={cadence} onValueChange={selectCadence} className='space-y-4'>
+        <TabsList>
+          {CADENCE_OPTIONS.map((option) => (
+            <TabsTrigger key={option.value} value={option.value}>{option.label}模板</TabsTrigger>
+          ))}
+        </TabsList>
+        <TabsContent value={cadence} className='mt-0 space-y-4'>
+          {template.isLoading && <Loading />}
+          {template.isError && (
+            <Alert variant='destructive'>
+              <AlertCircle />
+              <AlertTitle>无法读取生成模板</AlertTitle>
+              <AlertDescription>{getErrorMessage(template.error)}</AlertDescription>
+            </Alert>
+          )}
+          {template.data && (
+            <SummaryTemplateEditor
+              key={`${template.data.type}-${template.data.template.revision}`}
+              initial={template.data}
+              cadence={cadence}
+              period={period}
+              onDirtyChange={setDirty}
+            />
+          )}
+        </TabsContent>
+      </Tabs>
     </ContentSection>
   )
 }
 
 interface SummaryTemplateEditorProps {
   initial: SummaryTemplateResult
+  cadence?: ReportCadence
   period: Period
+  onDirtyChange?(dirty: boolean): void
 }
 
-export function SummaryTemplateEditor({ initial, period }: SummaryTemplateEditorProps) {
+export function SummaryTemplateEditor({
+  initial,
+  cadence = initial.type,
+  period,
+  onDirtyChange,
+}: SummaryTemplateEditorProps) {
   const queryClient = useQueryClient()
   const [content, setContent] = useState(initial.template.content)
   const [preview, setPreview] = useState(initial.template.renderedContent)
@@ -74,6 +102,10 @@ export function SummaryTemplateEditor({ initial, period }: SummaryTemplateEditor
   useUnsavedChanges(dirty)
 
   useEffect(() => {
+    onDirtyChange?.(dirty)
+  }, [dirty, onDirtyChange])
+
+  useEffect(() => {
     let cancelled = false
     const timeout = window.setTimeout(() => {
       void updatePreview()
@@ -81,7 +113,7 @@ export function SummaryTemplateEditor({ initial, period }: SummaryTemplateEditor
 
     async function updatePreview() {
       try {
-        const next = await window.electronAPI.templates.preview({ content, period })
+        const next = await window.electronAPI.templates.preview({ cadence, content, period })
         if (cancelled) return
         setPreview(next)
         setPreviewError(undefined)
@@ -96,17 +128,18 @@ export function SummaryTemplateEditor({ initial, period }: SummaryTemplateEditor
       cancelled = true
       window.clearTimeout(timeout)
     }
-  }, [content, period])
+  }, [cadence, content, period])
 
   const save = useMutation({
     mutationFn: () =>
       window.electronAPI.templates.save({
         content,
+        cadence,
         expectedRevision: initial.template.revision,
         period,
       }),
     onSuccess: (next) => {
-      setTemplateQueryData(queryClient, period, next)
+      setTemplateQueryData(queryClient, cadence, period, next)
       setContent(next.template.content)
       setPreview(next.template.renderedContent)
       showSuccessToast('生成模板已保存')
@@ -118,10 +151,11 @@ export function SummaryTemplateEditor({ initial, period }: SummaryTemplateEditor
     mutationFn: () =>
       window.electronAPI.templates.reset({
         expectedRevision: initial.template.revision,
+        cadence,
         period,
       }),
     onSuccess: (next) => {
-      setTemplateQueryData(queryClient, period, next)
+      setTemplateQueryData(queryClient, cadence, period, next)
       setContent(next.template.content)
       setPreview(next.template.renderedContent)
       setResetDialogOpen(false)
@@ -134,8 +168,8 @@ export function SummaryTemplateEditor({ initial, period }: SummaryTemplateEditor
     if (dirty && !window.confirm('当前模板有未保存的修改，确定重新读取吗？')) return
     setReloading(true)
     try {
-      const next = await window.electronAPI.templates.read(period)
-      setTemplateQueryData(queryClient, period, next)
+      const next = await window.electronAPI.templates.read(cadence, period)
+      setTemplateQueryData(queryClient, cadence, period, next)
       setContent(next.template.content)
       setPreview(next.template.renderedContent)
       setPreviewError(undefined)
@@ -172,7 +206,7 @@ export function SummaryTemplateEditor({ initial, period }: SummaryTemplateEditor
         <CardHeader className='gap-3 sm:flex-row sm:items-start sm:justify-between'>
           <div className='space-y-1.5'>
             <div className='flex flex-wrap items-center gap-2'>
-              <CardTitle>周报生成提示词</CardTitle>
+              <CardTitle>{getCadenceLabel(cadence)}生成提示词</CardTitle>
               <Badge variant={initial.template.isDefault ? 'secondary' : 'outline'}>
                 {dirty ? '未保存修改' : initial.template.isDefault ? '默认模板' : '自定义模板'}
               </Badge>
@@ -254,7 +288,7 @@ export function SummaryTemplateEditor({ initial, period }: SummaryTemplateEditor
             </TabsList>
             <TabsContent value='edit' className='mt-3'>
               <Textarea
-                aria-label='周报生成提示词'
+                aria-label={`${getCadenceLabel(cadence)}生成提示词`}
                 value={content}
                 onChange={(event) => setContent(event.target.value)}
                 spellCheck={false}
@@ -286,10 +320,11 @@ export function SummaryTemplateEditor({ initial, period }: SummaryTemplateEditor
 
 function setTemplateQueryData(
   queryClient: QueryClient,
+  cadence: ReportCadence,
   period: Period,
   value: SummaryTemplateResult
 ) {
-  queryClient.setQueryData(['summary-template', period.start, period.end], value)
+  queryClient.setQueryData(getTemplateQueryKey(cadence, period), value)
 }
 
 function showTemplateError(error: unknown) {
@@ -300,12 +335,30 @@ function showTemplateError(error: unknown) {
   toast.error(getErrorMessage(error))
 }
 
-function getExamplePeriod(): Period {
+function getExamplePeriod(cadence: ReportCadence): Period {
   const end = new Date()
   const start = new Date(end)
-  const day = start.getDay()
-  start.setDate(start.getDate() - (day === 0 ? 6 : day - 1))
+  if (cadence === 'weekly') {
+    const day = start.getDay()
+    start.setDate(start.getDate() - (day === 0 ? 6 : day - 1))
+  } else if (cadence === 'monthly') {
+    start.setDate(1)
+  }
   return { start: formatDate(start), end: formatDate(end) }
+}
+
+const CADENCE_OPTIONS: Array<{ value: ReportCadence; label: string }> = [
+  { value: 'daily', label: '日报' },
+  { value: 'weekly', label: '周报' },
+  { value: 'monthly', label: '月报' },
+]
+
+function getCadenceLabel(cadence: ReportCadence): string {
+  return CADENCE_OPTIONS.find((option) => option.value === cadence)?.label ?? '周期报告'
+}
+
+function getTemplateQueryKey(cadence: ReportCadence, period: Period) {
+  return ['summary-template', cadence, period.start, period.end] as const
 }
 
 function formatDate(date: Date): string {

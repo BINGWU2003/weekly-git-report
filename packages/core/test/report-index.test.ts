@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { afterEach, expect, test } from "vitest";
 
-import { indexReportFiles, ReportIndexError } from "../src/index.js";
+import { createSummaryMetadata, indexReportFiles, ReportIndexError } from "../src/index.js";
 
 const temporaryDirectories: string[] = [];
 
@@ -59,8 +59,10 @@ test("indexes only canonical reports with semantic metadata", async () => {
     period,
   });
   expect(reports.find((report) => report.role === "summary")).toMatchObject({
-    title: "周期总结",
+    title: "周报总结",
     period,
+    cadence: "weekly",
+    summaryMetadataStatus: "legacy",
   });
   expect(reports.some((report) => report.relativePath.includes(".agents"))).toBe(false);
 });
@@ -95,6 +97,43 @@ test("rejects manifest periods that do not match their directory", async () => {
   );
 
   await expect(indexReportFiles(root)).rejects.toThrow(/周期与目录不一致/);
+});
+
+test("indexes valid and invalid summary sidecars without losing Markdown reports", async () => {
+  const root = await createTemporaryDirectory();
+  const monthDir = path.join(root, "summary", "2026", "08");
+  await mkdir(monthDir, { recursive: true });
+
+  const dailyPeriod = { start: "2026-08-28", end: "2026-08-28" };
+  const dailyContent = "# Daily\n";
+  const dailyFile = path.join(monthDir, `${dailyPeriod.start}_${dailyPeriod.end}.md`);
+  await writeFile(dailyFile, dailyContent);
+  await writeFile(
+    path.join(monthDir, `${dailyPeriod.start}_${dailyPeriod.end}.meta.json`),
+    JSON.stringify(createSummaryMetadata("daily", dailyPeriod, dailyContent)),
+  );
+
+  const monthlyPeriod = { start: "2026-08-01", end: "2026-08-28" };
+  const monthlyFile = path.join(monthDir, `${monthlyPeriod.start}_${monthlyPeriod.end}.md`);
+  await writeFile(monthlyFile, "# Monthly\n");
+  await writeFile(
+    path.join(monthDir, `${monthlyPeriod.start}_${monthlyPeriod.end}.meta.json`),
+    JSON.stringify({
+      ...createSummaryMetadata("monthly", monthlyPeriod, "# Monthly\n"),
+      contentHash: `sha256:${"0".repeat(64)}`,
+    }),
+  );
+
+  const reports = await indexReportFiles(root);
+  expect(reports).toHaveLength(2);
+  expect(reports.find((report) => report.cadence === "daily")).toMatchObject({
+    title: "日报总结",
+    summaryMetadataStatus: "valid",
+  });
+  expect(reports.find((report) => report.cadence === "monthly")).toMatchObject({
+    title: "月报总结",
+    summaryMetadataStatus: "invalid",
+  });
 });
 
 async function createTemporaryDirectory(): Promise<string> {

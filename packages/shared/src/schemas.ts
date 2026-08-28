@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { DEFAULT_CONFIG } from "./constants.js";
+import { DEFAULT_CONFIG, REPORT_CADENCES } from "./constants.js";
 
 const dateStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const defaultSinceSchema = z.union([z.literal("last monday"), dateStringSchema]);
@@ -31,6 +31,18 @@ export const PeriodSchema = z.object({
   start: dateStringSchema,
   end: dateStringSchema,
 });
+
+export const ReportCadenceSchema = z.enum(REPORT_CADENCES);
+
+export const SummaryMetadataSchema = z
+  .object({
+    version: z.literal(1),
+    cadence: ReportCadenceSchema,
+    period: PeriodSchema,
+    savedAt: z.string().datetime(),
+    contentHash: z.string().regex(/^sha256:[a-f\d]{64}$/),
+  })
+  .strict();
 
 export const ConfigSchema = z
   .object({
@@ -161,6 +173,11 @@ export const SaveWeekSummaryInputSchema = PeriodSchema.extend({
   content: z.string().min(1),
 });
 
+export const SaveSummaryInputSchema = SaveWeekSummaryInputSchema.extend({
+  cadence: ReportCadenceSchema.default("weekly"),
+  force: z.boolean().default(false),
+});
+
 export const SummaryTemplateDocumentSchema = z.object({
   content: z.string(),
   renderedContent: z.string().nullable(),
@@ -172,7 +189,7 @@ export const SummaryTemplateDocumentSchema = z.object({
 
 export const SummaryTemplateResultSchema = z.object({
   formatVersion: z.literal(1),
-  type: z.literal("weekly"),
+  type: ReportCadenceSchema,
   template: SummaryTemplateDocumentSchema,
   created: z.boolean(),
 });

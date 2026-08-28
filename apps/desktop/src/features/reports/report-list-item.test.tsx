@@ -15,6 +15,9 @@ const report: ReportFile = {
   generatedAt: '2026-08-23T10:00:00.000Z',
   modifiedAt: '2026-08-23T10:00:00.000Z',
   size: 1024,
+  cadence: 'weekly',
+  summaryMetadataStatus: 'invalid',
+  summaryMetadataMessage: 'Hash mismatch',
 }
 
 describe('ReportListItem', () => {
@@ -35,6 +38,7 @@ describe('ReportListItem', () => {
       'display:block;width:64px;overflow:hidden;white-space:nowrap'
     await expect.element(title).toHaveAttribute('data-overflow', 'true')
     await expect.element(title).not.toHaveAttribute('tabindex')
+    await expect.element(screen.getByText('元数据异常')).toHaveAttribute('title', 'Hash mismatch')
 
     await userEvent.hover(title)
     await expect.element(screen.getByRole('tooltip')).toHaveTextContent(report.title)

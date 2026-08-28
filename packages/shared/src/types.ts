@@ -21,9 +21,12 @@ import type {
   RepositoryRuntimeStateSchema,
   RepositoryRuntimeStatusSchema,
   RepositoryScanWarningSchema,
+  ReportCadenceSchema,
   ProjectsIndexSchema,
   ReadWeekRawInputSchema,
   SaveWeekSummaryInputSchema,
+  SaveSummaryInputSchema,
+  SummaryMetadataSchema,
   SummaryTemplateDocumentSchema,
   SummaryTemplateResultSchema,
   SyncProjectsInputSchema,
@@ -32,6 +35,7 @@ import type {
 export type AuthorList = z.infer<typeof AuthorListSchema>;
 export type Identity = z.infer<typeof IdentitySchema>;
 export type Period = z.infer<typeof PeriodSchema>;
+export type ReportCadence = z.infer<typeof ReportCadenceSchema>;
 export type Config = z.infer<typeof ConfigSchema>;
 export type Project = z.infer<typeof ProjectSchema>;
 export type RepositoryProject = z.infer<typeof RepositoryProjectSchema>;
@@ -52,6 +56,8 @@ export type CollectGitLogsInput = z.infer<typeof CollectGitLogsInputSchema>;
 export type GetWeekIndexInput = z.infer<typeof GetWeekIndexInputSchema>;
 export type ReadWeekRawInput = z.infer<typeof ReadWeekRawInputSchema>;
 export type SaveWeekSummaryInput = z.infer<typeof SaveWeekSummaryInputSchema>;
+export type SaveSummaryInput = z.infer<typeof SaveSummaryInputSchema>;
+export type SummaryMetadata = z.infer<typeof SummaryMetadataSchema>;
 export type SummaryTemplateDocument = z.infer<typeof SummaryTemplateDocumentSchema>;
 export type SummaryTemplateResult = z.infer<typeof SummaryTemplateResultSchema>;
 export type McpToolInput = z.infer<typeof McpToolInputSchema>;
@@ -59,6 +65,8 @@ export type McpToolInput = z.infer<typeof McpToolInputSchema>;
 export type ReportKind = "raw" | "summary" | "task";
 
 export type ReportRole = "summary" | "task" | "raw-index" | "raw-project" | "raw-history";
+
+export type SummaryMetadataStatus = "valid" | "legacy" | "invalid";
 
 export interface IndexedReportFile {
   id: string;
@@ -71,6 +79,9 @@ export interface IndexedReportFile {
   generatedAt: string | null;
   modifiedAt: string;
   size: number;
+  cadence?: ReportCadence;
+  summaryMetadataStatus?: SummaryMetadataStatus;
+  summaryMetadataMessage?: string;
   projectId?: string;
   projectName?: string;
 }

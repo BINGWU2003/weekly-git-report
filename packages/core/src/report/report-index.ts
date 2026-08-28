@@ -13,7 +13,10 @@ import type {
   Manifest,
   ManifestProject,
   Period,
+  ReportCadence,
 } from "@weekly-git-report/shared";
+
+import { inspectSummaryMetadata } from "./summary-metadata.js";
 
 const TASKS_DIR_NAME = "tasks";
 const MAX_REPORT_FILES = 2_000;
@@ -134,12 +137,17 @@ async function indexSummaryReports(
         if (path.extname(entry.name).toLowerCase() !== ".md") continue;
         const period = parsePeriod(path.basename(entry.name, path.extname(entry.name)));
         if (!period) continue;
-        await appendReport(reports, outputRoot, path.join(monthPath, entry.name), {
+        const summaryFile = path.join(monthPath, entry.name);
+        const metadata = await inspectSummaryMetadata(summaryFile, period);
+        await appendReport(reports, outputRoot, summaryFile, {
           kind: "summary",
           role: "summary",
-          title: "周期总结",
+          title: getSummaryTitle(metadata.cadence),
           period,
-          generatedAt: null,
+          generatedAt: metadata.metadata?.savedAt ?? null,
+          ...(metadata.cadence ? { cadence: metadata.cadence } : {}),
+          summaryMetadataStatus: metadata.status,
+          ...(metadata.message ? { summaryMetadataMessage: metadata.message } : {}),
         });
       }
     }
@@ -179,7 +187,12 @@ async function appendReport(
   outputRoot: string,
   absolutePath: string,
   metadata: Pick<IndexedReportFile, "kind" | "role" | "title" | "period" | "generatedAt"> &
-    Partial<Pick<IndexedReportFile, "projectId" | "projectName">>,
+    Partial<
+      Pick<
+        IndexedReportFile,
+        "projectId" | "projectName" | "cadence" | "summaryMetadataStatus" | "summaryMetadataMessage"
+      >
+    >,
 ): Promise<void> {
   if (reports.length >= MAX_REPORT_FILES) {
     throw new ReportIndexError(`报告文件超过 ${MAX_REPORT_FILES} 个，请整理报告目录后重试。`);
@@ -257,6 +270,13 @@ function findPeriodInPath(relativePath: string): Period | null {
 function parsePeriod(value: string): Period | null {
   const match = PERIOD_PATTERN.exec(value);
   return match?.[1] && match[2] ? { start: match[1], end: match[2] } : null;
+}
+
+function getSummaryTitle(cadence?: ReportCadence): string {
+  if (cadence === "daily") return "日报总结";
+  if (cadence === "weekly") return "周报总结";
+  if (cadence === "monthly") return "月报总结";
+  return "周期总结";
 }
 
 async function readDirectories(directory: string) {

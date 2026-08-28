@@ -4,6 +4,7 @@ import {
   DEFAULT_REPORT_SEARCH,
   filterReportFiles,
   getReportTypeCounts,
+  getSummaryCadenceCounts,
   groupReportFiles,
   parseReportSearch,
 } from './report-library'
@@ -14,6 +15,7 @@ const reports: ReportFile[] = [
     kind: 'summary',
     role: 'summary',
     title: '周期总结',
+    cadence: 'weekly',
     period: { start: '2026-07-27', end: '2026-08-02' },
   }),
   createReport({
@@ -92,11 +94,35 @@ describe('report library filtering', () => {
     ])
   })
 
+  it('filters Summary by cadence independently from the primary type counts', () => {
+    const search = {
+      ...DEFAULT_REPORT_SEARCH,
+      range: 'all' as const,
+      type: 'summary' as const,
+      cadence: 'monthly' as const,
+    }
+    expect(filterReportFiles(reports, search)).toEqual([])
+    expect(getSummaryCadenceCounts(reports, search)).toEqual({
+      all: 1,
+      daily: 0,
+      weekly: 1,
+      monthly: 0,
+    })
+    expect(getReportTypeCounts(reports, search)).toEqual({ all: 4, summary: 1, raw: 2, task: 1 })
+  })
+
   it('sanitizes route search values', () => {
     expect(
-      parseReportSearch({ type: 'invalid', range: 'custom', from: 'bad', includeHistory: 'true' }),
+      parseReportSearch({
+        type: 'invalid',
+        range: 'custom',
+        from: 'bad',
+        cadence: 'monthly',
+        includeHistory: 'true',
+      }),
     ).toEqual({
       range: 'custom',
+      cadence: 'monthly',
       includeHistory: true,
     })
   })

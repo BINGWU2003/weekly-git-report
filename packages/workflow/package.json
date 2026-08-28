@@ -11,7 +11,8 @@
   },
   "scripts": {
     "build": "tsup",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@weekly-git-report/core": "workspace:*",
@@ -21,6 +22,7 @@
     "@types/node": "catalog:",
     "@weekly-git-report/typescript-config": "workspace:*",
     "tsup": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

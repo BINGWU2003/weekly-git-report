@@ -33,7 +33,7 @@ npx -y @weekly-git-report/cli@latest
 重启或重新加载 MCP 客户端后，可以要求客户端：
 
 ```text
-采集 2026-08-18 到 2026-08-24 的 Git 提交，生成周报总结并保存。
+采集 2026-08-17 到 2026-08-23 的 Git 提交，生成周报总结并保存。
 ```
 
 典型 tool 调用顺序是：
@@ -99,8 +99,8 @@ weekly-git-report-mcp
 
 ```json
 {
-  "since": "2026-08-18",
-  "until": "2026-08-24",
+  "since": "2026-08-17",
+  "until": "2026-08-23",
   "author": [],
   "projectIds": []
 }
@@ -110,8 +110,8 @@ weekly-git-report-mcp
 
 ```json
 {
-  "since": "2026-08-18",
-  "until": "2026-08-24",
+  "since": "2026-08-17",
+  "until": "2026-08-23",
   "author": ["Zhang San", "zhangsan@example.com"],
   "projectIds": ["api"]
 }
@@ -128,8 +128,8 @@ weekly-git-report-mcp
 
 ```json
 {
-  "start": "2026-08-18",
-  "end": "2026-08-24"
+  "start": "2026-08-17",
+  "end": "2026-08-23"
 }
 ```
 
@@ -141,8 +141,8 @@ weekly-git-report-mcp
 
 ```json
 {
-  "start": "2026-08-18",
-  "end": "2026-08-24"
+  "start": "2026-08-17",
+  "end": "2026-08-23"
 }
 ```
 
@@ -154,13 +154,13 @@ weekly-git-report-mcp
 
 ```json
 {
-  "start": "2026-08-18",
-  "end": "2026-08-24",
+  "start": "2026-08-17",
+  "end": "2026-08-23",
   "content": "# 本周总结\n\n- 完成功能 A\n"
 }
 ```
 
-返回 `summaryFile` 和写入的 `bytes`。内容不能为空；如果末尾没有换行，保存时会自动补充。
+周报必须从周一开始，并在同一周的周一至周日结束。返回 `summaryFile`、`metadataFile`、`cadence`、写入的 `bytes`、是否替换及备份路径。内容不能为空；如果末尾没有换行，保存时会自动补充。
 
 ## 项目选择与错误处理
 
