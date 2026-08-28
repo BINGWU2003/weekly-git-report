@@ -20,9 +20,12 @@ interface StdinLike extends AsyncIterable<Buffer | string> {
   isTTY?: boolean;
 }
 
-export async function readStdin(input: StdinLike = process.stdin): Promise<string> {
+export async function readStdin(
+  input: StdinLike = process.stdin,
+  missingContentMessage = "Missing summary content. Pass --file or pipe Markdown to stdin.",
+): Promise<string> {
   if (input.isTTY) {
-    throw new Error("Missing summary content. Pass --file or pipe Markdown to stdin.");
+    throw new Error(missingContentMessage);
   }
 
   const chunks: Buffer[] = [];

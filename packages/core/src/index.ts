@@ -11,6 +11,7 @@ export * from "./repository/local-repository-scan.js";
 export * from "./repository/project-management.js";
 export * from "./repository/repository-runtime.js";
 export * from "./repository/sync-repository.js";
+export * from "./template/summary-template.js";
 export * from "./utils/hash.js";
 export * from "./utils/markdown.js";
 export * from "./utils/path.js";

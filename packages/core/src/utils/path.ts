@@ -5,7 +5,10 @@ import {
   CONFIG_FILE_NAME,
   PROJECTS_FILE_NAME,
   RAW_DIR_NAME,
+  SUMMARY_TEMPLATE_FILE_NAME,
   SUMMARY_DIR_NAME,
+  TEMPLATES_DIR_NAME,
+  WEEKLY_TEMPLATE_DIR_NAME,
   WORK_DIR,
 } from "@weekly-git-report/shared";
 import type { Period } from "@weekly-git-report/shared";
@@ -36,6 +39,18 @@ export function getConfigFilePath(): string {
 
 export function getProjectsFilePath(): string {
   return path.join(getWorkDir(), PROJECTS_FILE_NAME);
+}
+
+export function getTemplatesDir(): string {
+  return path.join(getWorkDir(), TEMPLATES_DIR_NAME);
+}
+
+export function getWeeklyTemplateDir(): string {
+  return path.join(getTemplatesDir(), WEEKLY_TEMPLATE_DIR_NAME);
+}
+
+export function getSummaryTemplateFilePath(): string {
+  return path.join(getWeeklyTemplateDir(), SUMMARY_TEMPLATE_FILE_NAME);
 }
 
 export function getRepositoryCacheRoot(repositoryCacheRoot: string): string {

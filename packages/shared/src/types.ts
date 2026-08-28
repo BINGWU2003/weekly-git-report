@@ -24,6 +24,8 @@ import type {
   ProjectsIndexSchema,
   ReadWeekRawInputSchema,
   SaveWeekSummaryInputSchema,
+  SummaryTemplateDocumentSchema,
+  SummaryTemplateResultSchema,
   SyncProjectsInputSchema,
 } from "./schemas.js";
 
@@ -50,4 +52,6 @@ export type CollectGitLogsInput = z.infer<typeof CollectGitLogsInputSchema>;
 export type GetWeekIndexInput = z.infer<typeof GetWeekIndexInputSchema>;
 export type ReadWeekRawInput = z.infer<typeof ReadWeekRawInputSchema>;
 export type SaveWeekSummaryInput = z.infer<typeof SaveWeekSummaryInputSchema>;
+export type SummaryTemplateDocument = z.infer<typeof SummaryTemplateDocumentSchema>;
+export type SummaryTemplateResult = z.infer<typeof SummaryTemplateResultSchema>;
 export type McpToolInput = z.infer<typeof McpToolInputSchema>;

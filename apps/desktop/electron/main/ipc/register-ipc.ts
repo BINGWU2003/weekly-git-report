@@ -2,6 +2,7 @@ import { dialog, ipcMain, shell } from "electron";
 import { getOutputRoot, normalizeAbsolutePath } from "@weekly-git-report/core";
 import {
   ConfigSchema,
+  PeriodSchema,
   ProjectsIndexSchema,
   RepositoryProjectSchema,
 } from "@weekly-git-report/shared";
@@ -16,14 +17,18 @@ import {
   getProjectsRuntimeState,
   getReportAbsolutePath,
   initializeDesktopConfig,
+  getDesktopSummaryTemplate,
   inspectRepository,
   importDesktopRepositories,
   listReportFiles,
   loadOptionalConfig,
   loadOptionalProjects,
   readReportFile,
+  previewDesktopSummaryTemplate,
   removeDesktopRepository,
   saveDesktopConfig,
+  resetDesktopSummaryTemplate,
+  saveDesktopSummaryTemplate,
   saveDesktopRepository,
   scanDesktopRepositoryFolder,
   setDesktopRepositoryEnabled,
@@ -41,6 +46,24 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.configSave, (_event, input: unknown, expectedRevision: unknown) => {
     if (typeof expectedRevision !== "string") throw new Error("配置版本不能为空。");
     return saveDesktopConfig(ConfigSchema.parse(input), expectedRevision);
+  });
+  ipcMain.handle(IPC_CHANNELS.templatesRead, (_event, period: unknown) =>
+    getDesktopSummaryTemplate(period === undefined ? undefined : PeriodSchema.parse(period)),
+  );
+  ipcMain.handle(IPC_CHANNELS.templatesPreview, (_event, input: unknown) => {
+    const request = parseTemplateContentRequest(input);
+    return previewDesktopSummaryTemplate({ content: request.content, period: request.period });
+  });
+  ipcMain.handle(IPC_CHANNELS.templatesSave, (_event, input: unknown) => {
+    const request = parseTemplateRevisionRequest(input);
+    if (!isRecord(input) || typeof input.content !== "string") {
+      throw new Error("模板内容无效。");
+    }
+    return saveDesktopSummaryTemplate({ ...request, content: input.content });
+  });
+  ipcMain.handle(IPC_CHANNELS.templatesReset, (_event, input: unknown) => {
+    const request = parseTemplateRevisionRequest(input);
+    return resetDesktopSummaryTemplate(request);
   });
   ipcMain.handle(IPC_CHANNELS.projectsList, () => loadOptionalProjects());
   ipcMain.handle(IPC_CHANNELS.projectsState, () => getProjectsState());
@@ -130,4 +153,22 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function parseTemplateContentRequest(input: unknown) {
+  if (!isRecord(input) || typeof input.content !== "string") {
+    throw new Error("模板内容无效。");
+  }
+  return { content: input.content, period: PeriodSchema.parse(input.period) };
+}
+
+function parseTemplateRevisionRequest(input: unknown) {
+  if (!isRecord(input) || typeof input.expectedRevision !== "string") {
+    throw new Error("模板版本不能为空。");
+  }
+  return {
+    expectedRevision: input.expectedRevision,
+    ...(typeof input.content === "string" ? { content: input.content } : {}),
+    ...(input.period === undefined ? {} : { period: PeriodSchema.parse(input.period) }),
+  };
 }

@@ -17,6 +17,7 @@ import { Route as AuthenticatedRepositoriesIndexRouteImport } from './routes/_au
 import { Route as AuthenticatedRunsIndexRouteImport } from './routes/_authenticated/runs/index'
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
 import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_authenticated/settings/appearance'
+import { Route as AuthenticatedSettingsTemplateRouteImport } from './routes/_authenticated/settings/template'
 import { Route as AuthenticatedTasksIndexRouteImport } from './routes/_authenticated/tasks/index'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -63,6 +64,12 @@ const AuthenticatedSettingsAppearanceRoute =
     path: '/appearance',
     getParentRoute: () => AuthenticatedSettingsRouteRoute,
   } as any)
+const AuthenticatedSettingsTemplateRoute =
+  AuthenticatedSettingsTemplateRouteImport.update({
+    id: '/template',
+    path: '/template',
+    getParentRoute: () => AuthenticatedSettingsRouteRoute,
+  } as any)
 const AuthenticatedTasksIndexRoute = AuthenticatedTasksIndexRouteImport.update({
   id: '/tasks/',
   path: '/tasks/',
@@ -73,6 +80,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
+  '/settings/template': typeof AuthenticatedSettingsTemplateRoute
   '/reports/': typeof AuthenticatedReportsIndexRoute
   '/repositories/': typeof AuthenticatedRepositoriesIndexRoute
   '/runs/': typeof AuthenticatedRunsIndexRoute
@@ -82,6 +90,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
+  '/settings/template': typeof AuthenticatedSettingsTemplateRoute
   '/reports': typeof AuthenticatedReportsIndexRoute
   '/repositories': typeof AuthenticatedRepositoriesIndexRoute
   '/runs': typeof AuthenticatedRunsIndexRoute
@@ -94,6 +103,7 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
+  '/_authenticated/settings/template': typeof AuthenticatedSettingsTemplateRoute
   '/_authenticated/reports/': typeof AuthenticatedReportsIndexRoute
   '/_authenticated/repositories/': typeof AuthenticatedRepositoriesIndexRoute
   '/_authenticated/runs/': typeof AuthenticatedRunsIndexRoute
@@ -106,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/settings'
     | '/settings/appearance'
+    | '/settings/template'
     | '/reports/'
     | '/repositories/'
     | '/runs/'
@@ -115,6 +126,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/settings/appearance'
+    | '/settings/template'
     | '/reports'
     | '/repositories'
     | '/runs'
@@ -126,6 +138,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/'
     | '/_authenticated/settings/appearance'
+    | '/_authenticated/settings/template'
     | '/_authenticated/reports/'
     | '/_authenticated/repositories/'
     | '/_authenticated/runs/'
@@ -195,6 +208,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsAppearanceRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
     }
+    '/_authenticated/settings/template': {
+      id: '/_authenticated/settings/template'
+      path: '/template'
+      fullPath: '/settings/template'
+      preLoaderRoute: typeof AuthenticatedSettingsTemplateRouteImport
+      parentRoute: typeof AuthenticatedSettingsRouteRoute
+    }
     '/_authenticated/tasks/': {
       id: '/_authenticated/tasks/'
       path: '/tasks'
@@ -207,12 +227,14 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedSettingsRouteRouteChildren {
   AuthenticatedSettingsAppearanceRoute: typeof AuthenticatedSettingsAppearanceRoute
+  AuthenticatedSettingsTemplateRoute: typeof AuthenticatedSettingsTemplateRoute
   AuthenticatedSettingsIndexRoute: typeof AuthenticatedSettingsIndexRoute
 }
 
 const AuthenticatedSettingsRouteRouteChildren: AuthenticatedSettingsRouteRouteChildren =
   {
     AuthenticatedSettingsAppearanceRoute: AuthenticatedSettingsAppearanceRoute,
+    AuthenticatedSettingsTemplateRoute: AuthenticatedSettingsTemplateRoute,
     AuthenticatedSettingsIndexRoute: AuthenticatedSettingsIndexRoute,
   }
 

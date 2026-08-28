@@ -23,16 +23,22 @@ import {
   loadProjectsIndex,
   loadProjectsIndexSnapshot,
   removeRepositoryProject,
+  readSummaryTemplate,
+  renderSummaryTemplate,
+  resetSummaryTemplate,
   saveRepositoryProject,
+  saveSummaryTemplate,
   scanRepositoryFolder,
   setRepositoryEnabled,
   syncRepositories,
   writeConfigIfRevision,
   writeProjectsIndexIfRevision,
+  validateSummaryTemplate,
 } from "@weekly-git-report/core";
 import { ConfigSchema, DEFAULT_CONFIG, RepositoryProjectSchema } from "@weekly-git-report/shared";
 import type {
   Config,
+  Period,
   RepositoryFolderScanResult,
   RepositoryProject,
   RepositoryRuntimeState,
@@ -51,6 +57,9 @@ import type {
   ReportFile,
   RepositorySyncResult,
   SaveRepositoryRequest,
+  SummaryTemplatePreviewRequest,
+  SummaryTemplateResetRequest,
+  SummaryTemplateSaveRequest,
 } from "../../../shared/ipc.js";
 
 const execFileAsync = promisify(execFile);
@@ -133,6 +142,30 @@ export async function saveDesktopConfig(
   const snapshot = await writeConfigIfRevision(config, expectedRevision);
   await initConfig(config);
   return { config: snapshot.config, revision: snapshot.revision };
+}
+
+export async function getDesktopSummaryTemplate(period?: Period) {
+  return readSummaryTemplate(period ? { period } : {});
+}
+
+export function previewDesktopSummaryTemplate(request: SummaryTemplatePreviewRequest): string {
+  const content = validateSummaryTemplate(request.content);
+  return renderSummaryTemplate(content, request.period);
+}
+
+export async function saveDesktopSummaryTemplate(request: SummaryTemplateSaveRequest) {
+  return saveSummaryTemplate({
+    content: request.content,
+    expectedRevision: request.expectedRevision,
+    ...(request.period ? { period: request.period } : {}),
+  });
+}
+
+export async function resetDesktopSummaryTemplate(request: SummaryTemplateResetRequest) {
+  return resetSummaryTemplate({
+    expectedRevision: request.expectedRevision,
+    ...(request.period ? { period: request.period } : {}),
+  });
 }
 
 export async function loadOptionalProjects(): Promise<RepositoryProject[]> {

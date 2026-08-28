@@ -9,5 +9,6 @@
 - 从配置分支远程引用读取最新提交运行状态
 - 按周期和作者身份采集 Git 提交
 - raw Markdown、manifest、索引和 summary 路径生成
+- 周报提示词模板的初始化、变量渲染、校验、原子写入和 revision 冲突保护
 
 该包不直接提供用户命令，由 CLI、Electron、workflow 和 MCP 组合使用。
