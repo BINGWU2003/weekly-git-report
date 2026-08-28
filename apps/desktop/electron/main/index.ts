@@ -25,6 +25,7 @@ function createWindow(): void {
     height: 900,
     minWidth: 960,
     minHeight: 640,
+    icon: join(__dirname, "../../resources/icon.png"),
     show: false,
     autoHideMenuBar: true,
     backgroundColor: "#09090b",

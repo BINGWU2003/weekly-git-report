@@ -5,8 +5,10 @@ directories:
   output: release
 files:
   - out/**/*
+  - resources/**/*
   - package.json
 win:
+  icon: resources/icon.ico
   target:
     - target: nsis
       arch:
