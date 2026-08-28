@@ -28,6 +28,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { MarkdownViewer } from '@/components/markdown-viewer'
+import { OverflowTooltip } from '@/components/overflow-tooltip'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { getErrorMessage } from '@/lib/errors'
 import { openOutputRoot, showReportInFolder } from '@/lib/system-actions'
@@ -467,7 +468,7 @@ function ReportGroup({
   )
 }
 
-function ReportListItem({
+export function ReportListItem({
   report,
   selected,
   showPeriod = false,
@@ -478,6 +479,9 @@ function ReportListItem({
   showPeriod?: boolean
   onSelect(): void
 }) {
+  const detail = showPeriod && report.period ? formatPeriod(report.period) : report.name
+  const footerLabel = showPeriod ? report.name : ROLE_LABELS[report.role]
+
   return (
     <button
       type='button'
@@ -491,15 +495,31 @@ function ReportListItem({
         <FileText className='mt-0.5 size-4 shrink-0 text-muted-foreground' />
         <div className='min-w-0 flex-1'>
           <div className='flex items-start justify-between gap-2'>
-            <p className='truncate text-sm font-medium'>{report.title}</p>
+            <OverflowTooltip
+              text={report.title}
+              className='flex-1 text-sm font-medium'
+              focusable={false}
+            />
             <ReportKind kind={report.kind} />
           </div>
-          <p className='mt-1 truncate text-xs text-muted-foreground' title={report.relativePath}>
-            {showPeriod && report.period ? formatPeriod(report.period) : report.name}
-          </p>
+          <OverflowTooltip
+            text={detail}
+            className='mt-1 text-xs text-muted-foreground'
+            content={(
+              <div className='space-y-1'>
+                <p>{detail}</p>
+                <p className='font-mono text-primary-foreground/80'>{report.relativePath}</p>
+              </div>
+            )}
+            focusable={false}
+          />
           <div className='mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground'>
-            <span className='truncate'>{showPeriod ? report.name : ROLE_LABELS[report.role]}</span>
-            <span>{formatModifiedAt(report.modifiedAt)} · {formatBytes(report.size)}</span>
+            <OverflowTooltip
+              text={footerLabel}
+              className='flex-1'
+              focusable={false}
+            />
+            <span className='shrink-0'>{formatModifiedAt(report.modifiedAt)} · {formatBytes(report.size)}</span>
           </div>
         </div>
       </div>
@@ -516,20 +536,34 @@ function ReportPreview({
   loading: boolean
   error: Error | null
 }) {
+  const metadata = report
+    ? `${report.period ? formatPeriod(report.period) : `按修改时间 · ${formatModifiedAt(report.modifiedAt)}`} · ${report.relativePath}`
+    : ''
+
   return (
     <Card className='min-h-0 overflow-hidden py-0'>
       {report ? (
         <div className='flex h-full min-h-0 flex-col'>
           <div className='flex items-center justify-between gap-3 border-b p-4'>
-            <div className='min-w-0'>
+            <div className='min-w-0 flex-1'>
               <div className='flex items-center gap-2'>
-                <p className='truncate font-medium'>{report.title}</p>
+                <OverflowTooltip text={report.title} className='flex-1 font-medium' />
                 <ReportKind kind={report.kind} />
               </div>
-              <p className='mt-1 truncate text-xs text-muted-foreground'>
-                {report.period ? formatPeriod(report.period) : `按修改时间 · ${formatModifiedAt(report.modifiedAt)}`}
-                {' · '}{report.relativePath}
-              </p>
+              <OverflowTooltip
+                text={metadata}
+                className='mt-1 text-xs text-muted-foreground'
+                content={(
+                  <div className='space-y-1'>
+                    <p>
+                      {report.period
+                        ? formatPeriod(report.period)
+                        : `按修改时间 · ${formatModifiedAt(report.modifiedAt)}`}
+                    </p>
+                    <p className='font-mono text-primary-foreground/80'>{report.relativePath}</p>
+                  </div>
+                )}
+              />
             </div>
             <Button
               size='sm'
@@ -566,7 +600,9 @@ function ReportPreview({
           <Alert variant='destructive' className='max-w-xl'>
             <AlertTriangle />
             <AlertTitle>报告读取失败</AlertTitle>
-            <AlertDescription>{getErrorMessage(error)}</AlertDescription>
+            <AlertDescription className='[overflow-wrap:anywhere]'>
+              {getErrorMessage(error)}
+            </AlertDescription>
           </Alert>
         </div>
       ) : (
@@ -593,7 +629,7 @@ function ReportListError({
         <Alert variant='destructive'>
           <AlertTriangle />
           <AlertTitle>报告索引失败</AlertTitle>
-          <AlertDescription>
+          <AlertDescription className='[overflow-wrap:anywhere]'>
             <p>{getErrorMessage(error)}</p>
             <p>请修复对应 Raw 周期的 manifest.json 后重新扫描。</p>
           </AlertDescription>

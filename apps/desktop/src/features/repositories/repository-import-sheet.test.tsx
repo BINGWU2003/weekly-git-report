@@ -12,12 +12,13 @@ afterEach(() => {
 
 describe('RepositoryImportSheet', () => {
   it('validates folder repositories and imports selected defaults', async () => {
+    const projectName = 'project-with-a-name-that-is-deliberately-long-enough-to-overflow-the-import-table-column'
     const importedState: ProjectsState = {
       revision: 'revision-2',
       projects: [
         {
           id: 'example.com/team/project',
-          name: 'project',
+          name: projectName,
           url: 'https://example.com/team/project.git',
           branch: 'main',
           localPath: 'D:/cache/project',
@@ -42,7 +43,7 @@ describe('RepositoryImportSheet', () => {
       branches: ['main'],
       defaultBranch: 'main',
       suggestedId: 'example.com/team/project',
-      suggestedName: 'project',
+      suggestedName: projectName,
       suggestedLocalPath: 'D:/cache/project',
     })
     const importRepositories = vi.fn().mockResolvedValue({
@@ -65,6 +66,12 @@ describe('RepositoryImportSheet', () => {
     )
 
     await expect.element(screen.getByText('可导入', { exact: true })).toBeInTheDocument()
+    const repositoryName = screen.getByText(projectName, { exact: true })
+    repositoryName.element().style.cssText =
+      'display:block;width:64px;overflow:hidden;white-space:nowrap'
+    await expect.element(repositoryName).toHaveAttribute('data-overflow', 'true')
+    await userEvent.hover(repositoryName)
+    await expect.element(screen.getByRole('tooltip')).toHaveTextContent(projectName)
     await userEvent.click(screen.getByRole('button', { name: '导入所选仓库（1）' }))
 
     expect(importRepositories).toHaveBeenCalledWith({

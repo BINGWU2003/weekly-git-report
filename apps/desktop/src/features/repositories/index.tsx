@@ -20,6 +20,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
+import { OverflowTooltip } from '@/components/overflow-tooltip'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { getErrorMessage } from '@/lib/errors'
 import { selectSystemDirectory } from '@/lib/system-actions'
@@ -33,6 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { ProjectsState, RepositorySyncResult } from '../../../shared/ipc'
 import { RepositoryForm } from './repository-form'
 import { RepositoryImportSheet } from './repository-import-sheet'
@@ -185,7 +187,7 @@ export function Repositories() {
             <AlertCircle />
             <AlertTitle>部分仓库同步失败</AlertTitle>
             <AlertDescription>
-              <ul className='list-disc space-y-1 ps-5'>
+              <ul className='list-disc space-y-1 ps-5 [overflow-wrap:anywhere]'>
                 {lastSync.errors.map((error, index) => (
                   <li key={`${error.projectId ?? error.name}-${index}`}>
                     {error.name ?? error.projectId ?? '未知仓库'}：{error.message}
@@ -198,36 +200,49 @@ export function Repositories() {
 
         <Card>
           <CardContent>
-            <Table>
+            <Table className='min-w-[80rem] table-fixed'>
               <TableHeader>
                 <TableRow>
-                  <TableHead>仓库</TableHead>
-                  <TableHead>分支</TableHead>
-                  <TableHead>作者</TableHead>
-                  <TableHead>缓存目录</TableHead>
-                  <TableHead>最新提交</TableHead>
-                  <TableHead className='text-center'>启用</TableHead>
-                  <TableHead className='text-end'>操作</TableHead>
+                  <TableHead className='w-64'>仓库</TableHead>
+                  <TableHead className='w-40'>分支</TableHead>
+                  <TableHead className='w-56'>作者</TableHead>
+                  <TableHead className='w-64'>缓存目录</TableHead>
+                  <TableHead className='w-72'>最新提交</TableHead>
+                  <TableHead className='w-20 text-center'>启用</TableHead>
+                  <TableHead className='w-28 text-end'>操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {state.projects.map((project) => {
                   const syncing = sync.isPending && sync.variables?.includes(project.id)
                   const toggling = toggle.isPending && toggle.variables?.project.id === project.id
+                  const authors = project.authors?.length
+                    ? project.authors.map((author) => author.email).join(', ')
+                    : '继承全局身份'
                   return (
                     <TableRow key={project.id}>
-                      <TableCell className='max-w-xs'>
-                        <p className='font-medium'>{project.name}</p>
-                        <p className='truncate text-xs text-muted-foreground' title={project.url}>{project.url}</p>
+                      <TableCell className='max-w-64'>
+                        <OverflowTooltip text={project.name} className='font-medium' />
+                        <OverflowTooltip
+                          text={project.url}
+                          className='text-xs text-muted-foreground'
+                          monospace
+                        />
                       </TableCell>
-                      <TableCell><Badge variant='outline'>{project.branch}</Badge></TableCell>
                       <TableCell>
-                        {project.authors?.length
-                          ? project.authors.map((author) => author.email).join(', ')
-                          : '继承全局身份'}
+                        <Badge variant='outline' className='max-w-36'>
+                          <OverflowTooltip text={project.branch} monospace />
+                        </Badge>
                       </TableCell>
-                      <TableCell className='max-w-xs truncate text-xs text-muted-foreground' title={project.localPath}>
-                        {project.localPath}
+                      <TableCell className='max-w-56'>
+                        <OverflowTooltip text={authors} />
+                      </TableCell>
+                      <TableCell className='max-w-64'>
+                        <OverflowTooltip
+                          text={project.localPath}
+                          className='text-xs text-muted-foreground'
+                          monospace
+                        />
                       </TableCell>
                       <TableCell className='max-w-72'>
                         <LatestCommitCell
@@ -337,15 +352,41 @@ function LatestCommitCell({
         : runtime.status === 'missing-branch'
           ? '分支尚无缓存'
           : '缓存读取失败'
-    return <span className='text-xs text-muted-foreground' title={runtime.message}>{label}</span>
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className='text-xs text-muted-foreground' tabIndex={0}>{label}</span>
+        </TooltipTrigger>
+        <TooltipContent
+          sideOffset={4}
+          className='max-w-[min(36rem,calc(100vw-2rem))] whitespace-normal text-start [overflow-wrap:anywhere]'
+        >
+          {runtime.message}
+        </TooltipContent>
+      </Tooltip>
+    )
   }
 
   const commit = runtime.latestCommit
   const timestamp = formatCommitTime(commit.committedAt)
-  const title = `${commit.hash}\n${commit.authorName} <${commit.authorEmail}>\n${timestamp}`
   return (
-    <div title={title}>
-      <p className='truncate text-sm font-medium'>{commit.subject}</p>
+    <div className='min-w-0'>
+      <OverflowTooltip
+        text={commit.subject}
+        className='text-sm font-medium'
+        content={(
+          <div className='space-y-1'>
+            <p>{commit.subject}</p>
+            <p className='text-primary-foreground/80'>
+              <code>{commit.hash}</code>
+              <br />
+              {commit.authorName} &lt;{commit.authorEmail}&gt;
+              <br />
+              {timestamp}
+            </p>
+          </div>
+        )}
+      />
       <p className='mt-1 flex items-center gap-1.5 text-xs text-muted-foreground'>
         <code>{commit.hash.slice(0, 7)}</code>
         <span>·</span>
