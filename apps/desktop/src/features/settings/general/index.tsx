@@ -1,13 +1,18 @@
 import { useQuery } from '@tanstack/react-query'
-import { FolderOpen } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { AlertCircle, Loader2 } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { ContentSection } from '../components/content-section'
+import { ConfigForm } from './config-form'
 
 export function SettingsGeneral() {
-  const config = useQuery({
-    queryKey: ['config'],
-    queryFn: () => window.electronAPI.config.get(),
+  const state = useQuery({
+    queryKey: ['config-state'],
+    queryFn: () => window.electronAPI.config.state(),
+  })
+  const defaults = useQuery({
+    queryKey: ['config-defaults'],
+    queryFn: () => window.electronAPI.config.defaults(),
+    enabled: state.data?.config === null,
   })
 
   return (
@@ -15,51 +20,46 @@ export function SettingsGeneral() {
       title='常规设置'
       desc='CLI 与 Electron 共同读取 ~/.weekly-git-report/config.json。'
     >
-      <Card>
-        <CardContent className='space-y-5 pt-6'>
-          <ConfigValue label='报告输出目录' value={config.data?.outputRoot} />
-          <ConfigValue label='仓库缓存目录' value={config.data?.repositoryCacheRoot} />
-          <ConfigValue
-            label='无提交仓库'
-            value={config.data ? (config.data.includeEmptyProjects ? '包含' : '忽略') : undefined}
+      <div className='space-y-5'>
+        {state.isLoading && <Loading />}
+        {state.isError && (
+          <Alert variant='destructive'>
+            <AlertCircle />
+            <AlertTitle>无法读取配置</AlertTitle>
+            <AlertDescription>{getErrorMessage(state.error)}</AlertDescription>
+          </Alert>
+        )}
+        {state.data?.config && (
+          <ConfigForm
+            key={state.data.revision}
+            initialConfig={state.data.config}
+            state={state.data}
+            isInitializing={false}
           />
-          <ConfigValue
-            label='Git 作者身份'
-            value={config.data?.identities
-              .map((identity) => `${identity.name} <${identity.email}>`)
-              .join('\n')}
+        )}
+        {state.data?.config === null && defaults.isLoading && <Loading />}
+        {state.data?.config === null && defaults.data && (
+          <ConfigForm
+            key='initialize'
+            initialConfig={defaults.data.config}
+            state={state.data}
+            isInitializing
           />
-          {!config.isLoading && !config.data && (
-            <p className='rounded-lg bg-muted p-3 text-sm text-muted-foreground'>
-              尚未找到配置，请先运行 <code>weekly init</code>。
-            </p>
-          )}
-          <div className='flex gap-2'>
-            <Button
-              variant='outline'
-              disabled={!config.data}
-              onClick={() => window.electronAPI.system.openOutputRoot()}
-            >
-              <FolderOpen />
-              打开报告目录
-            </Button>
-            <Button variant='outline' onClick={() => config.refetch()}>
-              重新读取
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        )}
+      </div>
     </ContentSection>
   )
 }
 
-function ConfigValue({ label, value }: { label: string; value?: string }) {
+function Loading() {
   return (
-    <div className='grid gap-1.5'>
-      <p className='text-sm font-medium'>{label}</p>
-      <p className='whitespace-pre-wrap break-all rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground'>
-        {value || '—'}
-      </p>
+    <div className='flex items-center gap-2 rounded-lg border p-6 text-sm text-muted-foreground'>
+      <Loader2 className='animate-spin' />
+      正在读取配置…
     </div>
   )
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }

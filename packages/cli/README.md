@@ -53,7 +53,7 @@ weekly
 | `weekly config edit`                | 是       | 编辑全局目录、空项目策略和作者身份       |
 | `weekly projects add`               | 是       | 验证远程仓库并添加项目                   |
 | `weekly projects edit`              | 是       | 编辑并重新同步项目                       |
-| `weekly projects remove`            | 是       | 从 `projects.json` 移除项目              |
+| `weekly projects remove`            | 是       | 移除项目，可选择同时删除 Bare Git 缓存   |
 | `weekly projects list`              | 否       | 以 JSON 输出全部显式项目                 |
 | `weekly projects sync [id-or-name]` | 可选     | 同步全部或指定的已启用项目               |
 | `weekly doctor`                     | 否       | 检查 Git、配置、项目路径和 `origin`      |
@@ -148,7 +148,15 @@ npx -y @weekly-git-report/cli@latest projects sync project-a
 npx -y @weekly-git-report/cli@latest projects remove
 ```
 
-删除只会移除 `projects.json` 中的配置，不会删除本地仓库文件。
+CLI 会先询问是否同时永久删除 Bare Git 缓存，默认选择“否”，此时只移除
+`projects.json` 中的配置并保留本地文件。选择删除缓存后，会显示缓存的绝对路径并再次确认。
+
+为避免误删，缓存目录必须同时满足以下条件才会被删除：
+
+- 是真实目录而不是符号链接；
+- 不是磁盘根目录、用户目录、当前工作目录或仓库缓存根目录；
+- 是 Bare Git 仓库；
+- `origin` 与项目配置的 URL 一致。
 
 ## 常见问题
 

@@ -12,7 +12,7 @@
 
 ### 1. 初始化配置
 
-在交互式终端运行：
+可以使用 Electron 桌面端在“设置 → 常规”中直接初始化，也可以在交互式终端运行：
 
 ```sh
 npx -y @weekly-git-report/cli@latest
@@ -36,6 +36,7 @@ npx -y @weekly-git-report/cli@latest
 | MCP         | 使用支持 MCP 的客户端，并希望通过 tools 编排采集与保存 | [`@weekly-git-report/mcp`](packages/mcp/README.md)             |
 | Agent CLI   | Agent、脚本或 CI 需要稳定的 JSON 输入输出              | [`@weekly-git-report/agent-cli`](packages/agent-cli/README.md) |
 | 交互式 CLI  | 初始化配置、维护仓库和排查环境问题                     | [`@weekly-git-report/cli`](packages/cli/README.md)             |
+| Electron    | 通过 GUI 初始化配置、维护仓库和浏览 Markdown 报告      | [`apps/desktop`](apps/desktop/README.md)                       |
 
 #### Agent Skill
 
@@ -167,7 +168,8 @@ raw 读取和 summary 写入都限制在配置的 `outputRoot` 内。
 
 ### 提示配置不存在
 
-先在交互式终端运行 `npx -y @weekly-git-report/cli@latest init`。
+在 Electron 的“设置 → 常规”完成初始化，或在交互式终端运行
+`npx -y @weekly-git-report/cli@latest init`。
 
 ### 本地仓库无法同步
 
@@ -195,6 +197,7 @@ npx -y @weekly-git-report/cli@latest doctor
 | [`packages/core`](packages/core/README.md)           | Git、配置、同步、采集和报告写入 |
 | [`packages/shared`](packages/shared/README.md)       | 常量、Schema 和类型             |
 | `packages/typescript-config`                         | 共享 TypeScript 与 tsup 配置    |
+| [`apps/desktop`](apps/desktop/README.md)             | Electron 配置、仓库与报告 GUI   |
 
 ## 本地开发
 

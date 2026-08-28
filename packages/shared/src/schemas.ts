@@ -3,6 +3,8 @@ import { z } from "zod";
 import { DEFAULT_CONFIG } from "./constants.js";
 
 const dateStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const defaultSinceSchema = z.union([z.literal("last monday"), dateStringSchema]);
+const defaultUntilSchema = z.union([z.literal("now"), dateStringSchema]);
 
 export const AuthorListSchema = z.preprocess((value) => {
   if (typeof value === "string") {
@@ -32,10 +34,10 @@ export const PeriodSchema = z.object({
 
 export const ConfigSchema = z
   .object({
-    outputRoot: z.string().default(DEFAULT_CONFIG.outputRoot),
-    repositoryCacheRoot: z.string().default(DEFAULT_CONFIG.repositoryCacheRoot),
-    defaultSince: z.string().optional().default(DEFAULT_CONFIG.defaultSince),
-    defaultUntil: z.string().optional().default(DEFAULT_CONFIG.defaultUntil),
+    outputRoot: z.string().trim().min(1).default(DEFAULT_CONFIG.outputRoot),
+    repositoryCacheRoot: z.string().trim().min(1).default(DEFAULT_CONFIG.repositoryCacheRoot),
+    defaultSince: defaultSinceSchema.optional().default(DEFAULT_CONFIG.defaultSince),
+    defaultUntil: defaultUntilSchema.optional().default(DEFAULT_CONFIG.defaultUntil),
     includeEmptyProjects: z.boolean().default(DEFAULT_CONFIG.includeEmptyProjects),
     identities: z.array(IdentitySchema).min(1),
   })

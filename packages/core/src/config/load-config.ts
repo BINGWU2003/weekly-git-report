@@ -1,10 +1,13 @@
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
-import path from "node:path";
-
 import { ConfigSchema } from "@weekly-git-report/shared";
 import type { Config } from "@weekly-git-report/shared";
 
 import { getConfigFilePath } from "../utils/path.js";
+import { assertFileRevision, readVersionedText, writeJsonAtomic } from "../utils/versioned-json.js";
+
+export interface ConfigSnapshot {
+  config: Config;
+  revision: string;
+}
 
 export class ConfigNotFoundError extends Error {
   constructor(configFile = getConfigFilePath()) {
@@ -14,10 +17,16 @@ export class ConfigNotFoundError extends Error {
 }
 
 export async function loadConfig(configFile = getConfigFilePath()): Promise<Config> {
-  let content: string;
+  return (await loadConfigSnapshot(configFile)).config;
+}
+
+export async function loadConfigSnapshot(
+  configFile = getConfigFilePath(),
+): Promise<ConfigSnapshot> {
+  let document;
 
   try {
-    content = await readFile(configFile, "utf8");
+    document = await readVersionedText(configFile);
   } catch (error) {
     if (isNodeError(error) && error.code === "ENOENT") {
       throw new ConfigNotFoundError(configFile);
@@ -26,7 +35,10 @@ export async function loadConfig(configFile = getConfigFilePath()): Promise<Conf
     throw error;
   }
 
-  return ConfigSchema.parse(JSON.parse(content));
+  return {
+    config: ConfigSchema.parse(JSON.parse(document.content)),
+    revision: document.revision,
+  };
 }
 
 export async function writeConfig(config: Config, configFile = getConfigFilePath()): Promise<void> {
@@ -34,16 +46,15 @@ export async function writeConfig(config: Config, configFile = getConfigFilePath
   await writeJsonAtomic(configFile, parsed);
 }
 
-async function writeJsonAtomic(file: string, value: unknown): Promise<void> {
-  await mkdir(path.dirname(file), { recursive: true });
-  const temporaryFile = `${file}.${process.pid}.${Date.now()}.tmp`;
-  try {
-    await writeFile(temporaryFile, `${JSON.stringify(value, null, 2)}\n`, "utf8");
-    await rename(temporaryFile, file);
-  } catch (error) {
-    await rm(temporaryFile, { force: true });
-    throw error;
-  }
+export async function writeConfigIfRevision(
+  config: Config,
+  expectedRevision: string | null,
+  configFile = getConfigFilePath(),
+): Promise<ConfigSnapshot> {
+  const parsed = ConfigSchema.parse(config);
+  await assertFileRevision(configFile, expectedRevision);
+  await writeJsonAtomic(configFile, parsed);
+  return loadConfigSnapshot(configFile);
 }
 
 function isNodeError(error: unknown): error is NodeJS.ErrnoException {

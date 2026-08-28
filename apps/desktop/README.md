@@ -1,17 +1,30 @@
 # Weekly Git Report Desktop
 
-Windows Electron 客户端。桌面端与 CLI 共用 `~/.weekly-git-report/config.json` 和
-`projects.json`，直接调用本机 Git，并在 `config.outputRoot` 下浏览现有 Markdown 报告。
+Electron 桌面客户端。桌面端与 CLI 共用 `~/.weekly-git-report/config.json` 和
+`projects.json`，直接调用系统 Git 和本机凭据，并在 `config.outputRoot` 下浏览现有
+Markdown 报告。
 
 ## 当前能力
 
+- 首次启动时初始化共享配置、空仓库索引和报告目录，无需先运行 CLI。
+- 编辑报告目录、默认采集周期、空仓库策略和全局 Git 作者身份。
+- 添加、编辑、启停和同步仓库，支持远程分支读取和仓库专属作者身份。
+- 删除仓库配置，并可在绝对路径二次确认后安全删除 Bare Git 缓存。
 - 总览本机 Git、共享配置、仓库数量和报告数量。
-- 查看 `projects.json` 中的仓库、分支、作者与缓存目录。
 - 扫描 `outputRoot` 下的 Markdown，支持渲染预览、源码查看和资源管理器定位。
-- 查看共享的全局配置和桌面外观设置。
+- 设置桌面端外观。
 - 通过沙箱 Preload 暴露白名单 IPC，Renderer 不直接访问 Node.js。
 
 报告任务、SQLite 调度、LLM 和飞书推送尚在后续阶段。
+
+## 配置说明
+
+- 报告输出目录可以手动输入或通过目录选择器设置；修改后不会迁移旧报告。
+- `repositoryCacheRoot` 用于存放只读取 Git 日志的 Bare 仓库。初始化时会展示默认值，
+  初始化完成后在桌面端只读，避免已有仓库路径整体失效。
+- 桌面端保存配置时会校验共享 Schema，并检测配置是否在此期间被 CLI 或其他窗口修改。
+- 仓库 URL 添加后不可直接修改，需要移除旧配置后重新添加。
+- 桌面端启动时不会自动同步仓库，可按需同步单个仓库或全部已启用仓库。
 
 ## 开发
 

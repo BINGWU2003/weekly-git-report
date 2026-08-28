@@ -6,19 +6,41 @@ import { promisify } from "node:util";
 import {
   ConfigNotFoundError,
   ProjectsIndexNotFoundError,
+  createDefaultConfig,
+  getDefaultRepositoryPath,
+  getGlobalGitIdentity,
   getConfigFilePath,
+  getRepositoryId,
+  getRepositoryName,
   getOutputRoot,
   getProjectsFilePath,
+  initConfig,
+  inspectRemoteRepository,
   loadConfig,
+  loadConfigSnapshot,
   loadProjectsIndex,
+  loadProjectsIndexSnapshot,
+  removeRepositoryProject,
+  saveRepositoryProject,
+  setRepositoryEnabled,
+  syncRepositories,
+  writeConfigIfRevision,
+  writeProjectsIndexIfRevision,
 } from "@weekly-git-report/core";
+import { ConfigSchema, DEFAULT_CONFIG, RepositoryProjectSchema } from "@weekly-git-report/shared";
 import type { Config, RepositoryProject } from "@weekly-git-report/shared";
 
 import type {
+  ConfigInitializationDefaults,
+  ConfigState,
   DesktopOverview,
   DiagnosticCheck,
+  ProjectsState,
+  RemoteRepositoryDetails,
   ReportDocument,
   ReportFile,
+  RepositorySyncResult,
+  SaveRepositoryRequest,
 } from "../../../shared/ipc.js";
 
 const execFileAsync = promisify(execFile);
@@ -51,6 +73,58 @@ export async function loadOptionalConfig(): Promise<Config | null> {
   }
 }
 
+export async function getConfigState(): Promise<ConfigState> {
+  try {
+    const snapshot = await loadConfigSnapshot();
+    return { config: snapshot.config, revision: snapshot.revision };
+  } catch (error) {
+    if (error instanceof ConfigNotFoundError) return { config: null, revision: null };
+    throw error;
+  }
+}
+
+export async function getConfigInitializationDefaults(): Promise<ConfigInitializationDefaults> {
+  const detectedIdentity = await getGlobalGitIdentity();
+  const config = createDefaultConfig();
+  return {
+    config: {
+      ...config,
+      identities: detectedIdentity ? [detectedIdentity] : [],
+    },
+    detectedIdentity,
+  };
+}
+
+export async function initializeDesktopConfig(input: Config): Promise<ConfigState> {
+  const config = ConfigSchema.parse({
+    ...input,
+    repositoryCacheRoot: DEFAULT_CONFIG.repositoryCacheRoot,
+  });
+  const snapshot = await writeConfigIfRevision(config, null);
+  try {
+    await loadProjectsIndexSnapshot();
+  } catch (error) {
+    if (!(error instanceof ProjectsIndexNotFoundError)) throw error;
+    await writeProjectsIndexIfRevision({ projects: [] }, null);
+  }
+  await initConfig(config);
+  return { config: snapshot.config, revision: snapshot.revision };
+}
+
+export async function saveDesktopConfig(
+  input: Config,
+  expectedRevision: string,
+): Promise<ConfigState> {
+  const current = await loadConfigSnapshot();
+  const config = ConfigSchema.parse({
+    ...input,
+    repositoryCacheRoot: current.config.repositoryCacheRoot,
+  });
+  const snapshot = await writeConfigIfRevision(config, expectedRevision);
+  await initConfig(config);
+  return { config: snapshot.config, revision: snapshot.revision };
+}
+
 export async function loadOptionalProjects(): Promise<RepositoryProject[]> {
   try {
     return (await loadProjectsIndex()).projects;
@@ -58,6 +132,77 @@ export async function loadOptionalProjects(): Promise<RepositoryProject[]> {
     if (error instanceof ProjectsIndexNotFoundError) return [];
     throw error;
   }
+}
+
+export async function getProjectsState(): Promise<ProjectsState> {
+  try {
+    const snapshot = await loadProjectsIndexSnapshot();
+    return { projects: snapshot.index.projects, revision: snapshot.revision };
+  } catch (error) {
+    if (error instanceof ProjectsIndexNotFoundError) return { projects: [], revision: null };
+    throw error;
+  }
+}
+
+export async function inspectRepository(url: string): Promise<RemoteRepositoryDetails> {
+  const config = await loadConfig();
+  const remote = await inspectRemoteRepository(url);
+  if (remote.branches.length === 0) throw new Error("远程仓库没有可用分支。");
+  return {
+    ...remote,
+    suggestedId: getRepositoryId(url),
+    suggestedName: getRepositoryName(url),
+    suggestedLocalPath: getDefaultRepositoryPath(config, url),
+  };
+}
+
+export async function saveDesktopRepository(
+  request: SaveRepositoryRequest,
+): Promise<ProjectsState> {
+  const project = RepositoryProjectSchema.parse(request.project);
+  const snapshot = await saveRepositoryProject({
+    project,
+    currentId: request.currentId,
+    expectedRevision: request.expectedRevision,
+  });
+  return { projects: snapshot.index.projects, revision: snapshot.revision };
+}
+
+export async function setDesktopRepositoryEnabled(
+  id: string,
+  enabled: boolean,
+  expectedRevision: string,
+): Promise<ProjectsState> {
+  const snapshot = await setRepositoryEnabled(id, enabled, expectedRevision);
+  return { projects: snapshot.index.projects, revision: snapshot.revision };
+}
+
+export async function syncDesktopRepositories(ids?: string[]): Promise<RepositorySyncResult> {
+  const projects = (await loadProjectsIndex()).projects;
+  const selected = ids?.length
+    ? projects.filter((project) => ids.includes(project.id))
+    : projects.filter((project) => project.enabled);
+  if (selected.length === 0) throw new Error("没有可同步的仓库。");
+  const result = await syncRepositories(selected);
+  return {
+    synced: result.projects.map((project) => project.id),
+    errors: result.errors,
+  };
+}
+
+export async function removeDesktopRepository(
+  id: string,
+  deleteCache: boolean,
+  expectedRevision: string,
+): Promise<ProjectsState> {
+  const config = await loadConfig();
+  const snapshot = await removeRepositoryProject({
+    id,
+    deleteCache,
+    expectedRevision,
+    config,
+  });
+  return { projects: snapshot.index.projects, revision: snapshot.revision };
 }
 
 export async function getDiagnostics(): Promise<DiagnosticCheck[]> {

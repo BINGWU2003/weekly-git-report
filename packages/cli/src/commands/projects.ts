@@ -5,8 +5,10 @@ import {
   inspectRemoteRepository,
   loadConfig,
   loadProjectsIndex,
+  loadProjectsIndexSnapshot,
   normalizeAbsolutePath,
   normalizeRepositoryUrl,
+  removeRepositoryProject,
   syncRepositories,
   syncRepository,
   writeProjectsIndex,
@@ -53,23 +55,43 @@ export async function runEditProjectCommand(): Promise<void> {
 
 export async function runRemoveProjectCommand(): Promise<void> {
   assertInteractive();
-  const index = await loadProjectsIndex();
-  const repository = await selectProject(index.projects, "Repository to remove");
-  const answer = await prompts(
+  const config = await loadConfig();
+  const snapshot = await loadProjectsIndexSnapshot();
+  const repository = await selectProject(snapshot.index.projects, "Repository to remove");
+  const cacheAnswer = await prompts(
     {
       type: "confirm",
-      name: "remove",
-      message: `Remove ${repository.name} from projects.json? Local files will be kept.`,
+      name: "deleteCache",
+      message: "Also permanently delete the bare Git cache?",
       initial: false,
     },
     promptOptions(),
   );
-  if (!answer.remove) return;
-  await writeProjectsIndex({
-    ...index,
-    projects: index.projects.filter((item) => item.id !== repository.id),
+  const deleteCache = Boolean(cacheAnswer.deleteCache);
+  const confirmAnswer = await prompts(
+    {
+      type: "confirm",
+      name: "remove",
+      message: deleteCache
+        ? `Permanently delete ${repository.localPath} and remove ${repository.name}?`
+        : `Remove ${repository.name} from projects.json? Local files will be kept.`,
+      initial: false,
+    },
+    promptOptions(),
+  );
+  if (!confirmAnswer.remove) return;
+
+  await removeRepositoryProject({
+    id: repository.id,
+    deleteCache,
+    expectedRevision: snapshot.revision,
+    config,
   });
-  outro(`Removed configuration. Repository kept at ${repository.localPath}`);
+  outro(
+    deleteCache
+      ? `Removed configuration and cache: ${repository.localPath}`
+      : `Removed configuration. Repository kept at ${repository.localPath}`,
+  );
 }
 
 export async function runListProjectsCommand(): Promise<void> {
