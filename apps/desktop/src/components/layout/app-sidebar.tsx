@@ -22,9 +22,6 @@ export function AppSidebar() {
           <NavGroup key={props.title} {...props} />
         ))}
       </SidebarContent>
-      <SidebarFooter className='px-4 py-3 text-xs text-muted-foreground'>
-        本地运行 · 数据保存在你的设备上
-      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   )

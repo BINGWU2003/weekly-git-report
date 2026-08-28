@@ -17,6 +17,13 @@
     @apply min-h-svh w-full bg-background text-foreground has-[div[data-variant='inset']]:bg-sidebar;
   }
 
+  html:has([data-layout='fixed']),
+  body:has([data-layout='fixed']),
+  body:has([data-layout='fixed']) #root {
+    height: 100svh;
+    overflow: hidden;
+  }
+
   /* Override Radix scroll locking for sticky headers */
   body[data-scroll-locked] {
     overflow: unset !important;
