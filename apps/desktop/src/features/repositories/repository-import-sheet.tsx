@@ -287,7 +287,7 @@ export function RepositoryImportSheet({
 
         <ScrollArea className='min-h-0 flex-1'>
           <div className='px-4 pb-4'>
-            <Table className='min-w-[56rem] table-fixed'>
+            <Table className='w-full table-fixed'>
               <TableHeader>
                 <TableRow>
                   <TableHead className='w-12'>
@@ -298,10 +298,9 @@ export function RepositoryImportSheet({
                       aria-label='选择全部可导入仓库'
                     />
                   </TableHead>
-                  <TableHead className='w-64'>仓库</TableHead>
-                  <TableHead className='w-40'>分支</TableHead>
-                  <TableHead className='w-64'>缓存路径</TableHead>
-                  <TableHead className='w-56'>状态</TableHead>
+                  <TableHead className='w-[42%]'>仓库</TableHead>
+                  <TableHead className='w-[34%]'>采集配置</TableHead>
+                  <TableHead>状态</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -315,7 +314,7 @@ export function RepositoryImportSheet({
                         aria-label={`选择 ${candidate.project?.name ?? candidate.sourcePath}`}
                       />
                     </TableCell>
-                    <TableCell className='max-w-64'>
+                    <TableCell className='whitespace-normal'>
                       <OverflowTooltip
                         text={candidate.project?.name ?? candidate.sourcePath}
                         className='font-medium'
@@ -326,26 +325,37 @@ export function RepositoryImportSheet({
                         monospace
                       />
                     </TableCell>
-                    <TableCell>
-                      {candidate.project?.branch ? (
-                        <Badge variant='outline' className='max-w-36'>
-                          <OverflowTooltip text={candidate.project.branch} monospace />
-                        </Badge>
-                      ) : '—'}
+                    <TableCell className='whitespace-normal'>
+                      <div className='min-w-0 space-y-1.5'>
+                        <div className='flex min-w-0 items-center gap-1.5'>
+                          <span className='shrink-0 text-xs text-muted-foreground'>分支</span>
+                          {candidate.project?.branch ? (
+                            <Badge
+                              variant='outline'
+                              className='min-w-0 max-w-full shrink'
+                            >
+                              <OverflowTooltip text={candidate.project.branch} monospace />
+                            </Badge>
+                          ) : '—'}
+                        </div>
+                        <div className='flex min-w-0 items-center gap-1.5'>
+                          <span className='shrink-0 text-xs text-muted-foreground'>缓存</span>
+                          <OverflowTooltip
+                            text={candidate.project?.localPath ?? '—'}
+                            className='flex-1 text-xs text-muted-foreground'
+                            monospace
+                          />
+                        </div>
+                      </div>
                     </TableCell>
-                    <TableCell className='max-w-64'>
-                      <OverflowTooltip
-                        text={candidate.project?.localPath ?? '—'}
-                        className='text-xs text-muted-foreground'
-                        monospace
-                      />
+                    <TableCell className='whitespace-normal'>
+                      <CandidateStatus candidate={candidate} />
                     </TableCell>
-                    <TableCell><CandidateStatus candidate={candidate} /></TableCell>
                   </TableRow>
                 ))}
                 {!scanning && candidates.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className='h-28 text-center text-muted-foreground'>未识别到 Git 仓库。</TableCell>
+                    <TableCell colSpan={4} className='h-28 text-center text-muted-foreground'>未识别到 Git 仓库。</TableCell>
                   </TableRow>
                 ) : null}
               </TableBody>
@@ -382,7 +392,7 @@ function CandidateStatus({ candidate }: { candidate: ImportCandidate }) {
   }
   if (candidate.status === 'ready') return <Badge variant='secondary'>可导入</Badge>
   return (
-    <span className='flex max-w-56 items-start gap-1 text-xs text-destructive'>
+    <span className='flex min-w-0 max-w-full items-start gap-1 text-xs text-destructive'>
       <XCircle className='mt-0.5 size-3 shrink-0' />
       <OverflowTooltip
         text={candidate.message ?? '失败'}
