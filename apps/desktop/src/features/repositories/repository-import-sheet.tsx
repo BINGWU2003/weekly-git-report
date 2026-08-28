@@ -9,6 +9,8 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { getErrorMessage } from '@/lib/errors'
+import { showSuccessToast } from '@/lib/toast'
 import type { ProjectsState } from '../../../shared/ipc'
 
 type CandidateStatus = 'validating' | 'ready' | 'invalid' | 'importing' | 'added' | 'error'
@@ -110,8 +112,17 @@ export function RepositoryImportSheet({
             }
           })
         )
+        if (active && expectedAttempt > 0) {
+          showSuccessToast(
+            `仓库目录已重新扫描，识别 ${result.repositories.length} 个仓库`
+          )
+        }
       } catch (error) {
-        if (active) setScanError(getErrorMessage(error))
+        if (active) {
+          const message = getErrorMessage(error)
+          setScanError(message)
+          toast.error(`扫描仓库目录失败：${message}`)
+        }
       } finally {
         if (active) setScanning(false)
       }
@@ -213,7 +224,7 @@ export function RepositoryImportSheet({
       if (result.errors.length) {
         toast.warning(`已添加 ${result.added.length} 个仓库，${result.errors.length} 个失败`)
       } else {
-        toast.success(`已添加 ${result.added.length} 个仓库`)
+        showSuccessToast(`已添加 ${result.added.length} 个仓库`)
       }
     } catch (error) {
       if (error instanceof Error && error.message.includes('changed since')) {
@@ -355,8 +366,4 @@ function CandidateStatus({ candidate }: { candidate: ImportCandidate }) {
   }
   if (candidate.status === 'ready') return <Badge variant='secondary'>可导入</Badge>
   return <span className='flex max-w-56 items-start gap-1 text-xs text-destructive' title={candidate.message}><XCircle className='mt-0.5 size-3 shrink-0' /><span className='line-clamp-2'>{candidate.message ?? '失败'}</span></span>
-}
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }

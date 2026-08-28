@@ -21,6 +21,9 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ThemeSwitch } from '@/components/theme-switch'
+import { getErrorMessage } from '@/lib/errors'
+import { selectSystemDirectory } from '@/lib/system-actions'
+import { showSuccessToast } from '@/lib/toast'
 import { Switch } from '@/components/ui/switch'
 import {
   Table,
@@ -41,6 +44,7 @@ export function Repositories() {
   const [deleting, setDeleting] = useState<RepositoryProject>()
   const [lastSync, setLastSync] = useState<RepositorySyncResult>()
   const [importSession, setImportSession] = useState<{ folder: string; state: ProjectsState }>()
+  const [selectingImportFolder, setSelectingImportFolder] = useState(false)
   const projects = useQuery({
     queryKey: ['projects-state'],
     queryFn: () => window.electronAPI.projects.state(),
@@ -79,7 +83,7 @@ export function Repositories() {
       if (result.errors.length) {
         toast.warning(`同步完成，${result.errors.length} 个仓库失败`)
       } else {
-        toast.success(`已同步 ${result.synced.length} 个仓库`)
+        showSuccessToast(`已同步 ${result.synced.length} 个仓库`)
       }
     },
   })
@@ -95,8 +99,13 @@ export function Repositories() {
   }
 
   async function openImport() {
-    const folder = await window.electronAPI.system.selectDirectory()
-    if (folder) setImportSession({ folder, state })
+    setSelectingImportFolder(true)
+    try {
+      const folder = await selectSystemDirectory()
+      if (folder) setImportSession({ folder, state })
+    } finally {
+      setSelectingImportFolder(false)
+    }
   }
 
   const state = projects.data ?? { projects: [], revision: null }
@@ -138,8 +147,14 @@ export function Repositories() {
               <RefreshCw className={sync.isPending ? 'animate-spin' : ''} />
               同步全部
             </Button>
-            <Button variant='outline' onClick={() => void openImport()} disabled={!state.revision}>
-              <FolderSearch />
+            <Button
+              variant='outline'
+              onClick={() => void openImport()}
+              disabled={!state.revision || selectingImportFolder}
+            >
+              {selectingImportFolder
+                ? <Loader2 className='animate-spin' />
+                : <FolderSearch />}
               从文件夹导入
             </Button>
             <Button onClick={openAdd} disabled={!state.revision}>
@@ -367,7 +382,9 @@ function DeleteRepositoryDialog({
     },
     onSuccess: (next) => {
       onDeleted(next)
-      toast.success(deleteCache ? '仓库配置和缓存已删除' : '仓库配置已删除，缓存已保留')
+      showSuccessToast(
+        deleteCache ? '仓库配置和缓存已删除' : '仓库配置已删除，缓存已保留'
+      )
       close()
     },
     onError: async (error) => {
@@ -433,8 +450,4 @@ function DeleteRepositoryDialog({
       </AlertDialogContent>
     </AlertDialog>
   )
-}
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }

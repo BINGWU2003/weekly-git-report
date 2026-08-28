@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { DirectionProvider } from './context/direction-provider'
 import { FontProvider } from './context/font-provider'
 import { ThemeProvider } from './context/theme-provider'
+import { getErrorMessage } from './lib/errors'
 import { routeTree } from './routeTree.gen'
 import './styles/index.css'
 
@@ -59,8 +60,4 @@ if (!rootElement.innerHTML) {
       </QueryClientProvider>
     </StrictMode>
   )
-}
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : '操作失败，请稍后重试。'
 }

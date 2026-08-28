@@ -29,6 +29,9 @@ import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { MarkdownViewer } from '@/components/markdown-viewer'
 import { ThemeSwitch } from '@/components/theme-switch'
+import { getErrorMessage } from '@/lib/errors'
+import { openOutputRoot, showReportInFolder } from '@/lib/system-actions'
+import { showSuccessToast } from '@/lib/toast'
 import { cn } from '@/lib/utils'
 import {
   DEFAULT_REPORT_SEARCH,
@@ -157,6 +160,13 @@ export function Reports({
     setGroupOverrides((current) => ({ ...current, [key]: !(current[key] ?? defaultOpen) }))
   }
 
+  async function refreshReports() {
+    const result = await reports.refetch()
+    if (!result.isError) {
+      showSuccessToast(`报告列表已重新扫描，共发现 ${result.data?.length ?? 0} 份报告`)
+    }
+  }
+
   const customRange: DateRange | undefined = search.from
     ? { from: parseISO(search.from), to: search.to ? parseISO(search.to) : undefined }
     : undefined
@@ -177,13 +187,13 @@ export function Reports({
             <p className='text-muted-foreground'>按报告周期和类型快速定位 outputRoot 中的报告。</p>
           </div>
           <div className='flex gap-2'>
-            <Button variant='outline' onClick={() => window.electronAPI.system.openOutputRoot()}>
+            <Button variant='outline' onClick={() => void openOutputRoot()}>
               <FolderOpen />
               打开目录
             </Button>
             <Button
               variant='outline'
-              onClick={() => reports.refetch()}
+              onClick={() => void refreshReports()}
               disabled={reports.isFetching}
             >
               <RefreshCw className={reports.isFetching ? 'animate-spin' : ''} />
@@ -193,7 +203,11 @@ export function Reports({
         </div>
 
         {reports.isError ? (
-          <ReportListError error={reports.error} onRetry={() => reports.refetch()} />
+          <ReportListError
+            error={reports.error}
+            retrying={reports.isFetching}
+            onRetry={() => void refreshReports()}
+          />
         ) : (
           <>
             <ReportFilters
@@ -520,7 +534,7 @@ function ReportPreview({
             <Button
               size='sm'
               variant='outline'
-              onClick={() => window.electronAPI.reports.showInFolder(report.id)}
+              onClick={() => void showReportInFolder(report.id)}
             >
               <FolderOpen />
               定位文件
@@ -564,7 +578,15 @@ function ReportPreview({
   )
 }
 
-function ReportListError({ error, onRetry }: { error: Error; onRetry(): void }) {
+function ReportListError({
+  error,
+  retrying,
+  onRetry,
+}: {
+  error: Error
+  retrying: boolean
+  onRetry(): void
+}) {
   return (
     <Card className='flex min-h-0 flex-1 items-center justify-center p-8'>
       <div className='w-full max-w-2xl space-y-4'>
@@ -577,12 +599,12 @@ function ReportListError({ error, onRetry }: { error: Error; onRetry(): void }) 
           </AlertDescription>
         </Alert>
         <div className='flex justify-end gap-2'>
-          <Button variant='outline' onClick={() => window.electronAPI.system.openOutputRoot()}>
+          <Button variant='outline' onClick={() => void openOutputRoot()}>
             <FolderOpen />
             打开报告目录
           </Button>
-          <Button onClick={onRetry}>
-            <RefreshCw />
+          <Button onClick={onRetry} disabled={retrying}>
+            <RefreshCw className={retrying ? 'animate-spin' : ''} />
             重新扫描
           </Button>
         </div>
@@ -612,8 +634,4 @@ function formatBytes(value: number): string {
   if (value < 1024) return `${value} B`
   if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`
   return `${(value / 1024 / 1024).toFixed(1)} MB`
-}
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }

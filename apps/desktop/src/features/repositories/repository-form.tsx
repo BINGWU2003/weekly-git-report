@@ -22,6 +22,8 @@ import {
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { getErrorMessage } from '@/lib/errors'
+import { showSuccessToast } from '@/lib/toast'
 import {
   Sheet,
   SheetContent,
@@ -98,7 +100,7 @@ export function RepositoryForm({ open, onOpenChange, project, state }: Repositor
       queryClient.setQueryData(['projects-state'], next)
       void queryClient.invalidateQueries({ queryKey: ['overview'] })
       void queryClient.invalidateQueries({ queryKey: ['projects-runtime'] })
-      toast.success(project ? '仓库配置已更新' : '仓库已添加并完成首次同步')
+      showSuccessToast(project ? '仓库配置已更新' : '仓库已添加并完成首次同步')
       form.reset()
       onOpenChange(false)
     },
@@ -133,7 +135,7 @@ export function RepositoryForm({ open, onOpenChange, project, state }: Repositor
         ? currentBranch
         : (details.defaultBranch ?? details.branches[0] ?? '')
       form.setValue('branch', branch, { shouldDirty: true, shouldValidate: true })
-      toast.success(`已读取 ${details.branches.length} 个远程分支`)
+      showSuccessToast(`已读取 ${details.branches.length} 个远程分支`)
     } catch (error) {
       toast.error(`读取远程仓库失败：${getErrorMessage(error)}`)
     } finally {
@@ -358,8 +360,4 @@ const FIELD_LABELS: Record<keyof RepositoryFormInput, string> = {
   localPath: 'Bare Git 缓存路径',
   authors: '仓库作者身份',
   enabled: '启用状态',
-}
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }

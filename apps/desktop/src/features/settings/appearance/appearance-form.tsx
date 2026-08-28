@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { fonts } from '@/config/fonts'
-import { showSubmittedData } from '@/lib/show-submitted-data'
+import { showSuccessToast } from '@/lib/toast'
 import { useFont } from '@/context/font-provider'
 import { useTheme } from '@/context/theme-provider'
 import { Button } from '@/components/ui/button'
@@ -50,7 +50,7 @@ export function AppearanceForm() {
     if (data.font != font) setFont(data.font)
     if (data.theme != theme) setTheme(data.theme)
 
-    showSubmittedData(data, '外观设置已更新')
+    showSuccessToast('外观设置已更新')
   }
 
   return (

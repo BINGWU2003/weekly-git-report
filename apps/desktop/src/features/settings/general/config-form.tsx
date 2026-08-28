@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -22,6 +23,9 @@ import {
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { getErrorMessage } from '@/lib/errors'
+import { selectSystemDirectory } from '@/lib/system-actions'
+import { showSuccessToast } from '@/lib/toast'
 import type { ConfigState } from '../../../../shared/ipc'
 
 interface ConfigFormProps {
@@ -34,6 +38,7 @@ type ConfigFormInput = z.input<typeof ConfigSchema>
 
 export function ConfigForm({ initialConfig, state, isInitializing }: ConfigFormProps) {
   const queryClient = useQueryClient()
+  const [selectingOutput, setSelectingOutput] = useState(false)
   const form = useForm<ConfigFormInput, unknown, Config>({
     resolver: zodResolver(ConfigSchema),
     defaultValues: initialConfig,
@@ -57,7 +62,7 @@ export function ConfigForm({ initialConfig, state, isInitializing }: ConfigFormP
         queryClient.invalidateQueries({ queryKey: ['reports'] }),
         queryClient.invalidateQueries({ queryKey: ['projects-state'] }),
       ])
-      toast.success(isInitializing ? '初始化完成' : '配置已保存')
+      showSuccessToast(isInitializing ? '初始化完成' : '配置已保存')
     },
     onError: async (error) => {
       if (error instanceof Error && error.message.includes('changed since')) {
@@ -75,8 +80,15 @@ export function ConfigForm({ initialConfig, state, isInitializing }: ConfigFormP
   const untilMode = defaultUntil === 'now' ? 'now' : 'date'
 
   async function selectOutputDirectory() {
-    const selected = await window.electronAPI.system.selectDirectory(form.getValues('outputRoot'))
-    if (selected) form.setValue('outputRoot', selected, { shouldDirty: true, shouldValidate: true })
+    setSelectingOutput(true)
+    try {
+      const selected = await selectSystemDirectory(form.getValues('outputRoot'))
+      if (selected) {
+        form.setValue('outputRoot', selected, { shouldDirty: true, shouldValidate: true })
+      }
+    } finally {
+      setSelectingOutput(false)
+    }
   }
 
   return (
@@ -107,8 +119,13 @@ export function ConfigForm({ initialConfig, state, isInitializing }: ConfigFormP
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
-                    <Button type='button' variant='outline' onClick={selectOutputDirectory}>
-                      <FolderSearch />
+                    <Button
+                      type='button'
+                      variant='outline'
+                      onClick={() => void selectOutputDirectory()}
+                      disabled={selectingOutput}
+                    >
+                      {selectingOutput ? <Loader2 className='animate-spin' /> : <FolderSearch />}
                       选择
                     </Button>
                   </div>
@@ -223,7 +240,7 @@ export function ConfigForm({ initialConfig, state, isInitializing }: ConfigFormP
         </Card>
 
         <Card>
-          <CardHeader className='flex-row items-start justify-between'>
+          <CardHeader className='flex items-start justify-between'>
             <div className='space-y-1.5'>
               <CardTitle>Git 作者身份</CardTitle>
               <CardDescription>采集时只保留匹配这些姓名或邮箱的提交。</CardDescription>
@@ -302,8 +319,4 @@ function today(): string {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
-}
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }

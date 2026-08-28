@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { AlertCircle, Loader2 } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { getErrorMessage } from '@/lib/errors'
 import { ContentSection } from '../components/content-section'
 import { ConfigForm } from './config-form'
 
@@ -58,8 +59,4 @@ function Loading() {
       正在读取配置…
     </div>
   )
-}
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }

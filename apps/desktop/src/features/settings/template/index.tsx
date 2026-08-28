@@ -22,6 +22,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import { getErrorMessage } from '@/lib/errors'
+import { showSuccessToast } from '@/lib/toast'
 import { ContentSection } from '../components/content-section'
 
 export function SettingsTemplate() {
@@ -66,6 +68,8 @@ export function SummaryTemplateEditor({ initial, period }: SummaryTemplateEditor
   const [content, setContent] = useState(initial.template.content)
   const [preview, setPreview] = useState(initial.template.renderedContent)
   const [previewError, setPreviewError] = useState<string>()
+  const [reloading, setReloading] = useState(false)
+  const [resetDialogOpen, setResetDialogOpen] = useState(false)
   const dirty = content !== initial.template.content
   useUnsavedChanges(dirty)
 
@@ -105,7 +109,7 @@ export function SummaryTemplateEditor({ initial, period }: SummaryTemplateEditor
       setTemplateQueryData(queryClient, period, next)
       setContent(next.template.content)
       setPreview(next.template.renderedContent)
-      toast.success('生成模板已保存')
+      showSuccessToast('生成模板已保存')
     },
     onError: (error) => showTemplateError(error),
   })
@@ -120,31 +124,37 @@ export function SummaryTemplateEditor({ initial, period }: SummaryTemplateEditor
       setTemplateQueryData(queryClient, period, next)
       setContent(next.template.content)
       setPreview(next.template.renderedContent)
-      toast.success('已恢复默认生成模板')
+      setResetDialogOpen(false)
+      showSuccessToast('已恢复默认生成模板')
     },
     onError: (error) => showTemplateError(error),
   })
 
   async function reload() {
     if (dirty && !window.confirm('当前模板有未保存的修改，确定重新读取吗？')) return
+    setReloading(true)
     try {
       const next = await window.electronAPI.templates.read(period)
       setTemplateQueryData(queryClient, period, next)
       setContent(next.template.content)
       setPreview(next.template.renderedContent)
       setPreviewError(undefined)
+      showSuccessToast('生成模板已重新读取')
     } catch (error) {
       toast.error(getErrorMessage(error))
+    } finally {
+      setReloading(false)
     }
   }
 
-  function restoreDefault() {
+  function restoreDefault(event: React.MouseEvent) {
     if (initial.template.isDefault) {
       setContent(initial.template.content)
       setPreview(initial.template.renderedContent)
       setPreviewError(undefined)
       return
     }
+    event.preventDefault()
     reset.mutate()
   }
 
@@ -175,19 +185,25 @@ export function SummaryTemplateEditor({ initial, period }: SummaryTemplateEditor
             <Button
               type='button'
               variant='outline'
-              onClick={reload}
-              disabled={save.isPending || reset.isPending}
+              onClick={() => void reload()}
+              disabled={reloading || save.isPending || reset.isPending}
             >
-              <RefreshCw />
+              <RefreshCw className={reloading ? 'animate-spin' : ''} />
               重新读取
             </Button>
-            <AlertDialog>
+            <AlertDialog
+              open={resetDialogOpen}
+              onOpenChange={(open) => !reset.isPending && setResetDialogOpen(open)}
+            >
               <AlertDialogTrigger asChild>
                 <Button
                   type='button'
                   variant='outline'
                   disabled={
-                    (initial.template.isDefault && !dirty) || save.isPending || reset.isPending
+                    (initial.template.isDefault && !dirty) ||
+                    reloading ||
+                    save.isPending ||
+                    reset.isPending
                   }
                 >
                   <RotateCcw />
@@ -202,15 +218,24 @@ export function SummaryTemplateEditor({ initial, period }: SummaryTemplateEditor
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>取消</AlertDialogCancel>
-                  <AlertDialogAction onClick={restoreDefault}>确认恢复</AlertDialogAction>
+                  <AlertDialogCancel disabled={reset.isPending}>取消</AlertDialogCancel>
+                  <AlertDialogAction onClick={restoreDefault} disabled={reset.isPending}>
+                    {reset.isPending && <Loader2 className='animate-spin' />}
+                    确认恢复
+                  </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
             <Button
               type='button'
               onClick={() => save.mutate()}
-              disabled={!dirty || Boolean(previewError) || save.isPending || reset.isPending}
+              disabled={
+                !dirty ||
+                Boolean(previewError) ||
+                reloading ||
+                save.isPending ||
+                reset.isPending
+              }
             >
               {save.isPending ? <Loader2 className='animate-spin' /> : <Save />}
               保存模板
@@ -297,8 +322,4 @@ function Loading() {
       正在读取生成模板…
     </div>
   )
-}
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }

@@ -23,6 +23,8 @@ import {
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ThemeSwitch } from '@/components/theme-switch'
+import { getErrorMessage } from '@/lib/errors'
+import { showSuccessToast } from '@/lib/toast'
 
 export function Dashboard() {
   const overview = useQuery({
@@ -32,6 +34,11 @@ export function Dashboard() {
 
   const data = overview.data
   const healthyChecks = data?.diagnostics.filter((check) => check.status === 'ok').length ?? 0
+
+  async function refreshOverview() {
+    const result = await overview.refetch()
+    if (!result.isError) showSuccessToast('总览已刷新')
+  }
 
   return (
     <>
@@ -51,7 +58,7 @@ export function Dashboard() {
           </div>
           <Button
             variant='outline'
-            onClick={() => overview.refetch()}
+            onClick={() => void refreshOverview()}
             disabled={overview.isFetching}
           >
             <RefreshCw className={overview.isFetching ? 'animate-spin' : ''} />
@@ -193,8 +200,4 @@ function StatusBadge({ status }: { status: 'ok' | 'warning' | 'error' }) {
   if (status === 'ok') return <Badge variant='secondary'>正常</Badge>
   if (status === 'warning') return <Badge variant='outline'>待处理</Badge>
   return <Badge variant='destructive'>错误</Badge>
-}
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }

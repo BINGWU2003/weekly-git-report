@@ -74,6 +74,44 @@ describe('SummaryTemplateEditor', () => {
         period,
       })
     )
-    expect(toast.success).toHaveBeenCalledWith('生成模板已保存')
+    expect(toast.success).toHaveBeenCalledWith('生成模板已保存', { duration: 3000 })
+  })
+
+  it('重新读取期间防止重复操作并在成功后提示', async () => {
+    let resolveRead: (value: SummaryTemplateResult) => void = () => undefined
+    const read = vi.fn().mockImplementation(
+      () => new Promise<SummaryTemplateResult>((resolve) => {
+        resolveRead = resolve
+      })
+    )
+    vi.stubGlobal('electronAPI', {
+      templates: {
+        preview: vi.fn().mockResolvedValue(initial.template.renderedContent),
+        save: vi.fn(),
+        read,
+        reset: vi.fn(),
+      },
+    } as unknown as DesktopAPI)
+
+    const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <SummaryTemplateEditor initial={initial} period={period} />
+      </QueryClientProvider>
+    )
+    const reload = screen.getByRole('button', { name: '重新读取' })
+
+    await userEvent.click(reload)
+    await expect.element(reload).toBeDisabled()
+    expect(read).toHaveBeenCalledTimes(1)
+
+    resolveRead({
+      ...initial,
+      template: { ...initial.template, revision: 'revision-2' },
+    })
+    await vi.waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith('生成模板已重新读取', { duration: 3000 })
+    })
+    await expect.element(reload).not.toBeDisabled()
   })
 })
