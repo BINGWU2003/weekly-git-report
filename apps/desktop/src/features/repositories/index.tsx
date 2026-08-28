@@ -1,6 +1,15 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertCircle, Edit3, FolderSearch, Loader2, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import {
+  AlertCircle,
+  Edit3,
+  FolderSearch,
+  Loader2,
+  MoreHorizontal,
+  Plus,
+  RefreshCw,
+  Trash2,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import type { RepositoryProject, RepositoryRuntimeState } from '@weekly-git-report/shared'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -18,6 +27,13 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ThemeSwitch } from '@/components/theme-switch'
@@ -196,40 +212,60 @@ export function Repositories() {
           </Alert>
         ) : null}
 
-        <Card>
-          <CardContent>
-            <Table>
+        <Card className='overflow-hidden py-0'>
+          <CardContent className='p-0'>
+            <Table className='table-fixed'>
               <TableHeader>
                 <TableRow>
-                  <TableHead>仓库</TableHead>
-                  <TableHead>分支</TableHead>
-                  <TableHead>作者</TableHead>
-                  <TableHead>缓存目录</TableHead>
+                  <TableHead className='w-[46%] ps-4'>仓库</TableHead>
                   <TableHead>最新提交</TableHead>
-                  <TableHead className='text-center'>启用</TableHead>
-                  <TableHead className='text-end'>操作</TableHead>
+                  <TableHead className='w-20 text-center'>启用</TableHead>
+                  <TableHead className='w-14 pe-4 text-end'>操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {state.projects.map((project) => {
                   const syncing = sync.isPending && sync.variables?.includes(project.id)
                   const toggling = toggle.isPending && toggle.variables?.project.id === project.id
+                  const authorSummary = project.authors?.length
+                    ? `${project.authors.length} 个专属身份`
+                    : '全局身份'
+                  const authorDetails = project.authors?.length
+                    ? project.authors
+                        .map((author) => `${author.name} <${author.email}>`)
+                        .join('\n')
+                    : '继承全局 Git 作者身份'
                   return (
                     <TableRow key={project.id}>
-                      <TableCell className='max-w-xs'>
-                        <p className='font-medium'>{project.name}</p>
-                        <p className='truncate text-xs text-muted-foreground' title={project.url}>{project.url}</p>
+                      <TableCell className='whitespace-normal ps-4'>
+                        <div className='min-w-0 space-y-1.5'>
+                          <p className='truncate font-medium' title={project.name}>
+                            {project.name}
+                          </p>
+                          <p
+                            className='truncate text-xs text-muted-foreground'
+                            title={project.url}
+                          >
+                            {project.url}
+                          </p>
+                          <div className='flex min-w-0 items-center gap-2'>
+                            <Badge
+                              variant='outline'
+                              className='max-w-40'
+                              title={project.branch}
+                            >
+                              <span className='truncate'>{project.branch}</span>
+                            </Badge>
+                            <span
+                              className='truncate text-xs text-muted-foreground'
+                              title={authorDetails}
+                            >
+                              {authorSummary}
+                            </span>
+                          </div>
+                        </div>
                       </TableCell>
-                      <TableCell><Badge variant='outline'>{project.branch}</Badge></TableCell>
-                      <TableCell>
-                        {project.authors?.length
-                          ? project.authors.map((author) => author.email).join(', ')
-                          : '继承全局身份'}
-                      </TableCell>
-                      <TableCell className='max-w-xs truncate text-xs text-muted-foreground' title={project.localPath}>
-                        {project.localPath}
-                      </TableCell>
-                      <TableCell className='max-w-72'>
+                      <TableCell className='whitespace-normal'>
                         <LatestCommitCell
                           loading={runtime.isLoading}
                           runtime={runtimeById.get(project.id)}
@@ -247,38 +283,55 @@ export function Repositories() {
                           />
                         )}
                       </TableCell>
-                      <TableCell>
-                        <div className='flex justify-end gap-1'>
-                          <Button
-                            size='icon'
-                            variant='ghost'
-                            disabled={sync.isPending}
-                            onClick={() => sync.mutate([project.id])}
-                            aria-label={`同步 ${project.name}`}
-                          >
-                            <RefreshCw className={syncing ? 'animate-spin' : ''} />
-                          </Button>
-                          <Button size='icon' variant='ghost' onClick={() => openEdit(project)} aria-label={`编辑 ${project.name}`}>
-                            <Edit3 />
-                          </Button>
-                          <Button size='icon' variant='ghost' onClick={() => setDeleting(project)} aria-label={`删除 ${project.name}`}>
-                            <Trash2 />
-                          </Button>
-                        </div>
+                      <TableCell className='pe-4 text-end'>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              size='icon'
+                              variant='ghost'
+                              aria-label={`${project.name} 操作`}
+                            >
+                              {syncing
+                                ? <Loader2 className='animate-spin' />
+                                : <MoreHorizontal />}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align='end'>
+                            <DropdownMenuItem
+                              disabled={sync.isPending}
+                              onSelect={() => sync.mutate([project.id])}
+                            >
+                              <RefreshCw />
+                              同步仓库
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => openEdit(project)}>
+                              <Edit3 />
+                              编辑配置
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              variant='destructive'
+                              onSelect={() => setDeleting(project)}
+                            >
+                              <Trash2 />
+                              删除仓库
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   )
                 })}
                 {!projects.isLoading && state.projects.length === 0 && state.revision && (
                   <TableRow>
-                    <TableCell colSpan={7} className='h-32 text-center text-muted-foreground'>
+                    <TableCell colSpan={4} className='h-32 text-center text-muted-foreground'>
                       还没有仓库，点击“添加仓库”开始配置。
                     </TableCell>
                   </TableRow>
                 )}
                 {projects.isLoading && (
                   <TableRow>
-                    <TableCell colSpan={7} className='h-32 text-center text-muted-foreground'>
+                    <TableCell colSpan={4} className='h-32 text-center text-muted-foreground'>
                       <Loader2 className='mx-auto mb-2 animate-spin' />
                       正在读取仓库…
                     </TableCell>
@@ -344,12 +397,12 @@ function LatestCommitCell({
   const timestamp = formatCommitTime(commit.committedAt)
   const title = `${commit.hash}\n${commit.authorName} <${commit.authorEmail}>\n${timestamp}`
   return (
-    <div title={title}>
+    <div className='min-w-0' title={title}>
       <p className='truncate text-sm font-medium'>{commit.subject}</p>
-      <p className='mt-1 flex items-center gap-1.5 text-xs text-muted-foreground'>
-        <code>{commit.hash.slice(0, 7)}</code>
+      <p className='mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground'>
+        <code className='shrink-0'>{commit.hash.slice(0, 7)}</code>
         <span>·</span>
-        <span>{timestamp}</span>
+        <span className='truncate'>{timestamp}</span>
         {stale ? <Badge variant='destructive'>可能过期</Badge> : null}
       </p>
     </div>
