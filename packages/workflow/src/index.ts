@@ -3,6 +3,7 @@ import path from "node:path";
 
 import {
   collectCommits,
+  getRepositoriesRuntimeState,
   loadConfig,
   loadProjectsIndex,
   syncRepositories,
@@ -26,6 +27,8 @@ import {
 export async function listProjects(input: unknown) {
   ListProjectsInputSchema.parse(input);
   const index = await loadProjectsIndex();
+  const runtime = await getRepositoriesRuntimeState(index.projects);
+  const runtimeById = new Map(runtime.map((state) => [state.projectId, state]));
 
   return {
     projects: index.projects.map((project) => ({
@@ -36,6 +39,7 @@ export async function listProjects(input: unknown) {
       branch: project.branch,
       enabled: project.enabled,
       authors: project.authors,
+      runtime: runtimeById.get(project.id),
     })),
   };
 }
@@ -48,6 +52,8 @@ export async function syncProjects(input: unknown) {
     args.projectIds,
   );
   const result = await syncRepositories(repositories);
+  const runtime = await getRepositoriesRuntimeState(repositories);
+  const runtimeById = new Map(runtime.map((state) => [state.projectId, state]));
   return {
     projectCount: result.projects.length,
     projects: result.projects.map((project) => ({
@@ -55,7 +61,9 @@ export async function syncProjects(input: unknown) {
       name: project.name,
       branch: project.branch,
       path: project.path,
+      runtime: runtimeById.get(project.id),
     })),
+    runtime,
     errors: result.errors,
   };
 }

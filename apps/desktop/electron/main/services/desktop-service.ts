@@ -8,6 +8,7 @@ import {
   ProjectsIndexNotFoundError,
   createDefaultConfig,
   getDefaultRepositoryPath,
+  getRepositoriesRuntimeState,
   getGlobalGitIdentity,
   getConfigFilePath,
   getRepositoryId,
@@ -15,6 +16,7 @@ import {
   getOutputRoot,
   getProjectsFilePath,
   initConfig,
+  importRepositoryProjects,
   inspectRemoteRepository,
   loadConfig,
   loadConfigSnapshot,
@@ -22,19 +24,27 @@ import {
   loadProjectsIndexSnapshot,
   removeRepositoryProject,
   saveRepositoryProject,
+  scanRepositoryFolder,
   setRepositoryEnabled,
   syncRepositories,
   writeConfigIfRevision,
   writeProjectsIndexIfRevision,
 } from "@weekly-git-report/core";
 import { ConfigSchema, DEFAULT_CONFIG, RepositoryProjectSchema } from "@weekly-git-report/shared";
-import type { Config, RepositoryProject } from "@weekly-git-report/shared";
+import type {
+  Config,
+  RepositoryFolderScanResult,
+  RepositoryProject,
+  RepositoryRuntimeState,
+} from "@weekly-git-report/shared";
 
 import type {
   ConfigInitializationDefaults,
   ConfigState,
   DesktopOverview,
   DiagnosticCheck,
+  ImportRepositoriesRequest,
+  ImportRepositoriesResult,
   ProjectsState,
   RemoteRepositoryDetails,
   ReportDocument,
@@ -144,15 +154,39 @@ export async function getProjectsState(): Promise<ProjectsState> {
   }
 }
 
+export async function getProjectsRuntimeState(): Promise<RepositoryRuntimeState[]> {
+  return getRepositoriesRuntimeState(await loadOptionalProjects());
+}
+
+export async function scanDesktopRepositoryFolder(
+  folder: string,
+): Promise<RepositoryFolderScanResult> {
+  return scanRepositoryFolder(folder);
+}
+
 export async function inspectRepository(url: string): Promise<RemoteRepositoryDetails> {
   const config = await loadConfig();
-  const remote = await inspectRemoteRepository(url);
+  const remote = await inspectRemoteRepository(url, { timeoutMs: 30_000 });
   if (remote.branches.length === 0) throw new Error("远程仓库没有可用分支。");
   return {
     ...remote,
     suggestedId: getRepositoryId(url),
     suggestedName: getRepositoryName(url),
     suggestedLocalPath: getDefaultRepositoryPath(config, url),
+  };
+}
+
+export async function importDesktopRepositories(
+  request: ImportRepositoriesRequest,
+): Promise<ImportRepositoriesResult> {
+  const result = await importRepositoryProjects({
+    projects: request.projects,
+    expectedRevision: request.expectedRevision,
+  });
+  return {
+    state: { projects: result.snapshot.index.projects, revision: result.snapshot.revision },
+    added: result.added.map((project) => project.id),
+    errors: result.errors,
   };
 }
 
@@ -187,6 +221,7 @@ export async function syncDesktopRepositories(ids?: string[]): Promise<Repositor
   return {
     synced: result.projects.map((project) => project.id),
     errors: result.errors,
+    runtime: await getRepositoriesRuntimeState(selected),
   };
 }
 

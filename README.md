@@ -28,6 +28,14 @@ npx -y @weekly-git-report/cli@latest
 
 仓库默认以裸仓库形式缓存在本地，不检出工作区。自定义缓存路径也可以指向已有 Git 仓库，但其 `origin` 必须与配置的 URL 一致。
 
+已有多个本地开发仓库时，可以在 Electron 仓库页选择父目录批量导入，或运行：
+
+```sh
+npx -y @weekly-git-report/cli@latest projects import /path/to/code
+```
+
+导入只读取本地仓库的 `origin`，实际采集仍使用 `repositoryCacheRoot` 下的独立 Bare Git 缓存，不修改开发工作区。
+
 ### 2. 选择使用方式
 
 | 方式        | 适合场景                                               | 入口                                                     |
@@ -97,6 +105,8 @@ npx -y @weekly-git-report/cli@latest summary save --start 2026-08-18 --end 2026-
 命令行传入的作者按完整姓名或完整邮箱匹配，不区分大小写。未传作者时，项目的 `authors` 优先于全局 `identities`。
 
 单个项目同步或采集失败时，其他项目会继续处理，错误会进入结果的 `errors`，命令退出码为 `1`。失败项目不会回退到旧缓存来冒充最新结果。
+
+Electron 仓库页和 `projects list/sync` JSON 会从本地缓存的 `refs/remotes/origin/{branch}` 读取采集分支最新提交；读取运行状态不会访问 GitLab、GitHub 或其他远程 API。
 
 ## 配置文件
 

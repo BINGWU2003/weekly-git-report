@@ -11,6 +11,7 @@
 - 默认配置常量：`DEFAULT_CONFIG`、`DEFAULT_OUTPUT_ROOT`。
 - 目录和文件名常量：`WORK_DIR`、`RAW_DIR_NAME`、`SUMMARY_DIR_NAME` 等。
 - Zod schema：配置、项目索引、采集参数、MCP/CLI 自动化输入等。
+- 仓库文件夹扫描、最新提交和缓存运行状态 DTO。
 - 类型导出：由 schema 推导的 `Config`、`Project`、`Manifest`、`Period` 等。
 
 ## 常用导出

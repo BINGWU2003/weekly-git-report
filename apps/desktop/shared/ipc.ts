@@ -1,4 +1,11 @@
-import type { Config, Identity, ManifestError, RepositoryProject } from "@weekly-git-report/shared";
+import type {
+  Config,
+  Identity,
+  ManifestError,
+  RepositoryFolderScanResult,
+  RepositoryProject,
+  RepositoryRuntimeState,
+} from "@weekly-git-report/shared";
 
 export interface ConfigState {
   config: Config | null;
@@ -29,9 +36,21 @@ export interface SaveRepositoryRequest {
   expectedRevision: string;
 }
 
+export interface ImportRepositoriesRequest {
+  projects: RepositoryProject[];
+  expectedRevision: string;
+}
+
+export interface ImportRepositoriesResult {
+  state: ProjectsState;
+  added: string[];
+  errors: ManifestError[];
+}
+
 export interface RepositorySyncResult {
   synced: string[];
   errors: ManifestError[];
+  runtime: RepositoryRuntimeState[];
 }
 
 export type DiagnosticStatus = "ok" | "warning" | "error";
@@ -85,7 +104,10 @@ export interface DesktopAPI {
   projects: {
     list(): Promise<RepositoryProject[]>;
     state(): Promise<ProjectsState>;
+    runtimeState(): Promise<RepositoryRuntimeState[]>;
+    scanFolder(folder: string): Promise<RepositoryFolderScanResult>;
     inspect(url: string): Promise<RemoteRepositoryDetails>;
+    importRepositories(request: ImportRepositoriesRequest): Promise<ImportRepositoriesResult>;
     save(request: SaveRepositoryRequest): Promise<ProjectsState>;
     setEnabled(id: string, enabled: boolean, expectedRevision: string): Promise<ProjectsState>;
     sync(ids?: string[]): Promise<RepositorySyncResult>;
@@ -112,7 +134,10 @@ export const IPC_CHANNELS = {
   configSave: "config:save",
   projectsList: "projects:list",
   projectsState: "projects:state",
+  projectsRuntimeState: "projects:runtime-state",
+  projectsScanFolder: "projects:scan-folder",
   projectsInspect: "projects:inspect",
+  projectsImport: "projects:import",
   projectsSave: "projects:save",
   projectsSetEnabled: "projects:set-enabled",
   projectsSync: "projects:sync",

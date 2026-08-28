@@ -71,7 +71,7 @@ weekly-git-report-mcp
 {}
 ```
 
-结果中的项目包含 `id`、`name`、`path`、`remote`、`branch`、`enabled` 和可选 `authors`。
+结果中的项目包含 `id`、`name`、`path`、`remote`、`branch`、`enabled`、可选 `authors`，以及从本地缓存读取的 `runtime`/`latestCommit`。运行状态读取不访问远程服务。
 
 ### `sync_projects`
 
@@ -91,7 +91,7 @@ weekly-git-report-mcp
 }
 ```
 
-`projectIds` 可使用完整项目 ID 或完整名称。省略或传空数组时选择全部已启用项目；未知或已禁用项目会导致调用失败。单项目失败进入结果的 `errors`，其他项目继续处理。
+`projectIds` 可使用完整项目 ID 或完整名称。省略或传空数组时选择全部已启用项目；未知或已禁用项目会导致调用失败。单项目失败进入结果的 `errors`，其他项目继续处理。结果的 `runtime` 包含同步后各配置分支的缓存提交状态。
 
 ### `collect_git_logs`
 

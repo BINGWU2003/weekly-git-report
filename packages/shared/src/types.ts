@@ -8,6 +8,8 @@ import type {
   IdentitySchema,
   GetWeekIndexInputSchema,
   ListProjectsInputSchema,
+  LatestCommitSchema,
+  LocalRepositoryDiscoverySchema,
   ManifestErrorSchema,
   ManifestProjectSchema,
   ManifestSchema,
@@ -15,6 +17,10 @@ import type {
   PeriodSchema,
   ProjectSchema,
   RepositoryProjectSchema,
+  RepositoryFolderScanResultSchema,
+  RepositoryRuntimeStateSchema,
+  RepositoryRuntimeStatusSchema,
+  RepositoryScanWarningSchema,
   ProjectsIndexSchema,
   ReadWeekRawInputSchema,
   SaveWeekSummaryInputSchema,
@@ -32,6 +38,12 @@ export type CollectOptions = z.infer<typeof CollectOptionsSchema>;
 export type ManifestProject = z.infer<typeof ManifestProjectSchema>;
 export type ManifestError = z.infer<typeof ManifestErrorSchema>;
 export type Manifest = z.infer<typeof ManifestSchema>;
+export type LatestCommit = z.infer<typeof LatestCommitSchema>;
+export type RepositoryRuntimeStatus = z.infer<typeof RepositoryRuntimeStatusSchema>;
+export type RepositoryRuntimeState = z.infer<typeof RepositoryRuntimeStateSchema>;
+export type LocalRepositoryDiscovery = z.infer<typeof LocalRepositoryDiscoverySchema>;
+export type RepositoryScanWarning = z.infer<typeof RepositoryScanWarningSchema>;
+export type RepositoryFolderScanResult = z.infer<typeof RepositoryFolderScanResultSchema>;
 export type ListProjectsInput = z.infer<typeof ListProjectsInputSchema>;
 export type SyncProjectsInput = z.infer<typeof SyncProjectsInputSchema>;
 export type CollectGitLogsInput = z.infer<typeof CollectGitLogsInputSchema>;

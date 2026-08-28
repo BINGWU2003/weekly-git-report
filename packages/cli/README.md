@@ -54,6 +54,7 @@ weekly
 | `weekly projects add`                       | 是       | 验证远程仓库并添加项目                   |
 | `weekly projects edit`                      | 是       | 编辑并重新同步项目                       |
 | `weekly projects remove`                    | 是       | 移除项目，可选择同时删除 Bare Git 缓存   |
+| `weekly projects import [folder] [--all]`   | 可选     | 从本地文件夹识别并批量添加仓库           |
 | `weekly projects list`                      | 否       | 以稳定 JSON DTO 输出全部显式项目         |
 | `weekly projects sync [selection]`          | 可选     | 同步全部或指定的已启用项目               |
 | `weekly collect [options]`                  | 否       | 同步并采集指定周期的 Git 提交            |
@@ -99,6 +100,24 @@ CLI 会先读取远程分支，再让你确认：
 
 目标路径不存在时会创建裸仓库缓存。已有 Git 仓库必须拥有与配置 URL 匹配的 `origin`；非空的普通目录不会被覆盖。项目 URL 和本地路径都不能与其他项目重复。
 
+### 从文件夹批量导入
+
+交互式扫描父目录并选择仓库：
+
+```sh
+npx -y @weekly-git-report/cli@latest projects import /path/to/code
+```
+
+非交互导入全部有效候选：
+
+```sh
+npx -y @weekly-git-report/cli@latest projects import /path/to/code --all
+```
+
+扫描最多递归 4 层和识别 200 个仓库，不跟随符号链接。CLI 只读取源仓库的 `origin`，自动生成名称、远程默认分支、独立 Bare 缓存路径、启用状态和全局身份继承配置。已存在、批次内重复、没有 `origin` 或远程检查失败的候选会跳过。
+
+同步允许部分成功，只有成功项目会一次性写入 `projects.json`。非交互模式的扫描进度进入 stderr，stdout 只返回最终 JSON；同步错误非空时退出码为 `1`。
+
 ### 查看项目
 
 ```sh
@@ -116,7 +135,18 @@ npx -y @weekly-git-report/cli@latest projects list
       "path": "/home/name/.weekly-git-report/repositories/project-a-a1b2c3d4",
       "remote": "git@github.com:example/project-a.git",
       "branch": "main",
-      "enabled": true
+      "enabled": true,
+      "runtime": {
+        "projectId": "github.com/example/project-a",
+        "status": "ready",
+        "latestCommit": {
+          "hash": "0123456789abcdef0123456789abcdef01234567",
+          "subject": "feat: add repository import",
+          "authorName": "Alice",
+          "authorEmail": "alice@example.com",
+          "committedAt": "2026-08-28T14:32:00+08:00"
+        }
+      }
     }
   ]
 }
@@ -155,11 +185,14 @@ npx -y @weekly-git-report/cli@latest projects sync --all
       "path": "/home/name/.weekly-git-report/repositories/project-a-a1b2c3d4"
     }
   ],
+  "runtime": [],
   "errors": []
 }
 ```
 
 任一仓库同步失败时，其他仓库继续处理，但命令退出码为 `1`。
+
+`runtime` 从本地缓存读取，不触发网络请求。未同步、缓存分支缺失或缓存损坏时，`latestCommit` 为 `null`，并通过 `status` 和可选 `message` 说明原因。
 
 ## Agent 和脚本自动化
 
@@ -199,7 +232,7 @@ CLI 会先询问是否同时永久删除 Bare Git 缓存，默认选择“否”
 
 ### 命令提示需要交互式终端
 
-`init`、`config edit`、`projects add`、`projects edit` 和 `projects remove` 需要 stdin 与 stdout 都连接到 TTY。自动化场景请使用同一 CLI 的 `projects list/sync`、`collect`、`raw` 和 `summary` 命令。
+`init`、`config edit`、`projects add`、`projects edit` 和 `projects remove` 需要 stdin 与 stdout 都连接到 TTY。`projects import` 在非 TTY 中必须同时提供目录和 `--all`。其他自动化场景可使用同一 CLI 的 `projects list/sync`、`collect`、`raw` 和 `summary` 命令。
 
 ### 找不到匹配的已启用项目
 

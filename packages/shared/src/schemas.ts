@@ -44,7 +44,7 @@ export const ConfigSchema = z
   .strict();
 
 export const RepositoryProjectSchema = z.object({
-  id: z.string(),
+  id: z.string().trim().min(1),
   name: z.string().trim().min(1),
   url: z.string().trim().min(1),
   branch: z.string().trim().min(1),
@@ -89,6 +89,47 @@ export const ManifestErrorSchema = z.object({
   name: z.string().optional(),
   path: z.string().optional(),
   message: z.string(),
+});
+
+export const LatestCommitSchema = z.object({
+  hash: z.string().min(1),
+  subject: z.string(),
+  authorName: z.string(),
+  authorEmail: z.string(),
+  committedAt: z.string(),
+});
+
+export const RepositoryRuntimeStatusSchema = z.enum([
+  "ready",
+  "not-synced",
+  "missing-branch",
+  "error",
+]);
+
+export const RepositoryRuntimeStateSchema = z.object({
+  projectId: z.string(),
+  status: RepositoryRuntimeStatusSchema,
+  latestCommit: LatestCommitSchema.nullable(),
+  message: z.string().optional(),
+});
+
+export const LocalRepositoryDiscoverySchema = z.object({
+  sourcePath: z.string(),
+  isBare: z.boolean(),
+  originUrl: z.string().optional(),
+});
+
+export const RepositoryScanWarningSchema = z.object({
+  path: z.string(),
+  message: z.string(),
+});
+
+export const RepositoryFolderScanResultSchema = z.object({
+  root: z.string(),
+  scannedDirectories: z.number().int().nonnegative(),
+  repositories: z.array(LocalRepositoryDiscoverySchema),
+  warnings: z.array(RepositoryScanWarningSchema),
+  truncated: z.boolean(),
 });
 
 export const ManifestSchema = z.object({

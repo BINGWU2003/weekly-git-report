@@ -6,6 +6,7 @@ import { runCollectCommand, runRawCommand, runSummaryCommand } from "./commands/
 import {
   runAddProjectCommand,
   runEditProjectCommand,
+  runImportProjectsCommand,
   runListProjectsCommand,
   runRemoveProjectCommand,
   runSyncProjectsCommand,
@@ -71,6 +72,7 @@ async function runMenu(): Promise<void> {
         { title: "Initialize configuration", value: "init" },
         { title: "Edit global configuration", value: "config" },
         { title: "Add repository", value: "add" },
+        { title: "Import repositories from folder", value: "import" },
         { title: "Edit repository", value: "edit" },
         { title: "Remove repository", value: "remove" },
         { title: "List repositories", value: "list" },
@@ -93,6 +95,8 @@ async function runMenu(): Promise<void> {
       return runRemoveProjectCommand();
     case "list":
       return runListProjectsCommand();
+    case "import":
+      return runImportProjectsCommand([]);
     case "sync":
       return runSyncProjectsCommand([]);
     case "doctor":
@@ -113,6 +117,8 @@ async function runProjectsCommand(
       return runRemoveProjectCommand();
     case "list":
       return runListProjectsCommand();
+    case "import":
+      return runImportProjectsCommand(args);
     case "sync":
       return runSyncProjectsCommand(args);
     default:
@@ -128,6 +134,7 @@ Usage:
   weekly init
   weekly config edit
   weekly projects add|edit|remove|list
+  weekly projects import [folder] [--all]
   weekly projects sync [id-or-name|--project <id-or-name>|--all]
   weekly collect --since <YYYY-MM-DD> --until <YYYY-MM-DD> [--author <name-or-email>] [--project <id-or-name>] [--all]
   weekly raw index --start <YYYY-MM-DD> --end <YYYY-MM-DD>

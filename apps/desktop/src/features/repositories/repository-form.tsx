@@ -97,6 +97,7 @@ export function RepositoryForm({ open, onOpenChange, project, state }: Repositor
     onSuccess: (next) => {
       queryClient.setQueryData(['projects-state'], next)
       void queryClient.invalidateQueries({ queryKey: ['overview'] })
+      void queryClient.invalidateQueries({ queryKey: ['projects-runtime'] })
       toast.success(project ? '仓库配置已更新' : '仓库已添加并完成首次同步')
       form.reset()
       onOpenChange(false)

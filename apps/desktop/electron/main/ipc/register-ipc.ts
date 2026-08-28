@@ -1,6 +1,10 @@
 import { dialog, ipcMain, shell } from "electron";
 import { getOutputRoot, normalizeAbsolutePath } from "@weekly-git-report/core";
-import { ConfigSchema, RepositoryProjectSchema } from "@weekly-git-report/shared";
+import {
+  ConfigSchema,
+  ProjectsIndexSchema,
+  RepositoryProjectSchema,
+} from "@weekly-git-report/shared";
 
 import { IPC_CHANNELS } from "../../../shared/ipc.js";
 import {
@@ -9,9 +13,11 @@ import {
   getConfigState,
   getDiagnostics,
   getProjectsState,
+  getProjectsRuntimeState,
   getReportAbsolutePath,
   initializeDesktopConfig,
   inspectRepository,
+  importDesktopRepositories,
   listReportFiles,
   loadOptionalConfig,
   loadOptionalProjects,
@@ -19,6 +25,7 @@ import {
   removeDesktopRepository,
   saveDesktopConfig,
   saveDesktopRepository,
+  scanDesktopRepositoryFolder,
   setDesktopRepositoryEnabled,
   syncDesktopRepositories,
 } from "../services/desktop-service.js";
@@ -37,6 +44,11 @@ export function registerIpcHandlers(): void {
   });
   ipcMain.handle(IPC_CHANNELS.projectsList, () => loadOptionalProjects());
   ipcMain.handle(IPC_CHANNELS.projectsState, () => getProjectsState());
+  ipcMain.handle(IPC_CHANNELS.projectsRuntimeState, () => getProjectsRuntimeState());
+  ipcMain.handle(IPC_CHANNELS.projectsScanFolder, (_event, folder: unknown) => {
+    if (typeof folder !== "string" || !folder.trim()) throw new Error("扫描目录不能为空。");
+    return scanDesktopRepositoryFolder(folder);
+  });
   ipcMain.handle(IPC_CHANNELS.projectsInspect, (_event, url: unknown) => {
     if (typeof url !== "string") throw new Error("仓库地址不能为空。");
     return inspectRepository(url);
@@ -53,6 +65,13 @@ export function registerIpcHandlers(): void {
       expectedRevision: input.expectedRevision,
       ...(typeof input.currentId === "string" ? { currentId: input.currentId } : {}),
     });
+  });
+  ipcMain.handle(IPC_CHANNELS.projectsImport, (_event, input: unknown) => {
+    if (!isRecord(input) || typeof input.expectedRevision !== "string") {
+      throw new Error("仓库配置版本不能为空。");
+    }
+    const projects = ProjectsIndexSchema.parse({ projects: input.projects }).projects;
+    return importDesktopRepositories({ projects, expectedRevision: input.expectedRevision });
   });
   ipcMain.handle(
     IPC_CHANNELS.projectsSetEnabled,

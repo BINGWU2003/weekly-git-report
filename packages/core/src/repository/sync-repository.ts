@@ -16,6 +16,10 @@ export interface RemoteRepositoryInfo {
   branches: string[];
 }
 
+export interface InspectRemoteRepositoryOptions {
+  timeoutMs?: number;
+}
+
 export interface SyncRepositoriesResult {
   projects: Project[];
   errors: ManifestError[];
@@ -23,11 +27,13 @@ export interface SyncRepositoriesResult {
 
 export async function inspectRemoteRepository(
   repositoryUrl: string,
+  options: InspectRemoteRepositoryOptions = {},
 ): Promise<RemoteRepositoryInfo> {
   assertSafeRepositoryUrl(repositoryUrl);
   const output = await runGit(
     ["ls-remote", "--symref", repositoryUrl, "HEAD", "refs/heads/*"],
     process.cwd(),
+    options,
   );
   let defaultBranch: string | undefined;
   const branches = new Set<string>();

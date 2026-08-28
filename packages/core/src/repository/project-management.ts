@@ -2,7 +2,7 @@ import { lstat, realpath, rename, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import type { Config, RepositoryProject } from "@weekly-git-report/shared";
+import type { Config, ManifestError, RepositoryProject } from "@weekly-git-report/shared";
 
 import {
   loadProjectsIndexSnapshot,
@@ -18,7 +18,7 @@ import {
 } from "../utils/path.js";
 import { FileRevisionConflictError } from "../utils/versioned-json.js";
 import { normalizeRepositoryUrl } from "./repository-config.js";
-import { syncRepository } from "./sync-repository.js";
+import { syncRepositories, syncRepository } from "./sync-repository.js";
 
 export interface SaveRepositoryProjectOptions {
   project: RepositoryProject;
@@ -33,6 +33,18 @@ export interface RemoveRepositoryProjectOptions {
   expectedRevision: string;
   config: Config;
   projectsFile?: string;
+}
+
+export interface ImportRepositoryProjectsOptions {
+  projects: RepositoryProject[];
+  expectedRevision: string;
+  projectsFile?: string;
+}
+
+export interface ImportRepositoryProjectsResult {
+  snapshot: ProjectsIndexSnapshot;
+  added: RepositoryProject[];
+  errors: ManifestError[];
 }
 
 export function assertUniqueRepositoryProject(
@@ -85,6 +97,44 @@ export async function saveRepositoryProject(
       )
     : [...snapshot.index.projects, options.project];
   return writeProjectsIndexIfRevision({ projects }, options.expectedRevision, options.projectsFile);
+}
+
+export async function importRepositoryProjects(
+  options: ImportRepositoryProjectsOptions,
+): Promise<ImportRepositoryProjectsResult> {
+  const snapshot = await loadProjectsIndexSnapshot(options.projectsFile);
+  if (snapshot.revision !== options.expectedRevision) {
+    throw new FileRevisionConflictError(options.projectsFile ?? getProjectsFilePath());
+  }
+
+  const valid: RepositoryProject[] = [];
+  const errors: ManifestError[] = [];
+  for (const project of options.projects) {
+    try {
+      assertUniqueRepositoryProject(project, [...snapshot.index.projects, ...valid]);
+      valid.push(project);
+    } catch (error) {
+      errors.push({
+        projectId: project.id,
+        name: project.name,
+        path: project.localPath,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  const synced = await syncRepositories(valid);
+  errors.push(...synced.errors);
+  const syncedIds = new Set(synced.projects.map((project) => project.id));
+  const added = valid.filter((project) => syncedIds.has(project.id));
+  if (added.length === 0) return { snapshot, added, errors };
+
+  const next = await writeProjectsIndexIfRevision(
+    { projects: [...snapshot.index.projects, ...added] },
+    options.expectedRevision,
+    options.projectsFile,
+  );
+  return { snapshot: next, added, errors };
 }
 
 export async function setRepositoryEnabled(

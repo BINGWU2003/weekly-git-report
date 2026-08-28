@@ -3,6 +3,27 @@ export interface ProjectSelection {
   projectIds: string[];
 }
 
+export interface ProjectImportArgs {
+  all: boolean;
+  folder?: string;
+}
+
+export function parseProjectImportArgs(args: string[]): ProjectImportArgs {
+  let all = false;
+  let folder: string | undefined;
+  for (const arg of args) {
+    if (arg === "--all") {
+      if (all) throw new Error("--all cannot be repeated.");
+      all = true;
+      continue;
+    }
+    if (arg.startsWith("-")) throw new Error(`Unknown projects import option: ${arg}`);
+    if (folder) throw new Error("Pass only one folder to projects import.");
+    folder = arg;
+  }
+  return { all, folder };
+}
+
 export function parseCollectArgs(args: string[]): unknown {
   const parsed: {
     author: string[];

@@ -3,35 +3,32 @@ import {
   getRepositoryId,
   getRepositoryName,
   inspectRemoteRepository,
+  importRepositoryProjects,
   loadConfig,
-  loadProjectsIndex,
   loadProjectsIndexSnapshot,
   normalizeAbsolutePath,
-  normalizeRepositoryUrl,
   removeRepositoryProject,
-  syncRepository,
-  writeProjectsIndex,
+  saveRepositoryProject,
+  scanRepositoryFolder,
 } from "@weekly-git-report/core";
 import type { Config, Identity, RepositoryProject } from "@weekly-git-report/shared";
 import { listProjects, syncProjects } from "@weekly-git-report/workflow";
 
 import { assertInteractive, promptIdentities } from "./init.js";
-import { parseProjectSelectionArgs } from "../utils/args.js";
+import { parseProjectImportArgs, parseProjectSelectionArgs } from "../utils/args.js";
 import { printOperationResult, printJson } from "../utils/output.js";
 import { intro, outro, promptOptions, prompts } from "../utils/prompt.js";
 
 export async function runAddProjectCommand(): Promise<void> {
   assertInteractive();
   const config = await loadConfig();
-  const index = await loadProjectsIndex();
+  const snapshot = await loadProjectsIndexSnapshot();
   intro("add repository");
   const repository = await promptProject(config);
-  assertUniqueProject(repository, index.projects);
   await confirmProject(repository);
-  await syncRepository(repository);
-  await writeProjectsIndex({
-    ...index,
-    projects: [...index.projects, repository],
+  await saveRepositoryProject({
+    project: repository,
+    expectedRevision: snapshot.revision,
   });
   outro(`Added ${repository.name}: ${repository.localPath}`);
 }
@@ -39,18 +36,14 @@ export async function runAddProjectCommand(): Promise<void> {
 export async function runEditProjectCommand(): Promise<void> {
   assertInteractive();
   const config = await loadConfig();
-  const index = await loadProjectsIndex();
-  const current = await selectProject(index.projects, "Repository to edit");
+  const snapshot = await loadProjectsIndexSnapshot();
+  const current = await selectProject(snapshot.index.projects, "Repository to edit");
   const repository = await promptProject(config, current);
-  assertUniqueProject(
-    repository,
-    index.projects.filter((item) => item.id !== current.id),
-  );
   await confirmProject(repository);
-  await syncRepository(repository);
-  await writeProjectsIndex({
-    ...index,
-    projects: index.projects.map((item) => (item.id === current.id ? repository : item)),
+  await saveRepositoryProject({
+    project: repository,
+    currentId: current.id,
+    expectedRevision: snapshot.revision,
   });
   outro(`Updated ${repository.name}`);
 }
@@ -128,6 +121,192 @@ export async function runSyncProjectsCommand(args: string[]): Promise<void> {
   }
 
   printOperationResult(await syncProjects({ projectIds }));
+}
+
+export async function runImportProjectsCommand(args: string[]): Promise<void> {
+  const parsed = parseProjectImportArgs(args);
+  const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY);
+  if (!interactive && (!parsed.folder || !parsed.all)) {
+    throw new Error("Non-interactive import requires a folder and --all.");
+  }
+
+  const folder = parsed.folder ?? (await promptImportFolder());
+  const [config, snapshot, scan] = await Promise.all([
+    loadConfig(),
+    loadProjectsIndexSnapshot(),
+    scanRepositoryFolder(folder),
+  ]);
+  const prepared = await prepareImportCandidates(
+    scan.repositories,
+    config,
+    snapshot.index.projects,
+  );
+  const ready = prepared.filter(
+    (candidate): candidate is PreparedImportCandidate & { project: RepositoryProject } =>
+      Boolean(candidate.project),
+  );
+  if (interactive) {
+    console.log(
+      `Scanned ${scan.repositories.length} repositories: ${ready.length} ready, ${prepared.length - ready.length} skipped.`,
+    );
+    for (const candidate of prepared.filter((item) => !item.project)) {
+      console.log(`Skipped ${candidate.sourcePath}: ${candidate.message}`);
+    }
+    for (const warning of scan.warnings) {
+      console.log(`Warning ${warning.path}: ${warning.message}`);
+    }
+  }
+  const selectedIds = parsed.all
+    ? new Set(ready.map((candidate) => candidate.project.id))
+    : await promptImportSelection(ready);
+  const selected = ready
+    .map((candidate) => candidate.project)
+    .filter((project): project is RepositoryProject =>
+      Boolean(project && selectedIds.has(project.id)),
+    );
+
+  if (interactive && selected.length > 0 && !parsed.all) {
+    const confirmation = await prompts(
+      {
+        type: "confirm",
+        name: "value",
+        message: `Sync and add ${selected.length} repositories?`,
+        initial: true,
+      },
+      promptOptions(),
+    );
+    if (!confirmation.value) throw new Error("Operation cancelled.");
+  }
+
+  const result = await importRepositoryProjects({
+    projects: selected,
+    expectedRevision: snapshot.revision,
+  });
+  const skipped = prepared
+    .filter((candidate) => !candidate.project || !selectedIds.has(candidate.project.id))
+    .map((candidate) => ({
+      path: candidate.sourcePath,
+      reason: candidate.message ?? "Not selected.",
+    }));
+  printOperationResult({
+    root: scan.root,
+    scanned: scan.repositories.length,
+    selected: selected.length,
+    added: result.added.map((project) => ({
+      id: project.id,
+      name: project.name,
+      branch: project.branch,
+      path: project.localPath,
+    })),
+    skipped,
+    warnings: scan.warnings,
+    errors: result.errors,
+    revision: result.snapshot.revision,
+  });
+}
+
+interface PreparedImportCandidate {
+  sourcePath: string;
+  project?: RepositoryProject;
+  message?: string;
+}
+
+async function prepareImportCandidates(
+  discoveries: Array<{ sourcePath: string; originUrl?: string }>,
+  config: Config,
+  existing: RepositoryProject[],
+): Promise<PreparedImportCandidate[]> {
+  const candidates = new Array<PreparedImportCandidate>(discoveries.length);
+  const knownIds = new Set(existing.map((project) => project.id));
+  let nextIndex = 0;
+  let completed = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(3, discoveries.length) }, async () => {
+      while (nextIndex < discoveries.length) {
+        const index = nextIndex;
+        nextIndex += 1;
+        const discovery = discoveries[index];
+        if (!discovery) continue;
+        if (!discovery.originUrl) {
+          candidates[index] = {
+            sourcePath: discovery.sourcePath,
+            message: "Origin remote is missing.",
+          };
+        } else {
+          try {
+            const remote = await inspectRemoteRepository(discovery.originUrl, {
+              timeoutMs: 30_000,
+            });
+            const branch = remote.defaultBranch ?? remote.branches[0];
+            if (!branch) throw new Error("Remote repository has no branches.");
+            const id = getRepositoryId(discovery.originUrl);
+            if (knownIds.has(id)) {
+              candidates[index] = {
+                sourcePath: discovery.sourcePath,
+                message: "Repository is already configured or duplicated in this import.",
+              };
+            } else {
+              knownIds.add(id);
+              const name = getRepositoryName(discovery.originUrl);
+              candidates[index] = {
+                sourcePath: discovery.sourcePath,
+                project: {
+                  id,
+                  name,
+                  url: discovery.originUrl,
+                  branch,
+                  localPath: getDefaultRepositoryPath(config, discovery.originUrl, name),
+                  enabled: true,
+                },
+              };
+            }
+          } catch (error) {
+            candidates[index] = {
+              sourcePath: discovery.sourcePath,
+              message: error instanceof Error ? error.message : String(error),
+            };
+          }
+        }
+        completed += 1;
+        console.error(`Validated repositories: ${completed}/${discoveries.length}`);
+      }
+    }),
+  );
+  return candidates;
+}
+
+async function promptImportFolder(): Promise<string> {
+  const answer = await prompts(
+    {
+      type: "text",
+      name: "folder",
+      message: "Folder to scan",
+      validate: (value: string) => (value.trim() ? true : "Folder is required"),
+    },
+    promptOptions(),
+  );
+  return String(answer.folder).trim();
+}
+
+async function promptImportSelection(
+  candidates: Array<PreparedImportCandidate & { project: RepositoryProject }>,
+): Promise<Set<string>> {
+  if (candidates.length === 0) return new Set();
+  const answer = await prompts(
+    {
+      type: "multiselect",
+      name: "ids",
+      message: "Repositories to import",
+      choices: candidates.map((candidate) => ({
+        title: `${candidate.project.name} (${candidate.project.branch})`,
+        description: candidate.project.url,
+        value: candidate.project.id,
+        selected: true,
+      })),
+    },
+    promptOptions(),
+  );
+  return new Set(Array.isArray(answer.ids) ? answer.ids.map(String) : []);
 }
 
 async function promptProject(
@@ -243,23 +422,6 @@ async function confirmProject(project: RepositoryProject): Promise<void> {
     promptOptions(),
   );
   if (!answer.confirm) throw new Error("Operation cancelled.");
-}
-
-function assertUniqueProject(project: RepositoryProject, existing: RepositoryProject[]): void {
-  if (existing.some((item) => item.id === project.id)) {
-    throw new Error(`Repository URL already configured: ${project.url}`);
-  }
-  const localPath = normalizeAbsolutePath(project.localPath).toLowerCase();
-  if (existing.some((item) => normalizeAbsolutePath(item.localPath).toLowerCase() === localPath)) {
-    throw new Error(`Local path already used by another repository: ${project.localPath}`);
-  }
-  if (
-    existing.some(
-      (item) => normalizeRepositoryUrl(item.url) === normalizeRepositoryUrl(project.url),
-    )
-  ) {
-    throw new Error(`Repository URL already configured: ${project.url}`);
-  }
 }
 
 function formatAuthors(authors: Identity[] | undefined): string {

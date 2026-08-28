@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
   parseCollectArgs,
   parsePeriodArgs,
+  parseProjectImportArgs,
   parseProjectSelectionArgs,
   parseSummarySaveArgs,
 } from "../src/utils/args.js";
@@ -39,6 +40,14 @@ describe("automation argument parsing", () => {
   test("distinguishes interactive sync from explicit all", () => {
     expect(parseProjectSelectionArgs([])).toEqual({ explicit: false, projectIds: [] });
     expect(parseProjectSelectionArgs(["--all"])).toEqual({ explicit: true, projectIds: [] });
+  });
+
+  test("parses a repository import folder and all flag", () => {
+    expect(parseProjectImportArgs(["D:/code", "--all"])).toEqual({
+      folder: "D:/code",
+      all: true,
+    });
+    expect(() => parseProjectImportArgs(["one", "two"])).toThrow(/only one folder/);
   });
 
   test("supports one positional project or repeated project options", () => {

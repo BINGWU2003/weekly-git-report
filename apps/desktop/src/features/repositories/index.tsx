@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertCircle, Edit3, Loader2, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { AlertCircle, Edit3, FolderSearch, Loader2, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { RepositoryProject } from '@weekly-git-report/shared'
+import type { RepositoryProject, RepositoryRuntimeState } from '@weekly-git-report/shared'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
   AlertDialog,
@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/table'
 import type { ProjectsState, RepositorySyncResult } from '../../../shared/ipc'
 import { RepositoryForm } from './repository-form'
+import { RepositoryImportSheet } from './repository-import-sheet'
 
 export function Repositories() {
   const queryClient = useQueryClient()
@@ -39,6 +40,7 @@ export function Repositories() {
   const [editing, setEditing] = useState<RepositoryProject>()
   const [deleting, setDeleting] = useState<RepositoryProject>()
   const [lastSync, setLastSync] = useState<RepositorySyncResult>()
+  const [importSession, setImportSession] = useState<{ folder: string; state: ProjectsState }>()
   const projects = useQuery({
     queryKey: ['projects-state'],
     queryFn: () => window.electronAPI.projects.state(),
@@ -48,6 +50,7 @@ export function Repositories() {
     queryClient.setQueryData(['projects-state'], next)
     void queryClient.invalidateQueries({ queryKey: ['projects'] })
     void queryClient.invalidateQueries({ queryKey: ['overview'] })
+    void queryClient.invalidateQueries({ queryKey: ['projects-runtime'] })
   }
 
   async function handleConflict(error: unknown) {
@@ -72,6 +75,7 @@ export function Repositories() {
     mutationFn: (ids?: string[]) => window.electronAPI.projects.sync(ids),
     onSuccess: (result) => {
       setLastSync(result)
+      void queryClient.invalidateQueries({ queryKey: ['projects-runtime'] })
       if (result.errors.length) {
         toast.warning(`同步完成，${result.errors.length} 个仓库失败`)
       } else {
@@ -90,7 +94,25 @@ export function Repositories() {
     setFormOpen(true)
   }
 
+  async function openImport() {
+    const folder = await window.electronAPI.system.selectDirectory()
+    if (folder) setImportSession({ folder, state })
+  }
+
   const state = projects.data ?? { projects: [], revision: null }
+  const runtime = useQuery({
+    queryKey: ['projects-runtime'],
+    queryFn: () => window.electronAPI.projects.runtimeState(),
+    enabled: Boolean(state.revision),
+  })
+  const runtimeById = useMemo(
+    () => new Map(runtime.data?.map((item) => [item.projectId, item]) ?? []),
+    [runtime.data]
+  )
+  const staleProjectIds = useMemo(
+    () => new Set(lastSync?.errors.flatMap((error) => error.projectId ?? []) ?? []),
+    [lastSync]
+  )
 
   return (
     <>
@@ -115,6 +137,10 @@ export function Repositories() {
             >
               <RefreshCw className={sync.isPending ? 'animate-spin' : ''} />
               同步全部
+            </Button>
+            <Button variant='outline' onClick={() => void openImport()} disabled={!state.revision}>
+              <FolderSearch />
+              从文件夹导入
             </Button>
             <Button onClick={openAdd} disabled={!state.revision}>
               <Plus />
@@ -164,6 +190,7 @@ export function Repositories() {
                   <TableHead>分支</TableHead>
                   <TableHead>作者</TableHead>
                   <TableHead>缓存目录</TableHead>
+                  <TableHead>最新提交</TableHead>
                   <TableHead className='text-center'>启用</TableHead>
                   <TableHead className='text-end'>操作</TableHead>
                 </TableRow>
@@ -186,6 +213,13 @@ export function Repositories() {
                       </TableCell>
                       <TableCell className='max-w-xs truncate text-xs text-muted-foreground' title={project.localPath}>
                         {project.localPath}
+                      </TableCell>
+                      <TableCell className='max-w-72'>
+                        <LatestCommitCell
+                          loading={runtime.isLoading}
+                          runtime={runtimeById.get(project.id)}
+                          stale={staleProjectIds.has(project.id)}
+                        />
                       </TableCell>
                       <TableCell className='text-center'>
                         {toggling ? (
@@ -222,14 +256,14 @@ export function Repositories() {
                 })}
                 {!projects.isLoading && state.projects.length === 0 && state.revision && (
                   <TableRow>
-                    <TableCell colSpan={6} className='h-32 text-center text-muted-foreground'>
+                    <TableCell colSpan={7} className='h-32 text-center text-muted-foreground'>
                       还没有仓库，点击“添加仓库”开始配置。
                     </TableCell>
                   </TableRow>
                 )}
                 {projects.isLoading && (
                   <TableRow>
-                    <TableCell colSpan={6} className='h-32 text-center text-muted-foreground'>
+                    <TableCell colSpan={7} className='h-32 text-center text-muted-foreground'>
                       <Loader2 className='mx-auto mb-2 animate-spin' />
                       正在读取仓库…
                     </TableCell>
@@ -250,6 +284,16 @@ export function Repositories() {
           state={state}
         />
       )}
+      {importSession ? (
+        <RepositoryImportSheet
+          key={importSession.folder}
+          open
+          folder={importSession.folder}
+          initialState={importSession.state}
+          onImported={applyState}
+          onOpenChange={(open) => !open && setImportSession(undefined)}
+        />
+      ) : null}
       <DeleteRepositoryDialog
         project={deleting}
         state={state}
@@ -258,6 +302,48 @@ export function Repositories() {
       />
     </>
   )
+}
+
+function LatestCommitCell({
+  loading,
+  runtime,
+  stale,
+}: {
+  loading: boolean
+  runtime?: RepositoryRuntimeState
+  stale: boolean
+}) {
+  if (loading && !runtime) return <Loader2 className='size-4 animate-spin text-muted-foreground' />
+  if (!runtime) return <span className='text-xs text-muted-foreground'>暂无状态</span>
+  if (!runtime.latestCommit) {
+    const label =
+      runtime.status === 'not-synced'
+        ? '尚未同步'
+        : runtime.status === 'missing-branch'
+          ? '分支尚无缓存'
+          : '缓存读取失败'
+    return <span className='text-xs text-muted-foreground' title={runtime.message}>{label}</span>
+  }
+
+  const commit = runtime.latestCommit
+  const timestamp = formatCommitTime(commit.committedAt)
+  const title = `${commit.hash}\n${commit.authorName} <${commit.authorEmail}>\n${timestamp}`
+  return (
+    <div title={title}>
+      <p className='truncate text-sm font-medium'>{commit.subject}</p>
+      <p className='mt-1 flex items-center gap-1.5 text-xs text-muted-foreground'>
+        <code>{commit.hash.slice(0, 7)}</code>
+        <span>·</span>
+        <span>{timestamp}</span>
+        {stale ? <Badge variant='destructive'>可能过期</Badge> : null}
+      </p>
+    </div>
+  )
+}
+
+function formatCommitTime(value: string): string {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN', { hour12: false })
 }
 
 function DeleteRepositoryDialog({
