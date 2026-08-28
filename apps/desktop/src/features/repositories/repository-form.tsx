@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { useFieldArray, useForm } from 'react-hook-form'
+import { useEffect, useState, type FormEvent } from 'react'
+import { useFieldArray, useForm, type FieldErrors } from 'react-hook-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { z } from 'zod'
@@ -155,6 +155,40 @@ export function RepositoryForm({ open, onOpenChange, project, state }: Repositor
     }
   }
 
+  function submitRepository() {
+    if (!remote) {
+      const message = '请先读取远程分支，确认仓库地址和本机 Git 凭据可用。'
+      form.setError('url', { type: 'manual', message }, { shouldFocus: true })
+      toast.error(message)
+      return
+    }
+
+    if (inheritAuthors) {
+      form.setValue('authors', undefined)
+    }
+    void form.handleSubmit((value) => save.mutate(value), handleInvalid)()
+  }
+
+  function handleFormSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    submitRepository()
+  }
+
+  function handleInvalid(errors: FieldErrors<RepositoryFormInput>) {
+    const field = Object.keys(errors)[0] as keyof RepositoryFormInput | undefined
+    const label = field ? FIELD_LABELS[field] : undefined
+
+    if (errors.localPath) {
+      setAdvancedOpen(true)
+      requestAnimationFrame(() => form.setFocus('localPath'))
+    } else if (errors.id) {
+      const message = '仓库标识生成失败，请重新读取远程分支。'
+      form.setError('url', { type: 'manual', message }, { shouldFocus: true })
+    }
+
+    toast.error(label ? `请检查${label}后再保存。` : '请检查仓库配置后再保存。')
+  }
+
   const branches = remote?.branches ?? (project ? [project.branch] : [])
 
   return (
@@ -168,7 +202,11 @@ export function RepositoryForm({ open, onOpenChange, project, state }: Repositor
         </SheetHeader>
         <ScrollArea className='min-h-0 flex-1'>
           <Form {...form}>
-            <form id='repository-form' onSubmit={form.handleSubmit((value) => save.mutate(value))} className='space-y-5 px-4 pb-6'>
+            <form
+              id='repository-form'
+              onSubmit={handleFormSubmit}
+              className='space-y-5 px-4 pb-6'
+            >
               <FormField
                 control={form.control}
                 name='url'
@@ -302,7 +340,7 @@ export function RepositoryForm({ open, onOpenChange, project, state }: Repositor
           </Form>
         </ScrollArea>
         <SheetFooter className='border-t'>
-          <Button type='submit' form='repository-form' disabled={save.isPending || inspecting || !remote}>
+          <Button type='button' disabled={save.isPending || inspecting} onClick={submitRepository}>
             {save.isPending && <Loader2 className='animate-spin' />}
             {save.isPending ? '正在同步并保存…' : '同步并保存'}
           </Button>
@@ -310,6 +348,16 @@ export function RepositoryForm({ open, onOpenChange, project, state }: Repositor
       </SheetContent>
     </Sheet>
   )
+}
+
+const FIELD_LABELS: Record<keyof RepositoryFormInput, string> = {
+  id: '仓库标识',
+  name: '仓库名称',
+  url: '远程地址',
+  branch: '采集分支',
+  localPath: 'Bare Git 缓存路径',
+  authors: '仓库作者身份',
+  enabled: '启用状态',
 }
 
 function getErrorMessage(error: unknown): string {

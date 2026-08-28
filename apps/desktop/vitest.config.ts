@@ -20,7 +20,16 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ["@radix-ui/react-checkbox", "sonner"],
+    include: [
+      "@hookform/resolvers/zod",
+      "@radix-ui/react-checkbox",
+      "@radix-ui/react-collapsible",
+      "@radix-ui/react-select",
+      "@radix-ui/react-switch",
+      "@tanstack/react-query",
+      "sonner",
+      "zod",
+    ],
   },
   test: {
     browser: {
