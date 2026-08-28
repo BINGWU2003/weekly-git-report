@@ -21,7 +21,6 @@ export function AppTitle() {
           asChild
         >
           <div>
-            <Logo className='size-6! shrink-0' />
             <Link
               to='/'
               onClick={() => setOpenMobile(false)}
