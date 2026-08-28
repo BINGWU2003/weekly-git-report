@@ -82,7 +82,13 @@ export function Dashboard() {
             <TriangleAlert />
             <AlertTitle>尚未完成初始化</AlertTitle>
             <AlertDescription>
-              先在终端运行 <code>weekly init</code> 创建共享配置，后续版本会提供桌面初始化向导。
+              <p>前往常规设置创建共享配置、仓库索引、报告目录和生成模板，无需先运行 CLI。</p>
+              <Button asChild size='sm' variant='outline' className='mt-2'>
+                <Link to='/settings'>
+                  <Settings2 />
+                  开始初始化
+                </Link>
+              </Button>
             </AlertDescription>
           </Alert>
         )}
