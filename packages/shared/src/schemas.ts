@@ -161,6 +161,22 @@ export const SaveWeekSummaryInputSchema = PeriodSchema.extend({
   content: z.string().min(1),
 });
 
+export const SummaryTemplateDocumentSchema = z.object({
+  content: z.string(),
+  renderedContent: z.string().nullable(),
+  path: z.string(),
+  revision: z.string(),
+  defaultRevision: z.string(),
+  isDefault: z.boolean(),
+});
+
+export const SummaryTemplateResultSchema = z.object({
+  formatVersion: z.literal(1),
+  type: z.literal("weekly"),
+  template: SummaryTemplateDocumentSchema,
+  created: z.boolean(),
+});
+
 export const McpToolInputSchema = z.union([
   ListProjectsInputSchema,
   SyncProjectsInputSchema,

@@ -6,6 +6,9 @@ import {
   parseProjectImportArgs,
   parseProjectSelectionArgs,
   parseSummarySaveArgs,
+  parseTemplateReadArgs,
+  parseTemplateResetArgs,
+  parseTemplateWriteArgs,
 } from "../src/utils/args.js";
 
 describe("automation argument parsing", () => {
@@ -88,5 +91,28 @@ describe("automation argument parsing", () => {
       file: "summary.md",
       period: { start: "2026-08-18", end: "2026-08-24" },
     });
+  });
+
+  test("parses optional template rendering dates", () => {
+    expect(parseTemplateReadArgs([])).toEqual({});
+    expect(parseTemplateReadArgs(["--start", "2026-08-18", "--end", "2026-08-24"])).toEqual({
+      period: { start: "2026-08-18", end: "2026-08-24" },
+    });
+    expect(() => parseTemplateReadArgs(["--start", "2026-08-18"])).toThrow(/provided together/);
+  });
+
+  test("requires revision safety for template writes and force for reset", () => {
+    expect(parseTemplateWriteArgs(["--file", "template.md", "--revision", "abc"])).toEqual({
+      file: "template.md",
+      revision: "abc",
+      force: false,
+    });
+    expect(parseTemplateWriteArgs(["--force"])).toEqual({ force: true });
+    expect(() => parseTemplateWriteArgs([])).toThrow(/--revision/);
+    expect(() => parseTemplateWriteArgs(["--revision", "abc", "--force"])).toThrow(
+      /cannot be combined/,
+    );
+    expect(parseTemplateResetArgs(["--force"])).toEqual({ force: true });
+    expect(() => parseTemplateResetArgs([])).toThrow(/requires --force/);
   });
 });

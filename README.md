@@ -59,7 +59,7 @@ npx skills add BINGWU2003/weekly-git-report
 根据 2026-08-18 到 2026-08-24 的 Git 提交生成周报并保存。
 ```
 
-Skill 会指导 Agent 调用统一 CLI，完成同步、采集、读取 raw 和保存 summary。
+Skill 会指导 Agent 调用统一 CLI，读取可编辑的生成模板，完成同步、采集、读取 raw 和保存 summary。
 
 #### MCP
 
@@ -84,6 +84,7 @@ MCP 提供 `list_projects`、`sync_projects`、`collect_git_logs`、`get_week_in
 
 ```sh
 npx -y @weekly-git-report/cli@latest collect --since 2026-08-18 --until 2026-08-24 --all
+npx -y @weekly-git-report/cli@latest templates read --start 2026-08-18 --end 2026-08-24
 npx -y @weekly-git-report/cli@latest raw read --start 2026-08-18 --end 2026-08-24
 npx -y @weekly-git-report/cli@latest summary save --start 2026-08-18 --end 2026-08-24 --file ./weekly-summary.md
 ```
@@ -100,7 +101,7 @@ npx -y @weekly-git-report/cli@latest summary save --start 2026-08-18 --end 2026-
 4. 从该远程引用读取指定日期范围内的提交，不依赖本地 `HEAD`。
 5. 按命令行作者、项目作者或全局身份的优先级过滤提交。
 6. 写入 raw 索引、manifest 和各项目 Markdown。
-7. 由 Agent 或 MCP 客户端生成总结，并写入 summary 文件。
+7. Agent 读取共享提示词模板，根据 raw 内容生成总结，并写入 summary 文件。
 
 命令行传入的作者按完整姓名或完整邮箱匹配，不区分大小写。未传作者时，项目的 `authors` 优先于全局 `identities`。
 
@@ -157,6 +158,7 @@ Electron 仓库页和 `projects list/sync` JSON 会从本地缓存的 `refs/remo
   config.json
   projects.json
   repositories/
+  templates/weekly/summary.md
 
 {outputRoot}/
   raw/{YYYY}/{MM}/{start}_{end}/
@@ -170,6 +172,7 @@ Electron 仓库页和 `projects list/sync` JSON 会从本地缓存的 `refs/remo
 - `manifest.json`：周期、项目文件、提交数量和错误等结构化元数据。
 - `{project}-{urlHash}.md`：单个项目的提交记录。
 - `summary/...md`：Agent 或 MCP 客户端生成的最终周报。
+- `templates/weekly/summary.md`：CLI 与 Electron 共用的周报生成提示词，支持日期变量。
 
 raw 读取和 summary 写入都限制在配置的 `outputRoot` 内。
 

@@ -5,7 +5,11 @@ import type {
   DesktopAPI,
   ImportRepositoriesRequest,
   SaveRepositoryRequest,
+  SummaryTemplatePreviewRequest,
+  SummaryTemplateResetRequest,
+  SummaryTemplateSaveRequest,
 } from "../../shared/ipc.js";
+import type { Period } from "@weekly-git-report/shared";
 import { IPC_CHANNELS } from "../../shared/ipc.js";
 
 const electronAPI: DesktopAPI = Object.freeze({
@@ -25,6 +29,15 @@ const electronAPI: DesktopAPI = Object.freeze({
     initialize: (config: Config) => ipcRenderer.invoke(IPC_CHANNELS.configInitialize, config),
     save: (config: Config, expectedRevision: string) =>
       ipcRenderer.invoke(IPC_CHANNELS.configSave, config, expectedRevision),
+  }),
+  templates: Object.freeze({
+    read: (period?: Period) => ipcRenderer.invoke(IPC_CHANNELS.templatesRead, period),
+    preview: (request: SummaryTemplatePreviewRequest) =>
+      ipcRenderer.invoke(IPC_CHANNELS.templatesPreview, request),
+    save: (request: SummaryTemplateSaveRequest) =>
+      ipcRenderer.invoke(IPC_CHANNELS.templatesSave, request),
+    reset: (request: SummaryTemplateResetRequest) =>
+      ipcRenderer.invoke(IPC_CHANNELS.templatesReset, request),
   }),
   projects: Object.freeze({
     list: () => ipcRenderer.invoke(IPC_CHANNELS.projectsList),

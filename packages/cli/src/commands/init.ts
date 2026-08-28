@@ -27,7 +27,11 @@ export async function runInitCommand(): Promise<void> {
 
   if (existing) {
     const createdProjects = await ensureProjectsIndex();
-    await initConfig(existing);
+    const result = await initConfig(existing);
+
+    if (result.createdSummaryTemplate) {
+      console.log(`Summary template: ${result.summaryTemplateFile}`);
+    }
 
     if (!createdProjects) {
       console.log(`Configuration already initialized: ${getConfigFilePath()}`);
@@ -49,6 +53,7 @@ export async function runInitCommand(): Promise<void> {
   console.log(`Config: ${result.configFile}`);
   console.log(`Projects: ${getProjectsFilePath()}`);
   console.log(`Output root: ${result.outputRoot}`);
+  console.log(`Summary template: ${result.summaryTemplateFile}`);
   outro("Configuration initialized.");
 
   await promptAddRepository();

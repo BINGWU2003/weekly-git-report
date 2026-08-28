@@ -1,6 +1,6 @@
 # @weekly-git-report/cli
 
-weekly-git-report 的统一命令行入口。它既提供交互式配置和项目管理，也为 Agent、脚本和 CI 提供稳定 JSON 命令，用于同步、采集、读取 raw 和保存 summary。
+weekly-git-report 的统一命令行入口。它既提供交互式配置、项目与生成模板管理，也为 Agent、脚本和 CI 提供稳定 JSON 命令，用于同步、采集、读取模板和 raw，以及保存 summary。
 
 ## 环境要求
 
@@ -61,6 +61,10 @@ weekly
 | `weekly raw index --start ... --end ...`    | 否       | 读取周期 raw 索引                        |
 | `weekly raw read --start ... --end ...`     | 否       | 读取周期内的项目 Markdown                |
 | `weekly summary save --start ... --end ...` | 否       | 从文件或 stdin 保存最终总结              |
+| `weekly templates init`                     | 否       | 初始化缺失的默认周报生成模板             |
+| `weekly templates read [period]`            | 否       | 读取模板及可选的日期变量渲染结果         |
+| `weekly templates write [options]`          | 否       | 从文件或 stdin 安全更新模板              |
+| `weekly templates reset --force`            | 否       | 恢复当前版本的内置默认模板               |
 | `weekly doctor`                             | 否       | 检查 Git、配置、项目路径和 `origin`      |
 | `weekly --help`                             | 否       | 显示命令帮助                             |
 
@@ -79,9 +83,34 @@ npx -y @weekly-git-report/cli@latest init
 ```text
 ~/.weekly-git-report/config.json
 ~/.weekly-git-report/projects.json
+~/.weekly-git-report/templates/weekly/summary.md
 ```
 
-`init` 会创建输出目录和项目索引。如果全局配置已经存在，它会保留现有配置，并补齐缺失的项目索引。
+`init` 会创建输出目录、项目索引和默认周报生成模板。如果全局配置已经存在，它会保留现有配置与模板内容，只补齐缺失文件。
+
+### 管理周报生成模板
+
+读取原始模板，或按指定周期渲染 `{{startDate}}`、`{{endDate}}`：
+
+```sh
+npx -y @weekly-git-report/cli@latest templates read
+npx -y @weekly-git-report/cli@latest templates read --start 2026-08-18 --end 2026-08-24
+```
+
+模板正文保存在 `~/.weekly-git-report/templates/weekly/summary.md`，CLI stdout 返回包含正文、渲染结果、路径、revision 和默认状态的稳定 JSON。读取时若文件缺失会自动创建，但绝不会覆盖已有内容。
+
+更新模板前先读取 revision，然后从文件或 stdin 写入：
+
+```sh
+npx -y @weekly-git-report/cli@latest templates write --file ./summary-template.md --revision REVISION
+Get-Content ./summary-template.md | npx -y @weekly-git-report/cli@latest templates write --revision REVISION
+```
+
+模板必须非空，同时包含 `{{startDate}}`、`{{endDate}}`，不接受其他变量。确实需要跳过 revision 冲突保护时可使用 `--force`。恢复内置默认模板必须显式确认：
+
+```sh
+npx -y @weekly-git-report/cli@latest templates reset --force
+```
 
 ### 添加或编辑项目
 
@@ -200,6 +229,7 @@ npx -y @weekly-git-report/cli@latest projects sync --all
 
 ```sh
 npx -y @weekly-git-report/cli@latest collect --since 2026-08-18 --until 2026-08-24 --all
+npx -y @weekly-git-report/cli@latest templates read --start 2026-08-18 --end 2026-08-24
 npx -y @weekly-git-report/cli@latest raw read --start 2026-08-18 --end 2026-08-24
 npx -y @weekly-git-report/cli@latest summary save --start 2026-08-18 --end 2026-08-24 --file ./weekly-summary.md
 ```
@@ -232,7 +262,7 @@ CLI 会先询问是否同时永久删除 Bare Git 缓存，默认选择“否”
 
 ### 命令提示需要交互式终端
 
-`init`、`config edit`、`projects add`、`projects edit` 和 `projects remove` 需要 stdin 与 stdout 都连接到 TTY。`projects import` 在非 TTY 中必须同时提供目录和 `--all`。其他自动化场景可使用同一 CLI 的 `projects list/sync`、`collect`、`raw` 和 `summary` 命令。
+`init`、`config edit`、`projects add`、`projects edit` 和 `projects remove` 需要 stdin 与 stdout 都连接到 TTY。`projects import` 在非 TTY 中必须同时提供目录和 `--all`。其他自动化场景可使用同一 CLI 的 `projects list/sync`、`templates`、`collect`、`raw` 和 `summary` 命令。
 
 ### 找不到匹配的已启用项目
 

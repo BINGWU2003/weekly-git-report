@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 
 import type { Config } from "@weekly-git-report/shared";
 
+import { initializeSummaryTemplate } from "../template/summary-template.js";
 import {
   getConfigFilePath,
   getOutputRoot,
@@ -16,7 +17,9 @@ export interface InitConfigResult {
   outputRoot: string;
   rawDir: string;
   summaryDir: string;
+  summaryTemplateFile: string;
   createdConfig: boolean;
+  createdSummaryTemplate: boolean;
 }
 
 export async function initConfig(config: Config): Promise<InitConfigResult> {
@@ -31,6 +34,7 @@ export async function initConfig(config: Config): Promise<InitConfigResult> {
   await mkdir(summaryDir, { recursive: true });
 
   const createdConfig = await writeConfigIfMissing(configFile, config);
+  const summaryTemplate = await initializeSummaryTemplate();
 
   return {
     workDir,
@@ -38,7 +42,9 @@ export async function initConfig(config: Config): Promise<InitConfigResult> {
     outputRoot,
     rawDir,
     summaryDir,
+    summaryTemplateFile: summaryTemplate.template.path,
     createdConfig,
+    createdSummaryTemplate: summaryTemplate.created,
   };
 }
 

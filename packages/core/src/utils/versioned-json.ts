@@ -39,10 +39,14 @@ export async function assertFileRevision(
 }
 
 export async function writeJsonAtomic(file: string, value: unknown): Promise<void> {
+  await writeTextAtomic(file, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+export async function writeTextAtomic(file: string, content: string): Promise<void> {
   await mkdir(path.dirname(file), { recursive: true });
   const temporaryFile = `${file}.${process.pid}.${Date.now()}.tmp`;
   try {
-    await writeFile(temporaryFile, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+    await writeFile(temporaryFile, content, "utf8");
     await rename(temporaryFile, file);
   } catch (error) {
     await rm(temporaryFile, { force: true });

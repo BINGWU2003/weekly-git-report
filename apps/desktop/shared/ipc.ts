@@ -6,6 +6,8 @@ import type {
   RepositoryFolderScanResult,
   RepositoryProject,
   RepositoryRuntimeState,
+  Period,
+  SummaryTemplateResult,
 } from "@weekly-git-report/shared";
 
 export interface ConfigState {
@@ -54,6 +56,22 @@ export interface RepositorySyncResult {
   runtime: RepositoryRuntimeState[];
 }
 
+export interface SummaryTemplateSaveRequest {
+  content: string;
+  expectedRevision: string;
+  period?: Period;
+}
+
+export interface SummaryTemplateResetRequest {
+  expectedRevision: string;
+  period?: Period;
+}
+
+export interface SummaryTemplatePreviewRequest {
+  content: string;
+  period: Period;
+}
+
 export type DiagnosticStatus = "ok" | "warning" | "error";
 
 export interface DiagnosticCheck {
@@ -95,6 +113,12 @@ export interface DesktopAPI {
     initialize(config: Config): Promise<ConfigState>;
     save(config: Config, expectedRevision: string): Promise<ConfigState>;
   };
+  templates: {
+    read(period?: Period): Promise<SummaryTemplateResult>;
+    preview(request: SummaryTemplatePreviewRequest): Promise<string>;
+    save(request: SummaryTemplateSaveRequest): Promise<SummaryTemplateResult>;
+    reset(request: SummaryTemplateResetRequest): Promise<SummaryTemplateResult>;
+  };
   projects: {
     list(): Promise<RepositoryProject[]>;
     state(): Promise<ProjectsState>;
@@ -126,6 +150,10 @@ export const IPC_CHANNELS = {
   configDefaults: "config:defaults",
   configInitialize: "config:initialize",
   configSave: "config:save",
+  templatesRead: "templates:read",
+  templatesPreview: "templates:preview",
+  templatesSave: "templates:save",
+  templatesReset: "templates:reset",
   projectsList: "projects:list",
   projectsState: "projects:state",
   projectsRuntimeState: "projects:runtime-state",

@@ -3,6 +3,7 @@
 import { runDoctorCommand } from "./commands/doctor.js";
 import { runEditConfigCommand, runInitCommand } from "./commands/init.js";
 import { runCollectCommand, runRawCommand, runSummaryCommand } from "./commands/report.js";
+import { runTemplatesCommand } from "./commands/templates.js";
 import {
   runAddProjectCommand,
   runEditProjectCommand,
@@ -43,6 +44,9 @@ try {
       break;
     case "summary":
       await runSummaryCommand(commandArgs[0], commandArgs.slice(1));
+      break;
+    case "templates":
+      await runTemplatesCommand(commandArgs[0], commandArgs.slice(1));
       break;
     case "doctor":
       await runDoctorCommand();
@@ -140,6 +144,10 @@ Usage:
   weekly raw index --start <YYYY-MM-DD> --end <YYYY-MM-DD>
   weekly raw read --start <YYYY-MM-DD> --end <YYYY-MM-DD>
   weekly summary save --start <YYYY-MM-DD> --end <YYYY-MM-DD> [--file <path>]
+  weekly templates init
+  weekly templates read [--start <YYYY-MM-DD> --end <YYYY-MM-DD>]
+  weekly templates write [--file <path>] (--revision <revision>|--force)
+  weekly templates reset --force
   weekly doctor
 `);
 }

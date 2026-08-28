@@ -8,6 +8,16 @@ export interface ProjectImportArgs {
   folder?: string;
 }
 
+export interface TemplateReadArgs {
+  period?: { start: string; end: string };
+}
+
+export interface TemplateWriteArgs {
+  file?: string;
+  revision?: string;
+  force: boolean;
+}
+
 export function parseProjectImportArgs(args: string[]): ProjectImportArgs {
   let all = false;
   let folder: string | undefined;
@@ -147,6 +157,57 @@ export function parseSummarySaveArgs(args: string[]): {
   }
 
   return { file, period: parsePeriodArgs(periodArgs) };
+}
+
+export function parseTemplateReadArgs(args: string[]): TemplateReadArgs {
+  const period = parsePeriodArgs(args);
+  if ((period.start && !period.end) || (!period.start && period.end)) {
+    throw new Error("--start and --end must be provided together.");
+  }
+  return period.start && period.end ? { period: { start: period.start, end: period.end } } : {};
+}
+
+export function parseTemplateWriteArgs(args: string[]): TemplateWriteArgs {
+  let file: string | undefined;
+  let revision: string | undefined;
+  let force = false;
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--file") {
+      if (file) throw new Error("--file cannot be repeated.");
+      file = readOptionValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+    if (arg === "--revision") {
+      if (revision) throw new Error("--revision cannot be repeated.");
+      revision = readOptionValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+    if (arg === "--force") {
+      if (force) throw new Error("--force cannot be repeated.");
+      force = true;
+      continue;
+    }
+    throw new Error(`Unknown templates write option: ${arg}`);
+  }
+
+  if (revision && force) throw new Error("--revision cannot be combined with --force.");
+  if (!revision && !force) throw new Error("Pass --revision <revision> or --force.");
+  return {
+    ...(file ? { file } : {}),
+    ...(revision ? { revision } : {}),
+    force,
+  };
+}
+
+export function parseTemplateResetArgs(args: string[]): { force: true } {
+  if (args.length !== 1 || args[0] !== "--force") {
+    throw new Error("templates reset requires --force.");
+  }
+  return { force: true };
 }
 
 function readOptionValue(args: string[], index: number, option: string): string {
