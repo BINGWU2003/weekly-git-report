@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/card'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
+import { OverflowTooltip } from '@/components/overflow-tooltip'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { getErrorMessage } from '@/lib/errors'
 import { showSuccessToast } from '@/lib/toast'
@@ -70,7 +71,9 @@ export function Dashboard() {
           <Alert variant='destructive'>
             <AlertCircle />
             <AlertTitle>无法读取本地状态</AlertTitle>
-            <AlertDescription>{getErrorMessage(overview.error)}</AlertDescription>
+            <AlertDescription className='[overflow-wrap:anywhere]'>
+              {getErrorMessage(overview.error)}
+            </AlertDescription>
           </Alert>
         )}
 
@@ -123,11 +126,12 @@ export function Dashboard() {
                   key={check.id}
                   className='flex items-start justify-between gap-4 rounded-lg border p-3'
                 >
-                  <div className='min-w-0'>
+                  <div className='min-w-0 flex-1'>
                     <p className='font-medium'>{check.label}</p>
-                    <p className='truncate text-sm text-muted-foreground' title={check.message}>
-                      {check.message}
-                    </p>
+                    <OverflowTooltip
+                      text={check.message}
+                      className='text-sm text-muted-foreground'
+                    />
                   </div>
                   <StatusBadge status={check.status} />
                 </div>
@@ -163,7 +167,9 @@ export function Dashboard() {
               {data?.config && (
                 <div className='mt-2 rounded-lg bg-muted p-3 text-sm'>
                   <p className='font-medium'>当前报告目录</p>
-                  <p className='mt-1 break-all text-muted-foreground'>{data.config.outputRoot}</p>
+                  <p className='mt-1 text-muted-foreground [overflow-wrap:anywhere]'>
+                    {data.config.outputRoot}
+                  </p>
                 </div>
               )}
             </CardContent>

@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
+import { OverflowTooltip } from '@/components/overflow-tooltip'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { getErrorMessage } from '@/lib/errors'
 import { selectSystemDirectory } from '@/lib/system-actions'
@@ -49,6 +50,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { ProjectsState, RepositorySyncResult } from '../../../shared/ipc'
 import { RepositoryForm } from './repository-form'
 import { RepositoryImportSheet } from './repository-import-sheet'
@@ -201,7 +203,7 @@ export function Repositories() {
             <AlertCircle />
             <AlertTitle>部分仓库同步失败</AlertTitle>
             <AlertDescription>
-              <ul className='list-disc space-y-1 ps-5'>
+              <ul className='list-disc space-y-1 ps-5 [overflow-wrap:anywhere]'>
                 {lastSync.errors.map((error, index) => (
                   <li key={`${error.projectId ?? error.name}-${index}`}>
                     {error.name ?? error.projectId ?? '未知仓库'}：{error.message}
@@ -239,29 +241,32 @@ export function Repositories() {
                     <TableRow key={project.id}>
                       <TableCell className='whitespace-normal ps-4'>
                         <div className='min-w-0 space-y-1.5'>
-                          <p className='truncate font-medium' title={project.name}>
-                            {project.name}
-                          </p>
-                          <p
-                            className='truncate text-xs text-muted-foreground'
-                            title={project.url}
-                          >
-                            {project.url}
-                          </p>
+                          <OverflowTooltip text={project.name} className='font-medium' />
+                          <OverflowTooltip
+                            text={project.url}
+                            className='text-xs text-muted-foreground'
+                            monospace
+                          />
                           <div className='flex min-w-0 items-center gap-2'>
-                            <Badge
-                              variant='outline'
-                              className='max-w-40'
-                              title={project.branch}
-                            >
-                              <span className='truncate'>{project.branch}</span>
+                            <Badge variant='outline' className='max-w-40'>
+                              <OverflowTooltip text={project.branch} monospace />
                             </Badge>
-                            <span
-                              className='truncate text-xs text-muted-foreground'
-                              title={authorDetails}
-                            >
-                              {authorSummary}
-                            </span>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span
+                                  className='min-w-0 flex-1 truncate text-xs text-muted-foreground'
+                                  tabIndex={0}
+                                >
+                                  {authorSummary}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent
+                                sideOffset={4}
+                                className='max-w-[min(36rem,calc(100vw-2rem))] whitespace-pre-line text-start [overflow-wrap:anywhere]'
+                              >
+                                {authorDetails}
+                              </TooltipContent>
+                            </Tooltip>
                           </div>
                         </div>
                       </TableCell>
@@ -390,15 +395,41 @@ function LatestCommitCell({
         : runtime.status === 'missing-branch'
           ? '分支尚无缓存'
           : '缓存读取失败'
-    return <span className='text-xs text-muted-foreground' title={runtime.message}>{label}</span>
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className='text-xs text-muted-foreground' tabIndex={0}>{label}</span>
+        </TooltipTrigger>
+        <TooltipContent
+          sideOffset={4}
+          className='max-w-[min(36rem,calc(100vw-2rem))] whitespace-normal text-start [overflow-wrap:anywhere]'
+        >
+          {runtime.message}
+        </TooltipContent>
+      </Tooltip>
+    )
   }
 
   const commit = runtime.latestCommit
   const timestamp = formatCommitTime(commit.committedAt)
-  const title = `${commit.hash}\n${commit.authorName} <${commit.authorEmail}>\n${timestamp}`
   return (
-    <div className='min-w-0' title={title}>
-      <p className='truncate text-sm font-medium'>{commit.subject}</p>
+    <div className='min-w-0'>
+      <OverflowTooltip
+        text={commit.subject}
+        className='text-sm font-medium'
+        content={(
+          <div className='space-y-1'>
+            <p>{commit.subject}</p>
+            <p className='text-primary-foreground/80'>
+              <code>{commit.hash}</code>
+              <br />
+              {commit.authorName} &lt;{commit.authorEmail}&gt;
+              <br />
+              {timestamp}
+            </p>
+          </div>
+        )}
+      />
       <p className='mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground'>
         <code className='shrink-0'>{commit.hash.slice(0, 7)}</code>
         <span>·</span>

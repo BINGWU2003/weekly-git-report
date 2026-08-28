@@ -3,6 +3,7 @@ import { AlertCircle, CheckCircle2, FolderSearch, Loader2, RefreshCw, XCircle } 
 import { toast } from 'sonner'
 import type { RepositoryFolderScanResult, RepositoryProject } from '@weekly-git-report/shared'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { OverflowTooltip } from '@/components/overflow-tooltip'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -250,7 +251,7 @@ export function RepositoryImportSheet({
       <SheetContent className='w-full sm:max-w-4xl'>
         <SheetHeader>
           <SheetTitle>从文件夹导入仓库</SheetTitle>
-          <SheetDescription className='break-all'>{folder}</SheetDescription>
+          <SheetDescription className='[overflow-wrap:anywhere]'>{folder}</SheetDescription>
         </SheetHeader>
 
         <div className='flex items-center justify-between gap-3 px-4 text-sm'>
@@ -270,7 +271,7 @@ export function RepositoryImportSheet({
           <Alert variant='destructive' className='mx-4 w-auto'>
             <AlertCircle />
             <AlertTitle>扫描失败</AlertTitle>
-            <AlertDescription>{scanError}</AlertDescription>
+            <AlertDescription className='[overflow-wrap:anywhere]'>{scanError}</AlertDescription>
           </Alert>
         ) : null}
 
@@ -286,10 +287,10 @@ export function RepositoryImportSheet({
 
         <ScrollArea className='min-h-0 flex-1'>
           <div className='px-4 pb-4'>
-            <Table>
+            <Table className='min-w-[56rem] table-fixed'>
               <TableHeader>
                 <TableRow>
-                  <TableHead className='w-10'>
+                  <TableHead className='w-12'>
                     <Checkbox
                       checked={allSelected}
                       disabled={!selectable.length || importing}
@@ -297,10 +298,10 @@ export function RepositoryImportSheet({
                       aria-label='选择全部可导入仓库'
                     />
                   </TableHead>
-                  <TableHead>仓库</TableHead>
-                  <TableHead>分支</TableHead>
-                  <TableHead>缓存路径</TableHead>
-                  <TableHead>状态</TableHead>
+                  <TableHead className='w-64'>仓库</TableHead>
+                  <TableHead className='w-40'>分支</TableHead>
+                  <TableHead className='w-64'>缓存路径</TableHead>
+                  <TableHead className='w-56'>状态</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -315,14 +316,29 @@ export function RepositoryImportSheet({
                       />
                     </TableCell>
                     <TableCell className='max-w-64'>
-                      <p className='truncate font-medium'>{candidate.project?.name ?? candidate.sourcePath}</p>
-                      <p className='truncate text-xs text-muted-foreground' title={candidate.originUrl ?? candidate.sourcePath}>
-                        {candidate.originUrl ?? candidate.sourcePath}
-                      </p>
+                      <OverflowTooltip
+                        text={candidate.project?.name ?? candidate.sourcePath}
+                        className='font-medium'
+                      />
+                      <OverflowTooltip
+                        text={candidate.originUrl ?? candidate.sourcePath}
+                        className='text-xs text-muted-foreground'
+                        monospace
+                      />
                     </TableCell>
-                    <TableCell>{candidate.project?.branch ? <Badge variant='outline'>{candidate.project.branch}</Badge> : '—'}</TableCell>
-                    <TableCell className='max-w-64 truncate text-xs text-muted-foreground' title={candidate.project?.localPath}>
-                      {candidate.project?.localPath ?? '—'}
+                    <TableCell>
+                      {candidate.project?.branch ? (
+                        <Badge variant='outline' className='max-w-36'>
+                          <OverflowTooltip text={candidate.project.branch} monospace />
+                        </Badge>
+                      ) : '—'}
+                    </TableCell>
+                    <TableCell className='max-w-64'>
+                      <OverflowTooltip
+                        text={candidate.project?.localPath ?? '—'}
+                        className='text-xs text-muted-foreground'
+                        monospace
+                      />
                     </TableCell>
                     <TableCell><CandidateStatus candidate={candidate} /></TableCell>
                   </TableRow>
@@ -365,5 +381,14 @@ function CandidateStatus({ candidate }: { candidate: ImportCandidate }) {
     return <span className='flex items-center gap-1 text-xs text-emerald-600'><CheckCircle2 className='size-3' />已添加</span>
   }
   if (candidate.status === 'ready') return <Badge variant='secondary'>可导入</Badge>
-  return <span className='flex max-w-56 items-start gap-1 text-xs text-destructive' title={candidate.message}><XCircle className='mt-0.5 size-3 shrink-0' /><span className='line-clamp-2'>{candidate.message ?? '失败'}</span></span>
+  return (
+    <span className='flex max-w-56 items-start gap-1 text-xs text-destructive'>
+      <XCircle className='mt-0.5 size-3 shrink-0' />
+      <OverflowTooltip
+        text={candidate.message ?? '失败'}
+        className='text-xs text-destructive'
+        lines={2}
+      />
+    </span>
+  )
 }
