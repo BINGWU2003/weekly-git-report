@@ -1,8 +1,8 @@
 export * from "./collector/collect-commits.js";
-export * from "./collector/resolve-period.js";
 export * from "./config/defaults.js";
 export * from "./config/init-config.js";
 export * from "./config/load-config.js";
+export * from "./config/automation-config.js";
 export * from "./git/git-command.js";
 export * from "./git/git-identity.js";
 export * from "./manifest/projects-index.js";
@@ -12,6 +12,7 @@ export * from "./repository/project-management.js";
 export * from "./repository/repository-runtime.js";
 export * from "./repository/sync-repository.js";
 export * from "./report/report-index.js";
+export * from "./report/generation-input.js";
 export * from "./report/report-cadence.js";
 export * from "./report/summary-metadata.js";
 export * from "./template/summary-template.js";

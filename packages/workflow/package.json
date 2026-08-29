@@ -15,8 +15,11 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@ai-sdk/deepseek": "catalog:",
+    "@ai-sdk/openai": "catalog:",
     "@weekly-git-report/core": "workspace:*",
-    "@weekly-git-report/shared": "workspace:*"
+    "@weekly-git-report/shared": "workspace:*",
+    "ai": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",

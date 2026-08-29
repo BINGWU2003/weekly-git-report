@@ -1,5 +1,5 @@
-import { ReportCadenceSchema } from "@weekly-git-report/shared";
-import type { ReportCadence } from "@weekly-git-report/shared";
+import { ReportTypeSchema } from "@weekly-git-report/shared";
+import type { ReportType } from "@weekly-git-report/shared";
 
 export interface ProjectSelection {
   explicit: boolean;
@@ -12,12 +12,12 @@ export interface ProjectImportArgs {
 }
 
 export interface TemplateReadArgs {
-  cadence: ReportCadence;
+  reportType: ReportType;
   period?: { start: string; end: string };
 }
 
 export interface TemplateWriteArgs {
-  cadence: ReportCadence;
+  reportType: ReportType;
   file?: string;
   revision?: string;
   force: boolean;
@@ -147,13 +147,17 @@ export function parsePeriodArgs(args: string[]): { start?: string; end?: string 
 export function parseSummarySaveArgs(args: string[]): {
   file?: string;
   period: { start?: string; end?: string };
-  cadence: ReportCadence;
+  reportType: ReportType;
+  title?: string;
+  reportId?: string;
   force: boolean;
 } {
   const periodArgs: string[] = [];
   let file: string | undefined;
-  let cadence: ReportCadence = "weekly";
-  let cadenceSet = false;
+  let reportType: ReportType = "weekly";
+  let reportTypeSet = false;
+  let title: string | undefined;
+  let reportId: string | undefined;
   let force = false;
 
   for (let index = 0; index < args.length; index += 1) {
@@ -164,9 +168,19 @@ export function parseSummarySaveArgs(args: string[]): {
       continue;
     }
     if (arg === "--type") {
-      if (cadenceSet) throw new Error("--type cannot be repeated.");
-      cadence = parseCadence(readOptionValue(args, index, arg));
-      cadenceSet = true;
+      if (reportTypeSet) throw new Error("--type cannot be repeated.");
+      reportType = parseReportType(readOptionValue(args, index, arg));
+      reportTypeSet = true;
+      index += 1;
+      continue;
+    }
+    if (arg === "--title") {
+      title = readOptionValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+    if (arg === "--report-id") {
+      reportId = readOptionValue(args, index, arg);
       index += 1;
       continue;
     }
@@ -178,26 +192,33 @@ export function parseSummarySaveArgs(args: string[]): {
     if (arg) periodArgs.push(arg);
   }
 
-  return { file, period: parsePeriodArgs(periodArgs), cadence, force };
+  return {
+    file,
+    period: parsePeriodArgs(periodArgs),
+    reportType,
+    ...(title ? { title } : {}),
+    ...(reportId ? { reportId } : {}),
+    force,
+  };
 }
 
 export function parseTemplateReadArgs(args: string[]): TemplateReadArgs {
-  const { cadence, remaining } = extractCadence(args);
+  const { reportType, remaining } = extractReportType(args);
   const period = parsePeriodArgs(remaining);
   if ((period.start && !period.end) || (!period.start && period.end)) {
     throw new Error("--start and --end must be provided together.");
   }
   return period.start && period.end
-    ? { cadence, period: { start: period.start, end: period.end } }
-    : { cadence };
+    ? { reportType, period: { start: period.start, end: period.end } }
+    : { reportType };
 }
 
 export function parseTemplateWriteArgs(args: string[]): TemplateWriteArgs {
   let file: string | undefined;
   let revision: string | undefined;
   let force = false;
-  let cadence: ReportCadence = "weekly";
-  let cadenceSet = false;
+  let reportType: ReportType = "weekly";
+  let reportTypeSet = false;
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -219,9 +240,9 @@ export function parseTemplateWriteArgs(args: string[]): TemplateWriteArgs {
       continue;
     }
     if (arg === "--type") {
-      if (cadenceSet) throw new Error("--type cannot be repeated.");
-      cadence = parseCadence(readOptionValue(args, index, arg));
-      cadenceSet = true;
+      if (reportTypeSet) throw new Error("--type cannot be repeated.");
+      reportType = parseReportType(readOptionValue(args, index, arg));
+      reportTypeSet = true;
       index += 1;
       continue;
     }
@@ -231,54 +252,54 @@ export function parseTemplateWriteArgs(args: string[]): TemplateWriteArgs {
   if (revision && force) throw new Error("--revision cannot be combined with --force.");
   if (!revision && !force) throw new Error("Pass --revision <revision> or --force.");
   return {
-    cadence,
+    reportType,
     ...(file ? { file } : {}),
     ...(revision ? { revision } : {}),
     force,
   };
 }
 
-export function parseTemplateResetArgs(args: string[]): { force: true; cadence: ReportCadence } {
-  const { cadence, remaining } = extractCadence(args);
+export function parseTemplateResetArgs(args: string[]): { force: true; reportType: ReportType } {
+  const { reportType, remaining } = extractReportType(args);
   if (remaining.length !== 1 || remaining[0] !== "--force") {
     throw new Error("templates reset requires --force and accepts an optional --type.");
   }
-  return { force: true, cadence };
+  return { force: true, reportType };
 }
 
 export function parseTemplateInitArgs(args: string[]): {
   all: boolean;
-  cadence: ReportCadence;
+  reportType: ReportType;
 } {
   if (args.includes("--all")) {
     if (args.length !== 1) throw new Error("--all cannot be combined with other options.");
-    return { all: true, cadence: "weekly" };
+    return { all: true, reportType: "weekly" };
   }
-  const { cadence, remaining } = extractCadence(args);
+  const { reportType, remaining } = extractReportType(args);
   if (remaining.length > 0) throw new Error(`Unknown templates init option: ${remaining[0]}`);
-  return { all: false, cadence };
+  return { all: false, reportType };
 }
 
-function extractCadence(args: string[]): { cadence: ReportCadence; remaining: string[] } {
-  let cadence: ReportCadence = "weekly";
+function extractReportType(args: string[]): { reportType: ReportType; remaining: string[] } {
+  let reportType: ReportType = "weekly";
   let found = false;
   const remaining: string[] = [];
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (arg === "--type") {
       if (found) throw new Error("--type cannot be repeated.");
-      cadence = parseCadence(readOptionValue(args, index, arg));
+      reportType = parseReportType(readOptionValue(args, index, arg));
       found = true;
       index += 1;
     } else if (arg) {
       remaining.push(arg);
     }
   }
-  return { cadence, remaining };
+  return { reportType, remaining };
 }
 
-function parseCadence(value: string): ReportCadence {
-  const result = ReportCadenceSchema.safeParse(value);
+function parseReportType(value: string): ReportType {
+  const result = ReportTypeSchema.safeParse(value);
   if (!result.success) throw new Error(`Invalid report type: ${value}`);
   return result.data;
 }

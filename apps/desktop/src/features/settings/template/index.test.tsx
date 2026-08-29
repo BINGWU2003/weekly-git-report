@@ -65,13 +65,13 @@ describe('SummaryTemplateEditor', () => {
 
     await userEvent.fill(screen.getByRole('textbox', { name: '周报生成提示词' }), updatedContent)
     await vi.waitFor(() =>
-      expect(preview).toHaveBeenCalledWith({ cadence: 'weekly', content: updatedContent, period })
+      expect(preview).toHaveBeenCalledWith({ reportType: 'weekly', content: updatedContent, period })
     )
     await userEvent.click(screen.getByRole('button', { name: '保存模板' }))
 
     await vi.waitFor(() =>
       expect(save).toHaveBeenCalledWith({
-        cadence: 'weekly',
+        reportType: 'weekly',
         content: updatedContent,
         expectedRevision: 'revision-1',
         period,

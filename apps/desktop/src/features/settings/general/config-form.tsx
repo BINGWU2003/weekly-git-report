@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useFieldArray, useForm, useWatch } from 'react-hook-form'
+import { useFieldArray, useForm } from 'react-hook-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { z } from 'zod'
@@ -21,7 +21,6 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { getErrorMessage } from '@/lib/errors'
 import { selectSystemDirectory } from '@/lib/system-actions'
@@ -73,11 +72,6 @@ export function ConfigForm({ initialConfig, state, isInitializing }: ConfigFormP
       toast.error(getErrorMessage(error))
     },
   })
-
-  const defaultSince = useWatch({ control: form.control, name: 'defaultSince' })
-  const defaultUntil = useWatch({ control: form.control, name: 'defaultUntil' })
-  const sinceMode = defaultSince === 'last monday' ? 'last-monday' : 'date'
-  const untilMode = defaultUntil === 'now' ? 'now' : 'date'
 
   async function selectOutputDirectory() {
     setSelectingOutput(true)
@@ -146,67 +140,6 @@ export function ConfigForm({ initialConfig, state, isInitializing }: ConfigFormP
                   <FormDescription>
                     应用在这里维护只用于读取 Git 日志的 Bare 仓库。初始化后 Electron 不允许修改该目录。
                   </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>默认采集周期</CardTitle>
-            <CardDescription>手动执行或任务未指定日期时使用这些默认值。</CardDescription>
-          </CardHeader>
-          <CardContent className='grid gap-5 sm:grid-cols-2'>
-            <FormField
-              control={form.control}
-              name='defaultSince'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>开始时间</FormLabel>
-                  <Select
-                    value={sinceMode}
-                    onValueChange={(value) =>
-                      field.onChange(value === 'last-monday' ? 'last monday' : today())
-                    }
-                  >
-                    <FormControl>
-                      <SelectTrigger className='w-full'>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value='last-monday'>上周一</SelectItem>
-                      <SelectItem value='date'>指定日期</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {sinceMode === 'date' && <Input type='date' {...field} />}
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name='defaultUntil'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>结束时间</FormLabel>
-                  <Select
-                    value={untilMode}
-                    onValueChange={(value) => field.onChange(value === 'now' ? 'now' : today())}
-                  >
-                    <FormControl>
-                      <SelectTrigger className='w-full'>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value='now'>当前时间</SelectItem>
-                      <SelectItem value='date'>指定日期</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {untilMode === 'date' && <Input type='date' {...field} />}
                   <FormMessage />
                 </FormItem>
               )}
@@ -311,12 +244,4 @@ export function ConfigForm({ initialConfig, state, isInitializing }: ConfigFormP
       </form>
     </Form>
   )
-}
-
-function today(): string {
-  const date = new Date()
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
 }

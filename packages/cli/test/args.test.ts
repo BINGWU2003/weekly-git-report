@@ -89,7 +89,7 @@ describe("automation argument parsing", () => {
         "summary.md",
       ]),
     ).toEqual({
-      cadence: "weekly",
+      reportType: "weekly",
       file: "summary.md",
       force: false,
       period: { start: "2026-08-18", end: "2026-08-24" },
@@ -97,41 +97,41 @@ describe("automation argument parsing", () => {
   });
 
   test("parses optional template rendering dates", () => {
-    expect(parseTemplateReadArgs([])).toEqual({ cadence: "weekly" });
+    expect(parseTemplateReadArgs([])).toEqual({ reportType: "weekly" });
     expect(parseTemplateReadArgs(["--start", "2026-08-18", "--end", "2026-08-24"])).toEqual({
-      cadence: "weekly",
+      reportType: "weekly",
       period: { start: "2026-08-18", end: "2026-08-24" },
     });
-    expect(parseTemplateReadArgs(["--type", "monthly"])).toEqual({ cadence: "monthly" });
+    expect(parseTemplateReadArgs(["--type", "monthly"])).toEqual({ reportType: "monthly" });
     expect(() => parseTemplateReadArgs(["--start", "2026-08-18"])).toThrow(/provided together/);
   });
 
   test("requires revision safety for template writes and force for reset", () => {
     expect(parseTemplateWriteArgs(["--file", "template.md", "--revision", "abc"])).toEqual({
-      cadence: "weekly",
+      reportType: "weekly",
       file: "template.md",
       revision: "abc",
       force: false,
     });
     expect(parseTemplateWriteArgs(["--type", "daily", "--force"])).toEqual({
-      cadence: "daily",
+      reportType: "daily",
       force: true,
     });
     expect(() => parseTemplateWriteArgs([])).toThrow(/--revision/);
     expect(() => parseTemplateWriteArgs(["--revision", "abc", "--force"])).toThrow(
       /cannot be combined/,
     );
-    expect(parseTemplateResetArgs(["--force"])).toEqual({ force: true, cadence: "weekly" });
+    expect(parseTemplateResetArgs(["--force"])).toEqual({ force: true, reportType: "weekly" });
     expect(() => parseTemplateResetArgs([])).toThrow(/requires --force/);
   });
 
   test("supports cadence-aware template initialization and forced summary replacement", () => {
-    expect(parseTemplateInitArgs([])).toEqual({ all: false, cadence: "weekly" });
+    expect(parseTemplateInitArgs([])).toEqual({ all: false, reportType: "weekly" });
     expect(parseTemplateInitArgs(["--type", "monthly"])).toEqual({
       all: false,
-      cadence: "monthly",
+      reportType: "monthly",
     });
-    expect(parseTemplateInitArgs(["--all"])).toEqual({ all: true, cadence: "weekly" });
+    expect(parseTemplateInitArgs(["--all"])).toEqual({ all: true, reportType: "weekly" });
     expect(
       parseSummarySaveArgs([
         "--type",
@@ -143,9 +143,32 @@ describe("automation argument parsing", () => {
         "--force",
       ]),
     ).toEqual({
-      cadence: "daily",
+      reportType: "daily",
       force: true,
       period: { start: "2026-08-28", end: "2026-08-28" },
+    });
+  });
+
+  test("parses custom report identity and title", () => {
+    expect(
+      parseSummarySaveArgs([
+        "--type",
+        "custom",
+        "--start",
+        "2026-08-01",
+        "--end",
+        "2026-08-03",
+        "--title",
+        "版本回顾",
+        "--report-id",
+        "report-1",
+      ]),
+    ).toEqual({
+      reportType: "custom",
+      title: "版本回顾",
+      reportId: "report-1",
+      force: false,
+      period: { start: "2026-08-01", end: "2026-08-03" },
     });
   });
 });

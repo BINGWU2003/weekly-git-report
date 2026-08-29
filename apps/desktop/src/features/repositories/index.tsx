@@ -254,7 +254,7 @@ export function Repositories() {
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <span
-                                  className='min-w-0 flex-1 truncate text-xs text-muted-foreground'
+                                  className='min-w-0 truncate text-xs text-muted-foreground'
                                   tabIndex={0}
                                 >
                                   {authorSummary}

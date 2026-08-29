@@ -10,10 +10,10 @@ import {
 } from 'date-fns'
 import type { ReportFile } from '../../../shared/ipc'
 
-export type ReportTypeFilter = 'all' | 'summary' | 'raw' | 'task'
+export type ReportTypeFilter = 'all' | 'summary' | 'raw'
 export type ReportRangePreset = 'month' | 'three-months' | 'year' | 'all' | 'custom'
 export type RawRoleFilter = 'all' | 'index' | 'project' | 'history'
-export type SummaryCadenceFilter = 'all' | 'daily' | 'weekly' | 'monthly'
+export type SummaryCadenceFilter = 'all' | 'daily' | 'weekly' | 'monthly' | 'custom'
 
 export interface ReportSearchParams {
   type: ReportTypeFilter
@@ -44,7 +44,7 @@ export const DEFAULT_REPORT_SEARCH: ReportSearchParams = {
   includeHistory: false,
 }
 
-const TYPE_VALUES = new Set<ReportTypeFilter>(['all', 'summary', 'raw', 'task'])
+const TYPE_VALUES = new Set<ReportTypeFilter>(['all', 'summary', 'raw'])
 const RANGE_VALUES = new Set<ReportRangePreset>([
   'month',
   'three-months',
@@ -58,13 +58,13 @@ const SUMMARY_CADENCE_VALUES = new Set<SummaryCadenceFilter>([
   'daily',
   'weekly',
   'monthly',
+  'custom',
 ])
 const ROLE_ORDER: Record<ReportFile['role'], number> = {
   summary: 0,
-  task: 1,
-  'raw-index': 2,
-  'raw-project': 3,
-  'raw-history': 4,
+  'raw-index': 1,
+  'raw-project': 2,
+  'raw-history': 3,
 }
 
 export function parseReportSearch(search: Record<string, unknown>): Partial<ReportSearchParams> {
@@ -112,7 +112,7 @@ export function filterReportFiles(
     if (report.kind === 'raw' && !matchesRawRole(report, search.rawRole)) return false
     if (
       search.cadence !== 'all' &&
-      (report.kind !== 'summary' || report.cadence !== search.cadence)
+      (report.kind !== 'summary' || report.reportType !== search.cadence)
     ) return false
     if (range && !matchesDateRange(report, range)) return false
     if (query && !getSearchText(report).includes(query)) return false
@@ -132,9 +132,10 @@ export function getSummaryCadenceCounts(
   )
   return {
     all: visible.length,
-    daily: visible.filter((report) => report.cadence === 'daily').length,
-    weekly: visible.filter((report) => report.cadence === 'weekly').length,
-    monthly: visible.filter((report) => report.cadence === 'monthly').length,
+    daily: visible.filter((report) => report.reportType === 'daily').length,
+    weekly: visible.filter((report) => report.reportType === 'weekly').length,
+    monthly: visible.filter((report) => report.reportType === 'monthly').length,
+    custom: visible.filter((report) => report.reportType === 'custom').length,
   }
 }
 
@@ -149,7 +150,6 @@ export function getReportTypeCounts(
     all: visible.length,
     summary: visible.filter((report) => report.kind === 'summary').length,
     raw: visible.filter((report) => report.kind === 'raw').length,
-    task: visible.filter((report) => report.kind === 'task').length,
   }
 }
 

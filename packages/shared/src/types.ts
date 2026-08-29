@@ -1,10 +1,16 @@
 import type { z } from "zod";
 
 import type {
+  AiConfigSchema,
+  AiProviderSchema,
   CollectGitLogsInputSchema,
   CollectOptionsSchema,
   AuthorListSchema,
   ConfigSchema,
+  FeishuConfigSchema,
+  GenerationCommitSchema,
+  GenerationInputSchema,
+  GenerationRepositorySchema,
   IdentitySchema,
   GetWeekIndexInputSchema,
   ListProjectsInputSchema,
@@ -22,20 +28,56 @@ import type {
   RepositoryRuntimeStatusSchema,
   RepositoryScanWarningSchema,
   ReportCadenceSchema,
+  ReportTypeSchema,
+  ReportGeneratorSchema,
+  ReportRunErrorSchema,
+  ReportRunSchema,
+  ReportRunStatusSchema,
+  ReportRunStepNameSchema,
+  ReportRunStepSchema,
+  ReportRunStepStatusSchema,
+  ReportRunTriggerSchema,
+  ReportTaskModeSchema,
+  ReportTaskScheduleSchema,
+  ReportTaskSchema,
   ProjectsIndexSchema,
   ReadWeekRawInputSchema,
   SaveWeekSummaryInputSchema,
   SaveSummaryInputSchema,
   SummaryMetadataSchema,
+  SummaryProvenanceSchema,
   SummaryTemplateDocumentSchema,
   SummaryTemplateResultSchema,
   SyncProjectsInputSchema,
+  TasksDocumentSchema,
+  TokenUsageSchema,
 } from "./schemas.js";
 
 export type AuthorList = z.infer<typeof AuthorListSchema>;
 export type Identity = z.infer<typeof IdentitySchema>;
 export type Period = z.infer<typeof PeriodSchema>;
 export type ReportCadence = z.infer<typeof ReportCadenceSchema>;
+export type ReportType = z.infer<typeof ReportTypeSchema>;
+export type AiProvider = z.infer<typeof AiProviderSchema>;
+export type AiConfig = z.infer<typeof AiConfigSchema>;
+export type FeishuConfig = z.infer<typeof FeishuConfigSchema>;
+export type ReportGenerator = z.infer<typeof ReportGeneratorSchema>;
+export type ReportTaskMode = z.infer<typeof ReportTaskModeSchema>;
+export type ReportTaskSchedule = z.infer<typeof ReportTaskScheduleSchema>;
+export type ReportTask = z.infer<typeof ReportTaskSchema>;
+export type TasksDocument = z.infer<typeof TasksDocumentSchema>;
+export type ReportRunStatus = z.infer<typeof ReportRunStatusSchema>;
+export type ReportRunTrigger = z.infer<typeof ReportRunTriggerSchema>;
+export type ReportRunStepName = z.infer<typeof ReportRunStepNameSchema>;
+export type ReportRunStepStatus = z.infer<typeof ReportRunStepStatusSchema>;
+export type ReportRunError = z.infer<typeof ReportRunErrorSchema>;
+export type ReportRunStep = z.infer<typeof ReportRunStepSchema>;
+export type TokenUsage = z.infer<typeof TokenUsageSchema>;
+export type ReportRun = z.infer<typeof ReportRunSchema>;
+export type GenerationCommit = z.infer<typeof GenerationCommitSchema>;
+export type GenerationRepository = z.infer<typeof GenerationRepositorySchema>;
+export type GenerationInput = z.infer<typeof GenerationInputSchema>;
+export type SummaryProvenance = z.infer<typeof SummaryProvenanceSchema>;
 export type Config = z.infer<typeof ConfigSchema>;
 export type Project = z.infer<typeof ProjectSchema>;
 export type RepositoryProject = z.infer<typeof RepositoryProjectSchema>;
@@ -62,9 +104,9 @@ export type SummaryTemplateDocument = z.infer<typeof SummaryTemplateDocumentSche
 export type SummaryTemplateResult = z.infer<typeof SummaryTemplateResultSchema>;
 export type McpToolInput = z.infer<typeof McpToolInputSchema>;
 
-export type ReportKind = "raw" | "summary" | "task";
+export type ReportKind = "raw" | "summary";
 
-export type ReportRole = "summary" | "task" | "raw-index" | "raw-project" | "raw-history";
+export type ReportRole = "summary" | "raw-index" | "raw-project" | "raw-history";
 
 export type SummaryMetadataStatus = "valid" | "legacy" | "invalid";
 
@@ -79,7 +121,12 @@ export interface IndexedReportFile {
   generatedAt: string | null;
   modifiedAt: string;
   size: number;
-  cadence?: ReportCadence;
+  reportId?: string;
+  reportType?: ReportType;
+  reportTitle?: string;
+  trashed?: boolean;
+  trashedAt?: string;
+  originalRelativePath?: string;
   summaryMetadataStatus?: SummaryMetadataStatus;
   summaryMetadataMessage?: string;
   projectId?: string;

@@ -1,7 +1,8 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { format as formatDate, parseISO } from 'date-fns'
 import type { DateRange } from 'react-day-picker'
+import { toast } from 'sonner'
 import {
   AlertTriangle,
   CalendarDays,
@@ -10,6 +11,10 @@ import {
   FolderOpen,
   RefreshCw,
   Search,
+  Send,
+  Sparkles,
+  Trash2,
+  Undo2,
   X,
 } from 'lucide-react'
 import type { ReportFile } from '../../../shared/ipc'
@@ -47,12 +52,12 @@ import {
   type ReportTypeFilter,
   type SummaryCadenceFilter,
 } from './report-library'
+import { GenerateReportDialog } from './generate-report-dialog'
 
 const TYPE_TABS: Array<{ value: ReportTypeFilter; label: string }> = [
   { value: 'all', label: '全部' },
   { value: 'summary', label: 'Summary' },
   { value: 'raw', label: 'Raw' },
-  { value: 'task', label: 'Task' },
 ]
 
 const RANGE_LABELS: Record<ReportRangePreset, string> = {
@@ -68,6 +73,7 @@ const CADENCE_LABELS: Record<SummaryCadenceFilter, string> = {
   daily: '日报',
   weekly: '周报',
   monthly: '月报',
+  custom: '自定义报告',
 }
 
 const ReportDateRangePicker = lazy(() => import('./report-date-range-picker'))
@@ -88,10 +94,13 @@ export function Reports({
     [routeSearch],
   )
   const [selectedId, setSelectedId] = useState<string>()
+  const [generateOpen, setGenerateOpen] = useState(false)
+  const [generateTarget, setGenerateTarget] = useState<ReportFile>()
+  const [trashView, setTrashView] = useState(false)
   const [groupOverrides, setGroupOverrides] = useState<Record<string, boolean>>({})
   const reports = useQuery({
-    queryKey: ['reports'],
-    queryFn: () => window.electronAPI.reports.list(),
+    queryKey: ['reports', trashView ? 'trash' : 'active'],
+    queryFn: () => window.electronAPI.reports.list(trashView),
   })
   const filteredReports = useMemo(
     () => filterReportFiles(reports.data ?? [], search),
@@ -113,6 +122,19 @@ export function Reports({
     queryKey: ['report', effectiveSelectedId],
     queryFn: () => window.electronAPI.reports.read(effectiveSelectedId!),
     enabled: Boolean(effectiveSelectedId) && !reports.isError,
+  })
+  const reportAction = useMutation({
+    mutationFn: async ({ action, id }: { action: 'trash' | 'restore' | 'delete'; id: string }) => {
+      if (action === 'trash') return window.electronAPI.reports.trash(id)
+      if (action === 'restore') return window.electronAPI.reports.restore(id)
+      return window.electronAPI.reports.deletePermanently(id)
+    },
+    onSuccess: async (_result, variables) => {
+      setSelectedId(undefined)
+      await reports.refetch()
+      showSuccessToast(variables.action === 'trash' ? '报告已移入回收站' : variables.action === 'restore' ? '报告已恢复' : '报告已永久删除')
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
   })
 
   const updateSearch = onSearchChange
@@ -188,6 +210,16 @@ export function Reports({
     }
   }
 
+  function openGenerate(report?: ReportFile) {
+    setGenerateTarget(report)
+    setGenerateOpen(true)
+  }
+
+  function changeTrashView(next: boolean) {
+    setSelectedId(undefined)
+    setTrashView(next)
+  }
+
   const customRange: DateRange | undefined = search.from
     ? { from: parseISO(search.from), to: search.to ? parseISO(search.to) : undefined }
     : undefined
@@ -197,7 +229,7 @@ export function Reports({
       <Header>
         <div className='me-auto'>
           <p className='text-sm font-medium'>Markdown 报告库</p>
-          <p className='text-xs text-muted-foreground'>Summary、Raw 与 Task 规范报告</p>
+          <p className='text-xs text-muted-foreground'>Summary 与 Raw 规范报告</p>
         </div>
         <ThemeSwitch />
       </Header>
@@ -205,9 +237,19 @@ export function Reports({
         <div className='flex flex-wrap items-end justify-between gap-3'>
           <div>
             <h1 className='text-2xl font-bold tracking-tight md:text-3xl'>报告库</h1>
-            <p className='text-muted-foreground'>按报告周期和类型快速定位 outputRoot 中的报告。</p>
+            <p className='text-muted-foreground'>
+              {trashView ? '恢复误删的 Summary，或永久清理回收站。' : '按报告周期和类型快速定位 outputRoot 中的报告。'}
+            </p>
           </div>
           <div className='flex gap-2'>
+            {!trashView ? <Button onClick={() => openGenerate()}>
+              <Sparkles />
+              生成报告
+            </Button> : null}
+            <Button variant='outline' onClick={() => changeTrashView(!trashView)}>
+              {trashView ? <Undo2 /> : <Trash2 />}
+              {trashView ? '返回报告库' : '回收站'}
+            </Button>
             <Button variant='outline' onClick={() => void openOutputRoot()}>
               <FolderOpen />
               打开目录
@@ -284,9 +326,7 @@ export function Reports({
                     {!reports.isLoading && filteredReports.length === 0 ? (
                       <div className='space-y-3 p-8 text-center'>
                         <p className='text-sm text-muted-foreground'>
-                          {search.type === 'task'
-                            ? '尚未生成 Task 报告。'
-                            : '当前筛选条件下没有报告。'}
+                          当前筛选条件下没有报告。
                         </p>
                         <Button size='sm' variant='outline' onClick={resetFilters}>
                           重置筛选
@@ -304,11 +344,31 @@ export function Reports({
                 report={selected.data}
                 loading={selected.isLoading}
                 error={selected.error}
+                trashView={trashView}
+                actionPending={reportAction.isPending}
+                onRegenerate={(report) => openGenerate(report)}
+                onTrash={(id) => reportAction.mutate({ action: 'trash', id })}
+                onRestore={(id) => reportAction.mutate({ action: 'restore', id })}
+                onDelete={(id) => {
+                  if (window.confirm('永久删除后无法恢复，确定继续吗？')) {
+                    reportAction.mutate({ action: 'delete', id })
+                  }
+                }}
               />
             </div>
           </>
         )}
       </Main>
+      <GenerateReportDialog
+        key={`${generateTarget?.id ?? 'new'}-${generateOpen}`}
+        open={generateOpen}
+        onOpenChange={(next) => {
+          setGenerateOpen(next)
+          if (!next) setGenerateTarget(undefined)
+        }}
+        onSaved={() => void reports.refetch()}
+        initialReport={generateTarget}
+      />
     </>
   )
 }
@@ -430,7 +490,7 @@ function ReportFilters({
 
         {search.type === 'summary' ? (
           <Select value={search.cadence} onValueChange={onCadenceChange}>
-            <SelectTrigger className='w-36' aria-label='Summary 周期类型'>
+            <SelectTrigger className='w-36' aria-label='Summary 报告类型'>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -474,7 +534,6 @@ function ReportGroup({
 }) {
   const summary = [
     group.counts.summary ? `Summary ${group.counts.summary}` : null,
-    group.counts.task ? `Task ${group.counts.task}` : null,
     group.counts.raw ? `Raw ${group.counts.raw}` : null,
   ].filter(Boolean).join(' · ')
 
@@ -575,11 +634,28 @@ function ReportPreview({
   report,
   loading,
   error,
+  trashView,
+  actionPending,
+  onRegenerate,
+  onTrash,
+  onRestore,
+  onDelete,
 }: {
   report?: Awaited<ReturnType<typeof window.electronAPI.reports.read>>
   loading: boolean
   error: Error | null
+  trashView: boolean
+  actionPending: boolean
+  onRegenerate(report: ReportFile): void
+  onTrash(id: string): void
+  onRestore(id: string): void
+  onDelete(id: string): void
 }) {
+  const publish = useMutation({
+    mutationFn: (id: string) => window.electronAPI.reports.publish(id),
+    onSuccess: () => showSuccessToast('报告已推送到飞书'),
+    onError: (publishError) => toast.error(getErrorMessage(publishError)),
+  })
   const metadata = report
     ? `${report.period ? formatPeriod(report.period) : `按修改时间 · ${formatModifiedAt(report.modifiedAt)}`} · ${report.relativePath}`
     : ''
@@ -592,9 +668,6 @@ function ReportPreview({
             <div className='min-w-0 flex-1'>
               <div className='flex items-center gap-2'>
                 <OverflowTooltip text={report.title} className='flex-1 font-medium' />
-                {report.summaryMetadataStatus === 'invalid' ? (
-                  <Badge variant='destructive' title={report.summaryMetadataMessage}>元数据异常</Badge>
-                ) : null}
               </div>
               <OverflowTooltip
                 text={metadata}
@@ -611,14 +684,41 @@ function ReportPreview({
                 )}
               />
             </div>
-            <Button
-              size='sm'
-              variant='outline'
-              onClick={() => void showReportInFolder(report.id)}
-            >
-              <FolderOpen />
-              定位文件
-            </Button>
+            <div className='flex gap-2'>
+              {!trashView && report.kind === 'summary' && report.summaryMetadataStatus === 'valid' && (
+                <Button size='sm' variant='outline' onClick={() => onRegenerate(report)}>
+                  <Sparkles />重新生成
+                </Button>
+              )}
+              {!trashView && report.kind === 'summary' && report.summaryMetadataStatus === 'valid' && (
+                <Button size='sm' variant='outline' onClick={() => publish.mutate(report.id)} disabled={publish.isPending}>
+                  <Send />推送飞书
+                </Button>
+              )}
+              {!trashView && report.kind === 'summary' ? (
+                <Button size='sm' variant='outline' onClick={() => onTrash(report.id)} disabled={actionPending}>
+                  <Trash2 />移入回收站
+                </Button>
+              ) : null}
+              {trashView ? (
+                <>
+                  <Button size='sm' variant='outline' onClick={() => onRestore(report.id)} disabled={actionPending}>
+                    <Undo2 />恢复
+                  </Button>
+                  <Button size='sm' variant='destructive' onClick={() => onDelete(report.id)} disabled={actionPending}>
+                    <Trash2 />永久删除
+                  </Button>
+                </>
+              ) : null}
+              <Button
+                size='sm'
+                variant='outline'
+                onClick={() => void showReportInFolder(report.id)}
+              >
+                <FolderOpen />
+                定位文件
+              </Button>
+            </div>
           </div>
           <Tabs defaultValue='preview' className='min-h-0 flex-1 gap-0'>
             <div className='border-b px-4 py-2'>
@@ -697,14 +797,13 @@ function ReportListError({
 
 const ROLE_LABELS: Record<ReportFile['role'], string> = {
   summary: '周期总结',
-  task: '任务报告',
   'raw-index': '周期索引',
   'raw-project': '仓库明细',
   'raw-history': '历史版本',
 }
 
 function ReportKind({ kind }: { kind: ReportFile['kind'] }) {
-  const labels = { raw: 'Raw', summary: 'Summary', task: 'Task' }
+  const labels = { raw: 'Raw', summary: 'Summary' }
   return <Badge variant='outline'>{labels[kind]}</Badge>
 }
 

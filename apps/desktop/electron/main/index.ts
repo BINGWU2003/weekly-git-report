@@ -3,6 +3,7 @@ import { BrowserWindow, app, shell } from "electron";
 import { join } from "node:path";
 
 import { registerIpcHandlers } from "./ipc/register-ipc.js";
+import { cancelActiveManualRuns, runDesktopTask } from "./services/desktop-service.js";
 
 function isExternalUrl(url: string): boolean {
   try {
@@ -67,8 +68,21 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   electronApp.setAppUserModelId("com.weeklygitreport.desktop");
+  const scheduledTaskIndex = process.argv.indexOf("--run-task");
+  const scheduledTaskId =
+    scheduledTaskIndex >= 0 ? process.argv[scheduledTaskIndex + 1] : undefined;
+  if (scheduledTaskId) {
+    try {
+      await runDesktopTask(scheduledTaskId, "scheduled");
+      app.exit(0);
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      app.exit(1);
+    }
+    return;
+  }
   registerIpcHandlers();
 
   app.on("browser-window-created", (_event, window) => {
@@ -81,6 +95,8 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
+
+app.on("before-quit", () => cancelActiveManualRuns());
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();

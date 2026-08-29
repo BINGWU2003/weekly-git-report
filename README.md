@@ -1,10 +1,10 @@
 # weekly-git-report
 
-一个本地运行的 Git 报告工具集，支持日报、周报和月报。它只处理你显式配置的仓库、分支和作者身份：采集前同步远程分支，将提交整理为结构化 Markdown，再交给 Agent 生成并保存周期总结。现有 MCP 接口继续兼容周报流程。
+一个本地运行的 Git 报告工具集，支持日报、周报和月报。它只处理你显式配置的仓库、分支和作者身份，可由 Electron 内置 AI、系统定时任务或外部 Agent 通过同一 ReportRun 流程生成、审核、保存并推送飞书。
 
 ## 环境要求
 
-- Node.js 20.19+
+- Node.js 22.12+
 - Git
 - Windows、macOS 或 Linux
 
@@ -43,7 +43,7 @@ npx -y @weekly-git-report/cli@latest projects import /path/to/code
 | Agent Skill | 希望直接在 Codex、Claude Code 或其他 Agent 中生成报告  | [`weekly-git-report`](skills/weekly-git-report/SKILL.md) |
 | MCP         | 使用支持 MCP 的客户端，并希望通过 tools 编排采集与保存 | [`@weekly-git-report/mcp`](packages/mcp/README.md)       |
 | CLI         | 交互配置，或由 Agent、脚本和 CI 使用稳定 JSON 命令     | [`@weekly-git-report/cli`](packages/cli/README.md)       |
-| Electron    | 通过 GUI 初始化配置、维护仓库和浏览 Markdown 报告      | [`apps/desktop`](apps/desktop/README.md)                 |
+| Electron    | GUI 初始化、内置 AI、任务调度、运行审核和报告库        | [`apps/desktop`](apps/desktop/README.md)                 |
 
 #### Agent Skill
 
@@ -80,14 +80,14 @@ MCP 提供 `list_projects`、`sync_projects`、`collect_git_logs`、`get_week_in
 
 #### CLI 自动化
 
-以下命令形成一个完整的数据流程：
+外部 Agent 推荐使用统一 Run 协议：
 
 ```sh
-npx -y @weekly-git-report/cli@latest collect --since 2026-08-17 --until 2026-08-23 --all
-npx -y @weekly-git-report/cli@latest templates read --type weekly --start 2026-08-17 --end 2026-08-23
-npx -y @weekly-git-report/cli@latest raw read --start 2026-08-17 --end 2026-08-23
-npx -y @weekly-git-report/cli@latest summary save --type weekly --start 2026-08-17 --end 2026-08-23 --file ./weekly-summary.md
+npx -y @weekly-git-report/cli@latest runs prepare --type weekly --start 2026-08-17 --end 2026-08-23
+npx -y @weekly-git-report/cli@latest runs complete RUN_ID --file ./weekly-summary.md
 ```
+
+如果同周期已有报告但元数据无法校验，在确认覆盖后为 `runs complete` 追加 `--force`；原报告会先备份到 Summary 目录下的 `.history`。
 
 `collect` 会先同步选中的仓库，因此通常不需要提前执行 `projects sync`。命令成功后分别返回包含输出路径、raw 内容或 summary 路径的 JSON。
 
@@ -117,20 +117,17 @@ Electron 仓库页和 `projects list/sync` JSON 会从本地缓存的 `refs/remo
 {
   "outputRoot": "~/weekly-reports",
   "repositoryCacheRoot": "~/.weekly-git-report/repositories",
-  "defaultSince": "last monday",
-  "defaultUntil": "now",
   "includeEmptyProjects": false,
   "identities": [{ "name": "张三", "email": "zhangsan@example.com" }]
 }
 ```
 
-| 字段                           | 说明                                                          |
-| ------------------------------ | ------------------------------------------------------------- |
-| `outputRoot`                   | raw 和 summary 的根目录                                       |
-| `repositoryCacheRoot`          | 默认仓库缓存目录                                              |
-| `defaultSince`、`defaultUntil` | Core API 的默认周期；当前 CLI 自动化命令和 MCP 仍要求显式日期 |
-| `includeEmptyProjects`         | 是否为没有匹配提交的项目生成 raw 文件                         |
-| `identities`                   | 默认 Git 作者身份，至少配置一个                               |
+| 字段                   | 说明                                  |
+| ---------------------- | ------------------------------------- |
+| `outputRoot`           | raw 和 summary 的根目录               |
+| `repositoryCacheRoot`  | 默认仓库缓存目录                      |
+| `includeEmptyProjects` | 是否为没有匹配提交的项目生成 raw 文件 |
+| `identities`           | 默认 Git 作者身份，至少配置一个       |
 
 项目配置位于 `~/.weekly-git-report/projects.json`：
 
@@ -157,11 +154,17 @@ Electron 仓库页和 `projects list/sync` JSON 会从本地缓存的 `refs/remo
 ~/.weekly-git-report/
   config.json
   projects.json
+  ai.json
+  feishu.json
+  tasks.json
+  runs.db
+  runs/{runId}/generation-input.json
   repositories/
   templates/
     daily/summary.md
     weekly/summary.md
     monthly/summary.md
+    custom/summary.md
 
 {outputRoot}/
   raw/{YYYY}/{MM}/{start}_{end}/
@@ -169,16 +172,19 @@ Electron 仓库页和 `projects list/sync` JSON 会从本地缓存的 `refs/remo
     manifest.json
     {project}-{urlHash}.md
   summary/{YYYY}/{MM}/
-    {start}_{end}.md
-    {start}_{end}.meta.json
+    {start}_{end}.{daily|weekly|monthly}.md
+    {start}_{end}.custom.{reportId}.md
+    *.meta.json
+  summary/.trash/
 ```
 
 - `index.md`：本周期的项目索引。
 - `manifest.json`：周期、项目文件、提交数量和错误等结构化元数据。
 - `{project}-{urlHash}.md`：单个项目的提交记录。
-- `summary/...md`：Agent 生成的最终日报、周报或月报；无 Sidecar 的旧文件兼容为 legacy 周报。
-- `summary/...meta.json`：报告类型、周期、保存时间和 Markdown 内容 Hash。
-- `templates/{daily,weekly,monthly}/summary.md`：CLI 与 Electron 共用的三种生成提示词，支持日期变量。
+- `summary/...md`：审核或自动保存后的最终日报、周报、月报或自定义报告；不同类型使用独立文件名。
+- `summary/...meta.json`：报告 ID、类型、Run、生成器、模型、模板和 Raw Hash、周期及 Markdown 内容 Hash；缺失或无效时不可推送。
+- `summary/.trash/`：桌面端回收站，保留 Markdown、Sidecar 与原始位置清单。
+- `templates/{daily,weekly,monthly,custom}/summary.md`：CLI 与 Electron 共用的四种生成提示词。
 
 raw 读取和 summary 写入都限制在配置的 `outputRoot` 内。
 

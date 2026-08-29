@@ -2,18 +2,24 @@ import os from "node:os";
 import path from "node:path";
 
 import {
+  AI_CONFIG_FILE_NAME,
   CONFIG_FILE_NAME,
+  CUSTOM_TEMPLATE_DIR_NAME,
   DAILY_TEMPLATE_DIR_NAME,
+  FEISHU_CONFIG_FILE_NAME,
   MONTHLY_TEMPLATE_DIR_NAME,
   PROJECTS_FILE_NAME,
+  RUNS_DATABASE_FILE_NAME,
+  RUNS_DIR_NAME,
   RAW_DIR_NAME,
   SUMMARY_TEMPLATE_FILE_NAME,
   SUMMARY_DIR_NAME,
+  TASKS_FILE_NAME,
   TEMPLATES_DIR_NAME,
   WEEKLY_TEMPLATE_DIR_NAME,
   WORK_DIR,
 } from "@weekly-git-report/shared";
-import type { Period, ReportCadence } from "@weekly-git-report/shared";
+import type { Period, ReportType } from "@weekly-git-report/shared";
 
 export function expandHomePath(inputPath: string): string {
   if (inputPath === "~") {
@@ -43,6 +49,31 @@ export function getProjectsFilePath(): string {
   return path.join(getWorkDir(), PROJECTS_FILE_NAME);
 }
 
+export function getAiConfigFilePath(): string {
+  return path.join(getWorkDir(), AI_CONFIG_FILE_NAME);
+}
+
+export function getFeishuConfigFilePath(): string {
+  return path.join(getWorkDir(), FEISHU_CONFIG_FILE_NAME);
+}
+
+export function getTasksFilePath(): string {
+  return path.join(getWorkDir(), TASKS_FILE_NAME);
+}
+
+export function getRunsDatabaseFilePath(): string {
+  return path.join(getWorkDir(), RUNS_DATABASE_FILE_NAME);
+}
+
+export function getRunsDir(): string {
+  return path.join(getWorkDir(), RUNS_DIR_NAME);
+}
+
+export function getRunDir(runId: string): string {
+  if (!/^[a-zA-Z0-9_-]+$/.test(runId)) throw new Error("Invalid run id.");
+  return path.join(getRunsDir(), runId);
+}
+
 export function getTemplatesDir(): string {
   return path.join(getWorkDir(), TEMPLATES_DIR_NAME);
 }
@@ -51,17 +82,18 @@ export function getWeeklyTemplateDir(): string {
   return getTemplateDir("weekly");
 }
 
-export function getTemplateDir(cadence: ReportCadence): string {
+export function getTemplateDir(reportType: ReportType): string {
   const directory = {
     daily: DAILY_TEMPLATE_DIR_NAME,
     weekly: WEEKLY_TEMPLATE_DIR_NAME,
     monthly: MONTHLY_TEMPLATE_DIR_NAME,
-  }[cadence];
+    custom: CUSTOM_TEMPLATE_DIR_NAME,
+  }[reportType];
   return path.join(getTemplatesDir(), directory);
 }
 
-export function getSummaryTemplateFilePath(cadence: ReportCadence = "weekly"): string {
-  return path.join(getTemplateDir(cadence), SUMMARY_TEMPLATE_FILE_NAME);
+export function getSummaryTemplateFilePath(reportType: ReportType = "weekly"): string {
+  return path.join(getTemplateDir(reportType), SUMMARY_TEMPLATE_FILE_NAME);
 }
 
 export function getRepositoryCacheRoot(repositoryCacheRoot: string): string {

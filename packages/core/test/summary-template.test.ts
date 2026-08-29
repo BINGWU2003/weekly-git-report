@@ -98,12 +98,12 @@ describe("summary template management", () => {
 
   test("uses cadence-specific defaults and validates period boundaries", async () => {
     await withTemplate(async (templateFile) => {
-      const daily = await initializeSummaryTemplate({ cadence: "daily", templateFile });
+      const daily = await initializeSummaryTemplate({ reportType: "daily", templateFile });
       expect(daily.type).toBe("daily");
       expect(daily.template.content).toContain("今日工作概览");
       await expect(
         readSummaryTemplate({
-          cadence: "daily",
+          reportType: "daily",
           templateFile,
           period: { start: "2026-08-17", end: "2026-08-18" },
         }),
@@ -111,16 +111,46 @@ describe("summary template management", () => {
     });
 
     await withTemplate(async (templateFile) => {
-      const monthly = await initializeSummaryTemplate({ cadence: "monthly", templateFile });
+      const monthly = await initializeSummaryTemplate({ reportType: "monthly", templateFile });
       expect(monthly.type).toBe("monthly");
       expect(monthly.template.content).toContain("主要工作主题");
       await expect(
         readSummaryTemplate({
-          cadence: "monthly",
+          reportType: "monthly",
           templateFile,
           period: { start: "2026-08-02", end: "2026-08-28" },
         }),
       ).rejects.toThrow(/day 01/);
+    });
+  });
+
+  test("renders custom report variables and enforces custom period limits", async () => {
+    await withTemplate(async (templateFile) => {
+      const custom = await initializeSummaryTemplate({ reportType: "custom", templateFile });
+      expect(custom.type).toBe("custom");
+      expect(custom.template.content).toContain("{{reportTitle}}");
+      const rendered = await readSummaryTemplate({
+        reportType: "custom",
+        templateFile,
+        reportTitle: "版本回顾",
+        period: { start: "2026-08-01", end: "2026-08-03" },
+      });
+      expect(rendered.template.renderedContent).toContain("版本回顾");
+      expect(rendered.template.renderedContent).toContain("共 3 天");
+      await expect(
+        readSummaryTemplate({
+          reportType: "custom",
+          templateFile,
+          period: { start: "2024-01-01", end: "2025-01-01" },
+        }),
+      ).rejects.toThrow(/cannot exceed 366 days/);
+      await expect(
+        readSummaryTemplate({
+          reportType: "custom",
+          templateFile,
+          period: { start: "2999-01-01", end: "2999-01-02" },
+        }),
+      ).rejects.toThrow(/future dates/);
     });
   });
 });

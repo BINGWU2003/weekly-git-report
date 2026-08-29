@@ -9,16 +9,13 @@ import {
   loadProjectsIndex,
   normalizeAbsolutePath,
   normalizeRepositoryUrl,
+  parseSummaryIdentity,
   runGit,
   tryRunGit,
   validateSummaryTemplate,
 } from "@weekly-git-report/core";
-import {
-  REPORT_CADENCES,
-  SUMMARY_DIR_NAME,
-  SUMMARY_METADATA_SUFFIX,
-} from "@weekly-git-report/shared";
-import type { Config, Period } from "@weekly-git-report/shared";
+import { REPORT_TYPES, SUMMARY_DIR_NAME, SUMMARY_METADATA_SUFFIX } from "@weekly-git-report/shared";
+import type { Config } from "@weekly-git-report/shared";
 
 export async function runDoctorCommand(): Promise<void> {
   const checks: Array<{ check: string; ok: boolean; message: string }> = [];
@@ -45,18 +42,18 @@ export async function runDoctorCommand(): Promise<void> {
     checks.push({ check: "config", ok: false, message: getMessage(error) });
   }
 
-  for (const cadence of REPORT_CADENCES) {
-    const templateFile = getSummaryTemplateFilePath(cadence);
+  for (const reportType of REPORT_TYPES) {
+    const templateFile = getSummaryTemplateFilePath(reportType);
     try {
       validateSummaryTemplate(await readFile(templateFile, "utf8"));
       checks.push({
-        check: `template:${cadence}`,
+        check: `template:${reportType}`,
         ok: true,
         message: templateFile,
       });
     } catch (error) {
       checks.push({
-        check: `template:${cadence}`,
+        check: `template:${reportType}`,
         ok: false,
         message: getMessage(error),
       });
@@ -122,28 +119,21 @@ async function checkSummaryMetadata(
           continue;
         }
         if (path.extname(entry.name).toLowerCase() !== ".md") continue;
-        const period = parsePeriod(path.basename(entry.name, ".md"));
-        if (!period) continue;
-        const metadata = await inspectSummaryMetadata(file, period);
+        const identity = parseSummaryIdentity(path.basename(entry.name, ".md"));
+        if (!identity) continue;
+        const metadata = await inspectSummaryMetadata(file, identity.period, undefined, identity);
         checks.push({
           check: `summary-metadata:${relative}`,
           ok: metadata.status !== "invalid",
           message:
-            metadata.status === "legacy"
-              ? "Legacy weekly summary without sidecar."
-              : metadata.status === "valid"
-                ? `${metadata.cadence} sidecar and content hash are valid.`
-                : (metadata.message ?? "Invalid summary sidecar."),
+            metadata.status === "valid"
+              ? `${metadata.reportType} sidecar and content hash are valid.`
+              : (metadata.message ?? "Invalid summary sidecar."),
         });
       }
     }
   }
   return checks;
-}
-
-function parsePeriod(value: string): Period | undefined {
-  const match = /^(\d{4}-\d{2}-\d{2})_(\d{4}-\d{2}-\d{2})$/.exec(value);
-  return match?.[1] && match[2] ? { start: match[1], end: match[2] } : undefined;
 }
 
 async function readDirectories(directory: string) {

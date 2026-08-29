@@ -1,7 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { Menu, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Logo } from '@/assets/logo'
 import {
   SidebarMenu,
   SidebarMenuButton,

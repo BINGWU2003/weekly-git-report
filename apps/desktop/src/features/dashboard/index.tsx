@@ -35,6 +35,14 @@ export function Dashboard() {
 
   const data = overview.data
   const healthyChecks = data?.diagnostics.filter((check) => check.status === 'ok').length ?? 0
+  const activeRuns = data
+    ? (data.runCounts.queued ?? 0) + (data.runCounts.collecting ?? 0) +
+      (data.runCounts.generating ?? 0) + (data.runCounts.saving ?? 0) +
+      (data.runCounts.publishing ?? 0)
+    : undefined
+  const failedRuns = data
+    ? (data.runCounts.failed ?? 0) + (data.runCounts.publish_failed ?? 0)
+    : undefined
 
   async function refreshOverview() {
     const result = await overview.refetch()
@@ -46,7 +54,6 @@ export function Dashboard() {
       <Header>
         <div className='me-auto'>
           <p className='text-sm font-medium'>本地工作台</p>
-          <p className='text-xs text-muted-foreground'>Git 数据不会离开你的电脑</p>
         </div>
         <ThemeSwitch />
       </Header>
@@ -108,9 +115,27 @@ export function Dashboard() {
           />
           <MetricCard
             title='自动任务'
-            value='0'
-            description='调度能力将在下一阶段接入'
+            value={data?.enabledTaskCount.toString() ?? '—'}
+            description='已启用的系统调度任务'
             icon={TimerReset}
+          />
+          <MetricCard
+            title='排队 / 运行中'
+            value={activeRuns?.toString() ?? '—'}
+            description='采集、生成、保存或推送'
+            icon={TimerReset}
+          />
+          <MetricCard
+            title='待审核草稿'
+            value={data?.runCounts.awaiting_review?.toString() ?? '0'}
+            description='不会自动写入 Summary'
+            icon={FileText}
+          />
+          <MetricCard
+            title='失败运行'
+            value={failedRuns?.toString() ?? '—'}
+            description='含报告成功但推送失败'
+            icon={AlertCircle}
           />
           <MetricCard
             title='环境检查'

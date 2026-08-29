@@ -4,6 +4,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { getErrorMessage } from '@/lib/errors'
 import { ContentSection } from '../components/content-section'
 import { ConfigForm } from './config-form'
+import { AutomationConfig } from './automation-config'
 
 export function SettingsGeneral() {
   const state = useQuery({
@@ -47,6 +48,7 @@ export function SettingsGeneral() {
             isInitializing
           />
         )}
+        {state.data?.config && <AutomationConfig />}
       </div>
     </ContentSection>
   )

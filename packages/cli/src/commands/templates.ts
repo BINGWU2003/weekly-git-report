@@ -27,13 +27,13 @@ export async function runTemplatesCommand(
         printJson(
           parsed.all
             ? await initializeSummaryTemplates()
-            : await initializeSummaryTemplate({ cadence: parsed.cadence }),
+            : await initializeSummaryTemplate({ reportType: parsed.reportType }),
         );
       }
       return;
     case "read": {
-      const { cadence, period } = parseTemplateReadArgs(args);
-      printJson(await readSummaryTemplate({ cadence, ...(period ? { period } : {}) }));
+      const { reportType, period } = parseTemplateReadArgs(args);
+      printJson(await readSummaryTemplate({ reportType, ...(period ? { period } : {}) }));
       return;
     }
     case "write": {
@@ -47,7 +47,7 @@ export async function runTemplatesCommand(
       printJson(
         await saveSummaryTemplate({
           content,
-          cadence: parsed.cadence,
+          reportType: parsed.reportType,
           expectedRevision: parsed.revision ?? null,
           force: parsed.force,
         }),
@@ -57,7 +57,7 @@ export async function runTemplatesCommand(
     case "reset":
       {
         const parsed = parseTemplateResetArgs(args);
-        printJson(await resetSummaryTemplate({ force: true, cadence: parsed.cadence }));
+        printJson(await resetSummaryTemplate({ force: true, reportType: parsed.reportType }));
       }
       return;
     default:

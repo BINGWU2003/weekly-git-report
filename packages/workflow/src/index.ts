@@ -1,14 +1,18 @@
+import { randomUUID } from "node:crypto";
 import { access, copyFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 
 import {
   collectCommits,
   createSummaryMetadata,
+  getPeriodOutputDir,
   getSummaryMetadataFilePath,
   getRepositoriesRuntimeState,
+  hashFile,
   inspectSummaryMetadata,
   loadConfig,
   loadProjectsIndex,
+  readSummaryTemplate,
   syncRepositories,
   validateSummaryPeriod,
   writeJsonAtomic,
@@ -19,6 +23,7 @@ import {
   CollectGitLogsInputSchema,
   GetWeekIndexInputSchema,
   ListProjectsInputSchema,
+  MANIFEST_FILE_NAME,
   ReadWeekRawInputSchema,
   SaveSummaryInputSchema,
   SaveWeekSummaryInputSchema,
@@ -26,6 +31,12 @@ import {
 } from "@weekly-git-report/shared";
 
 import { getSafeSummaryFile, readWeekIndexFile, readWeekProjectFiles } from "./path-security.js";
+
+export * from "./run-store.js";
+export * from "./ai.js";
+export * from "./feishu.js";
+export * from "./report-run.js";
+export * from "./scheduler.js";
 
 export async function listProjects(input: unknown) {
   ListProjectsInputSchema.parse(input);
@@ -142,33 +153,55 @@ export async function readWeekRaw(input: unknown) {
 
 export async function saveWeekSummary(input: unknown) {
   const args = SaveWeekSummaryInputSchema.parse(input);
-  return saveSummary({ ...args, cadence: "weekly", force: false });
+  return saveSummary({ ...args, reportType: "weekly", force: false });
 }
 
 export async function saveSummary(input: unknown) {
   const args = SaveSummaryInputSchema.parse(input);
   const config = await loadConfig();
-  validateSummaryPeriod(args.cadence, args);
-  const summaryFile = getSafeSummaryFile(config.outputRoot, args);
+  validateSummaryPeriod(args.reportType, args);
+  const reportId = args.provenance?.reportId ?? args.reportId ?? randomUUID();
+  if (args.reportId && args.provenance && args.reportId !== args.provenance.reportId) {
+    throw new Error("Summary reportId does not match its provenance.");
+  }
+  const summaryFile = getSafeSummaryFile(config.outputRoot, args, args.reportType, reportId);
   const metadataFile = getSummaryMetadataFilePath(summaryFile);
   const content = args.content.endsWith("\n") ? args.content : `${args.content}\n`;
+  const rawManifestFile = path.join(
+    getPeriodOutputDir(config.outputRoot, args),
+    MANIFEST_FILE_NAME,
+  );
+  const rawManifestHash = await hashFile(rawManifestFile);
+  const template = await readSummaryTemplate({
+    reportType: args.reportType,
+    period: args,
+    reportTitle: args.title,
+  });
+  const provenance = args.provenance ?? {
+    reportId,
+    runId: randomUUID(),
+    generator: "external-agent" as const,
+    templateRevision: template.template.revision,
+    rawManifestHash,
+  };
+  if (provenance.rawManifestHash !== rawManifestHash) {
+    throw new Error("Raw manifest changed since this summary was prepared.");
+  }
   const replaced = await fileExists(summaryFile);
   const backupFiles: string[] = [];
 
   if (replaced) {
-    const current = await inspectSummaryMetadata(summaryFile, args);
+    const current = await inspectSummaryMetadata(summaryFile, args, undefined, {
+      reportType: args.reportType,
+      ...(args.reportType === "custom" ? { reportId } : {}),
+    });
     if (current.status === "invalid" && !args.force) {
       throw new Error("Existing summary metadata is invalid. Pass --force to replace it.");
-    }
-    if (current.cadence && current.cadence !== args.cadence && !args.force) {
-      throw new Error(
-        `Existing summary is ${current.cadence}; pass --force to replace it with ${args.cadence}.`,
-      );
     }
     backupFiles.push(...(await backupSummaryFiles(summaryFile, metadataFile)));
   }
 
-  const metadata = createSummaryMetadata(args.cadence, args, content);
+  const metadata = createSummaryMetadata(args.reportType, args, content, provenance, args.title);
 
   await mkdir(path.dirname(summaryFile), { recursive: true });
   await writeTextAtomic(summaryFile, content);
@@ -177,7 +210,9 @@ export async function saveSummary(input: unknown) {
   return {
     summaryFile,
     metadataFile,
-    cadence: args.cadence,
+    reportId,
+    reportType: args.reportType,
+    ...(args.title ? { title: args.title } : {}),
     bytes: Buffer.byteLength(content, "utf8"),
     replaced,
     backupFiles,

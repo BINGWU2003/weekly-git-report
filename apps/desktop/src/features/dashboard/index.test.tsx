@@ -30,6 +30,8 @@ describe('Dashboard', () => {
       projectCount: 0,
       enabledProjectCount: 0,
       reportCount: 0,
+      enabledTaskCount: 0,
+      runCounts: {},
       diagnostics: [],
     }
     vi.stubGlobal('electronAPI', {

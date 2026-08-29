@@ -1,4 +1,4 @@
-import { mkdtemp, rm, stat } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -17,13 +17,12 @@ import {
   writeConfig,
   writeConfigIfRevision,
   writeProjectsIndex,
+  writeTextAtomic,
 } from "../src/index.js";
 
 const config: Config = {
   outputRoot: "~/weekly-reports",
   repositoryCacheRoot: "~/.weekly-git-report/repositories",
-  defaultSince: "last monday",
-  defaultUntil: "now",
   includeEmptyProjects: false,
   identities: [{ name: "Alice", email: "alice@example.com" }],
 };
@@ -56,6 +55,24 @@ test("versioned project writes reject stale editors", async () => {
     await expect(
       setRepositoryEnabled(project.id, false, first.revision, projectsFile),
     ).rejects.toBeInstanceOf(FileRevisionConflictError);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("atomic writes preserve the previous file when preparation fails", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "weekly-atomic-write-"));
+  const file = path.join(root, "secret.json");
+  try {
+    await writeTextAtomic(file, "previous");
+    await expect(
+      writeTextAtomic(file, "replacement", {
+        prepareTemporaryFile: async () => {
+          throw new Error("permission update failed");
+        },
+      }),
+    ).rejects.toThrow("permission update failed");
+    expect(await readFile(file, "utf8")).toBe("previous");
   } finally {
     await rm(root, { recursive: true, force: true });
   }

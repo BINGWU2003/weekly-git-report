@@ -7,20 +7,23 @@ import {
   ManifestSchema,
   RAW_DIR_NAME,
   SUMMARY_DIR_NAME,
+  TRASH_DIR_NAME,
+  TRASH_MANIFEST_FILE_NAME,
 } from "@weekly-git-report/shared";
 import type {
   IndexedReportFile,
   Manifest,
   ManifestProject,
   Period,
-  ReportCadence,
+  ReportType,
 } from "@weekly-git-report/shared";
 
 import { inspectSummaryMetadata } from "./summary-metadata.js";
 
-const TASKS_DIR_NAME = "tasks";
 const MAX_REPORT_FILES = 2_000;
 const PERIOD_PATTERN = /^(\d{4}-\d{2}-\d{2})_(\d{4}-\d{2}-\d{2})$/;
+const SUMMARY_PATTERN =
+  /^(\d{4}-\d{2}-\d{2})_(\d{4}-\d{2}-\d{2})\.(daily|weekly|monthly|custom)(?:\.([a-zA-Z0-9_-]+))?$/;
 const HISTORY_NAME_PATTERN = /\.\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}\.md$/i;
 
 export class ReportIndexError extends Error {
@@ -34,7 +37,43 @@ export async function indexReportFiles(outputRoot: string): Promise<IndexedRepor
   const reports: IndexedReportFile[] = [];
   await indexRawReports(outputRoot, reports);
   await indexSummaryReports(outputRoot, reports);
-  await indexTaskReports(outputRoot, reports);
+  return reports.toSorted(compareReports);
+}
+
+export async function indexTrashedReportFiles(outputRoot: string): Promise<IndexedReportFile[]> {
+  const reports: IndexedReportFile[] = [];
+  const trashRoot = path.join(outputRoot, SUMMARY_DIR_NAME, TRASH_DIR_NAME);
+  for (const directory of await readDirectories(trashRoot)) {
+    const directoryPath = path.join(trashRoot, directory.name);
+    const manifest = await readTrashManifest(directoryPath);
+    if (!manifest) continue;
+    const summaryFile = path.join(directoryPath, manifest.markdownName);
+    const identity = parseSummaryIdentity(
+      path.basename(manifest.markdownName, path.extname(manifest.markdownName)),
+    );
+    if (!identity) continue;
+    const metadata = await inspectSummaryMetadata(
+      summaryFile,
+      identity.period,
+      undefined,
+      identity,
+    );
+    await appendReport(reports, outputRoot, summaryFile, {
+      kind: "summary",
+      role: "summary",
+      title: metadata.title ?? getSummaryTitle(metadata.reportType),
+      period: identity.period,
+      generatedAt: metadata.metadata?.savedAt ?? null,
+      ...(metadata.reportId ? { reportId: metadata.reportId } : {}),
+      ...(metadata.reportType ? { reportType: metadata.reportType } : {}),
+      ...(metadata.title ? { reportTitle: metadata.title } : {}),
+      summaryMetadataStatus: metadata.status,
+      ...(metadata.message ? { summaryMetadataMessage: metadata.message } : {}),
+      trashed: true,
+      trashedAt: manifest.trashedAt,
+      originalRelativePath: manifest.originalRelativePath,
+    });
+  }
   return reports.toSorted(compareReports);
 }
 
@@ -135,49 +174,28 @@ async function indexSummaryReports(
       const monthPath = path.join(summaryRoot, year.name, month.name);
       for (const entry of await readFiles(monthPath)) {
         if (path.extname(entry.name).toLowerCase() !== ".md") continue;
-        const period = parsePeriod(path.basename(entry.name, path.extname(entry.name)));
-        if (!period) continue;
+        const identity = parseSummaryIdentity(path.basename(entry.name, path.extname(entry.name)));
+        if (!identity) continue;
         const summaryFile = path.join(monthPath, entry.name);
-        const metadata = await inspectSummaryMetadata(summaryFile, period);
+        const metadata = await inspectSummaryMetadata(
+          summaryFile,
+          identity.period,
+          undefined,
+          identity,
+        );
         await appendReport(reports, outputRoot, summaryFile, {
           kind: "summary",
           role: "summary",
-          title: getSummaryTitle(metadata.cadence),
-          period,
+          title: metadata.title ?? getSummaryTitle(metadata.reportType),
+          period: identity.period,
           generatedAt: metadata.metadata?.savedAt ?? null,
-          ...(metadata.cadence ? { cadence: metadata.cadence } : {}),
+          ...(metadata.reportId ? { reportId: metadata.reportId } : {}),
+          ...(metadata.reportType ? { reportType: metadata.reportType } : {}),
+          ...(metadata.title ? { reportTitle: metadata.title } : {}),
           summaryMetadataStatus: metadata.status,
           ...(metadata.message ? { summaryMetadataMessage: metadata.message } : {}),
         });
       }
-    }
-  }
-}
-
-async function indexTaskReports(outputRoot: string, reports: IndexedReportFile[]): Promise<void> {
-  const tasksRoot = path.join(outputRoot, TASKS_DIR_NAME);
-  await walkTaskFiles(tasksRoot, async (file) => {
-    const parsed = path.parse(file);
-    await appendReport(reports, outputRoot, file, {
-      kind: "task",
-      role: "task",
-      title: parsed.name,
-      period: findPeriodInPath(path.relative(tasksRoot, file)),
-      generatedAt: null,
-    });
-  });
-}
-
-async function walkTaskFiles(
-  current: string,
-  visit: (file: string) => Promise<void>,
-): Promise<void> {
-  for (const entry of await readEntries(current)) {
-    const absolutePath = path.join(current, entry.name);
-    if (entry.isDirectory()) {
-      if (!entry.name.startsWith(".")) await walkTaskFiles(absolutePath, visit);
-    } else if (entry.isFile() && path.extname(entry.name).toLowerCase() === ".md") {
-      await visit(absolutePath);
     }
   }
 }
@@ -190,7 +208,16 @@ async function appendReport(
     Partial<
       Pick<
         IndexedReportFile,
-        "projectId" | "projectName" | "cadence" | "summaryMetadataStatus" | "summaryMetadataMessage"
+        | "projectId"
+        | "projectName"
+        | "reportId"
+        | "reportType"
+        | "reportTitle"
+        | "summaryMetadataStatus"
+        | "summaryMetadataMessage"
+        | "trashed"
+        | "trashedAt"
+        | "originalRelativePath"
       >
     >,
 ): Promise<void> {
@@ -207,6 +234,39 @@ async function appendReport(
     size: fileStat.size,
     ...metadata,
   });
+}
+
+async function readTrashManifest(directory: string): Promise<{
+  originalRelativePath: string;
+  markdownName: string;
+  metadataName?: string;
+  trashedAt: string;
+} | null> {
+  try {
+    const value: unknown = JSON.parse(
+      await readFile(path.join(directory, TRASH_MANIFEST_FILE_NAME), "utf8"),
+    );
+    if (!value || typeof value !== "object") return null;
+    const record = value as Record<string, unknown>;
+    if (
+      record.version !== 1 ||
+      typeof record.originalRelativePath !== "string" ||
+      typeof record.markdownName !== "string" ||
+      typeof record.trashedAt !== "string" ||
+      (record.metadataName !== undefined && typeof record.metadataName !== "string") ||
+      path.basename(record.markdownName) !== record.markdownName
+    )
+      return null;
+    return {
+      originalRelativePath: record.originalRelativePath,
+      markdownName: record.markdownName,
+      ...(typeof record.metadataName === "string" ? { metadataName: record.metadataName } : {}),
+      trashedAt: record.trashedAt,
+    };
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") return null;
+    throw error;
+  }
 }
 
 async function readRawManifest(periodPath: string): Promise<Manifest> {
@@ -259,23 +319,33 @@ function normalizeManifestFile(file: string): string {
   return file.replace(/^\.\//, "").replaceAll("\\", "/");
 }
 
-function findPeriodInPath(relativePath: string): Period | null {
-  for (const segment of toPosixPath(relativePath).split("/")) {
-    const period = parsePeriod(path.basename(segment, path.extname(segment)));
-    if (period) return period;
-  }
-  return null;
-}
-
 function parsePeriod(value: string): Period | null {
   const match = PERIOD_PATTERN.exec(value);
   return match?.[1] && match[2] ? { start: match[1], end: match[2] } : null;
 }
 
-function getSummaryTitle(cadence?: ReportCadence): string {
-  if (cadence === "daily") return "日报总结";
-  if (cadence === "weekly") return "周报总结";
-  if (cadence === "monthly") return "月报总结";
+export function parseSummaryIdentity(value: string): {
+  period: Period;
+  reportType: ReportType;
+  reportId?: string;
+} | null {
+  const match = SUMMARY_PATTERN.exec(value);
+  if (!match?.[1] || !match[2] || !match[3]) return null;
+  const reportType = match[3] as ReportType;
+  if (reportType === "custom" && !match[4]) return null;
+  if (reportType !== "custom" && match[4]) return null;
+  return {
+    period: { start: match[1], end: match[2] },
+    reportType,
+    ...(match[4] ? { reportId: match[4] } : {}),
+  };
+}
+
+function getSummaryTitle(reportType?: ReportType): string {
+  if (reportType === "daily") return "日报总结";
+  if (reportType === "weekly") return "周报总结";
+  if (reportType === "monthly") return "月报总结";
+  if (reportType === "custom") return "自定义报告";
   return "周期总结";
 }
 

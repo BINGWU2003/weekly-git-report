@@ -4,7 +4,7 @@ weekly-git-report 的 MCP stdio server。它向支持 MCP 的客户端提供项�
 
 ## 环境要求
 
-- Node.js 20.19+
+- Node.js 22.12+
 - Git
 - 支持 stdio server 的 MCP 客户端
 - 已通过 [`@weekly-git-report/cli`](https://github.com/BINGWU2003/weekly-git-report/tree/main/packages/cli) 初始化配置并添加项目

@@ -1,9 +1,10 @@
 import { dialog, ipcMain, shell } from "electron";
 import { getOutputRoot, normalizeAbsolutePath } from "@weekly-git-report/core";
 import {
+  AiProviderSchema,
   ConfigSchema,
   PeriodSchema,
-  ReportCadenceSchema,
+  ReportTypeSchema,
   ProjectsIndexSchema,
   RepositoryProjectSchema,
 } from "@weekly-git-report/shared";
@@ -11,6 +12,17 @@ import {
 import { IPC_CHANNELS } from "../../../shared/ipc.js";
 import {
   getDesktopOverview,
+  approveDesktopRun,
+  cancelDesktopRun,
+  clearDesktopAi,
+  clearDesktopFeishu,
+  configureDesktopAi,
+  configureDesktopFeishu,
+  generateDesktopReport,
+  getDesktopAiStatus,
+  getDesktopFeishuStatus,
+  getDesktopRun,
+  getDesktopTasksState,
   getConfigInitializationDefaults,
   getConfigState,
   getDiagnostics,
@@ -22,18 +34,29 @@ import {
   inspectRepository,
   importDesktopRepositories,
   listReportFiles,
+  listDesktopRuns,
   loadOptionalConfig,
   loadOptionalProjects,
   readReportFile,
+  readDesktopRunDraft,
   previewDesktopSummaryTemplate,
+  publishDesktopReport,
+  trashDesktopReport,
+  restoreDesktopReport,
+  deleteDesktopReportPermanently,
   removeDesktopRepository,
   saveDesktopConfig,
   resetDesktopSummaryTemplate,
+  retryDesktopRun,
+  runDesktopTask,
   saveDesktopSummaryTemplate,
   saveDesktopRepository,
+  saveDesktopTasks,
   scanDesktopRepositoryFolder,
   setDesktopRepositoryEnabled,
   syncDesktopRepositories,
+  testDesktopAi,
+  testDesktopFeishu,
 } from "../services/desktop-service.js";
 
 export function registerIpcHandlers(): void {
@@ -48,11 +71,14 @@ export function registerIpcHandlers(): void {
     if (typeof expectedRevision !== "string") throw new Error("配置版本不能为空。");
     return saveDesktopConfig(ConfigSchema.parse(input), expectedRevision);
   });
-  ipcMain.handle(IPC_CHANNELS.templatesRead, (_event, cadence: unknown, period: unknown) =>
-    getDesktopSummaryTemplate(
-      cadence === undefined ? "weekly" : ReportCadenceSchema.parse(cadence),
-      period === undefined ? undefined : PeriodSchema.parse(period),
-    ),
+  ipcMain.handle(
+    IPC_CHANNELS.templatesRead,
+    (_event, reportType: unknown, period: unknown, reportTitle: unknown) =>
+      getDesktopSummaryTemplate(
+        reportType === undefined ? "weekly" : ReportTypeSchema.parse(reportType),
+        period === undefined ? undefined : PeriodSchema.parse(period),
+        typeof reportTitle === "string" ? reportTitle : undefined,
+      ),
   );
   ipcMain.handle(IPC_CHANNELS.templatesPreview, (_event, input: unknown) => {
     const request = parseTemplateContentRequest(input);
@@ -124,7 +150,12 @@ export function registerIpcHandlers(): void {
       return removeDesktopRepository(id, deleteCache, expectedRevision);
     },
   );
-  ipcMain.handle(IPC_CHANNELS.reportsList, () => listReportFiles());
+  ipcMain.handle(IPC_CHANNELS.reportsList, (_event, trashed: unknown) => {
+    if (trashed !== undefined && typeof trashed !== "boolean") {
+      throw new Error("回收站筛选参数无效。");
+    }
+    return listReportFiles(undefined, trashed === true);
+  });
   ipcMain.handle(IPC_CHANNELS.reportsRead, (_event, id: unknown) => {
     if (typeof id !== "string") throw new Error("Report id is required.");
     return readReportFile(id);
@@ -132,6 +163,101 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.reportsShowInFolder, async (_event, id: unknown) => {
     if (typeof id !== "string") throw new Error("Report id is required.");
     shell.showItemInFolder(await getReportAbsolutePath(id));
+  });
+  ipcMain.handle(IPC_CHANNELS.reportsPublish, (_event, id: unknown) => {
+    if (typeof id !== "string") throw new Error("Report id is required.");
+    return publishDesktopReport(id);
+  });
+  ipcMain.handle(IPC_CHANNELS.reportsTrash, (_event, id: unknown) => {
+    if (typeof id !== "string") throw new Error("Report id is required.");
+    return trashDesktopReport(id);
+  });
+  ipcMain.handle(IPC_CHANNELS.reportsRestore, (_event, id: unknown) => {
+    if (typeof id !== "string") throw new Error("Report id is required.");
+    return restoreDesktopReport(id);
+  });
+  ipcMain.handle(IPC_CHANNELS.reportsDeletePermanently, (_event, id: unknown) => {
+    if (typeof id !== "string") throw new Error("Report id is required.");
+    return deleteDesktopReportPermanently(id);
+  });
+  ipcMain.handle(IPC_CHANNELS.aiStatus, () => getDesktopAiStatus());
+  ipcMain.handle(IPC_CHANNELS.aiConfigure, (_event, provider: unknown, apiKey: unknown) => {
+    if (typeof apiKey !== "string" || !apiKey.trim()) throw new Error("API Key 不能为空。");
+    return configureDesktopAi(AiProviderSchema.parse(provider), apiKey.trim());
+  });
+  ipcMain.handle(IPC_CHANNELS.aiTest, () => testDesktopAi());
+  ipcMain.handle(IPC_CHANNELS.aiClear, () => clearDesktopAi());
+  ipcMain.handle(IPC_CHANNELS.feishuStatus, () => getDesktopFeishuStatus());
+  ipcMain.handle(
+    IPC_CHANNELS.feishuConfigure,
+    (_event, webhookUrl: unknown, signingSecret: unknown) => {
+      if (typeof webhookUrl !== "string" || !webhookUrl.trim())
+        throw new Error("Webhook 不能为空。");
+      if (signingSecret !== undefined && typeof signingSecret !== "string") {
+        throw new Error("飞书签名密钥无效。");
+      }
+      return configureDesktopFeishu(webhookUrl.trim(), signingSecret?.trim() || undefined);
+    },
+  );
+  ipcMain.handle(IPC_CHANNELS.feishuTest, () => testDesktopFeishu());
+  ipcMain.handle(IPC_CHANNELS.feishuClear, () => clearDesktopFeishu());
+  ipcMain.handle(IPC_CHANNELS.tasksState, () => getDesktopTasksState());
+  ipcMain.handle(IPC_CHANNELS.tasksSave, (_event, document: unknown, expectedRevision: unknown) => {
+    if (expectedRevision !== null && typeof expectedRevision !== "string") {
+      throw new Error("任务配置版本无效。");
+    }
+    return saveDesktopTasks(document, expectedRevision);
+  });
+  ipcMain.handle(IPC_CHANNELS.tasksRun, (_event, id: unknown) => {
+    if (typeof id !== "string") throw new Error("Task id is required.");
+    return runDesktopTask(id);
+  });
+  ipcMain.handle(IPC_CHANNELS.runsList, (_event, limit: unknown) => {
+    if (limit !== undefined && (typeof limit !== "number" || !Number.isInteger(limit))) {
+      throw new Error("Run limit must be an integer.");
+    }
+    return listDesktopRuns(limit);
+  });
+  ipcMain.handle(IPC_CHANNELS.runsGet, (_event, id: unknown) => {
+    if (typeof id !== "string") throw new Error("Run id is required.");
+    return getDesktopRun(id);
+  });
+  ipcMain.handle(IPC_CHANNELS.runsReadDraft, (_event, id: unknown) => {
+    if (typeof id !== "string") throw new Error("Run id is required.");
+    return readDesktopRunDraft(id);
+  });
+  ipcMain.handle(IPC_CHANNELS.runsGenerate, (event, input: unknown) => {
+    if (!isRecord(input)) throw new Error("生成参数无效。");
+    const request = {
+      reportType: ReportTypeSchema.parse(input.reportType),
+      period: PeriodSchema.parse(input.period),
+      ...(typeof input.reportId === "string" ? { reportId: input.reportId } : {}),
+      ...(typeof input.title === "string" ? { title: input.title } : {}),
+      ...(isStringArray(input.projectIds) ? { projectIds: input.projectIds } : {}),
+      ...(typeof input.userContext === "string" ? { userContext: input.userContext } : {}),
+    };
+    return generateDesktopReport(request, (runId, delta) => {
+      if (!event.sender.isDestroyed()) {
+        event.sender.send(IPC_CHANNELS.runsGenerationDelta, runId, delta);
+      }
+    });
+  });
+  ipcMain.handle(
+    IPC_CHANNELS.runsApprove,
+    (_event, id: unknown, content: unknown, publish: unknown, force: unknown) => {
+      if (typeof id !== "string" || typeof content !== "string") throw new Error("审核参数无效。");
+      if (publish !== undefined && typeof publish !== "boolean") throw new Error("推送参数无效。");
+      if (force !== undefined && typeof force !== "boolean") throw new Error("覆盖参数无效。");
+      return approveDesktopRun(id, content, publish, force);
+    },
+  );
+  ipcMain.handle(IPC_CHANNELS.runsCancel, (_event, id: unknown) => {
+    if (typeof id !== "string") throw new Error("Run id is required.");
+    return cancelDesktopRun(id);
+  });
+  ipcMain.handle(IPC_CHANNELS.runsRetry, (_event, id: unknown) => {
+    if (typeof id !== "string") throw new Error("Run id is required.");
+    return retryDesktopRun(id);
   });
   ipcMain.handle(IPC_CHANNELS.systemDiagnostics, () => getDiagnostics());
   ipcMain.handle(IPC_CHANNELS.systemOpenOutputRoot, async () => {
@@ -164,9 +290,10 @@ function parseTemplateContentRequest(input: unknown) {
     throw new Error("模板内容无效。");
   }
   return {
-    cadence: parseTemplateCadence(input.cadence),
+    reportType: parseTemplateReportType(input.reportType),
     content: input.content,
     period: PeriodSchema.parse(input.period),
+    ...(typeof input.reportTitle === "string" ? { reportTitle: input.reportTitle } : {}),
   };
 }
 
@@ -175,13 +302,13 @@ function parseTemplateRevisionRequest(input: unknown) {
     throw new Error("模板版本不能为空。");
   }
   return {
-    cadence: parseTemplateCadence(input.cadence),
+    reportType: parseTemplateReportType(input.reportType),
     expectedRevision: input.expectedRevision,
     ...(typeof input.content === "string" ? { content: input.content } : {}),
     ...(input.period === undefined ? {} : { period: PeriodSchema.parse(input.period) }),
   };
 }
 
-function parseTemplateCadence(value: unknown) {
-  return value === undefined ? "weekly" : ReportCadenceSchema.parse(value);
+function parseTemplateReportType(value: unknown) {
+  return value === undefined ? "weekly" : ReportTypeSchema.parse(value);
 }

@@ -40,7 +40,7 @@ export async function runSummaryCommand(
     throw new Error(`Unknown summary command: ${subcommandName ?? ""}`);
   }
 
-  const { file, period, cadence, force } = parseSummarySaveArgs(args);
+  const { file, period, reportType, reportId, title, force } = parseSummarySaveArgs(args);
   const content = file ? await readFile(file, "utf8") : await readStdin();
-  printJson(await saveSummary({ ...period, content, cadence, force }));
+  printJson(await saveSummary({ ...period, content, reportType, reportId, title, force }));
 }

@@ -40,5 +40,8 @@
     "@weekly-git-report/workflow": "workspace:*",
     "tsup": "catalog:",
     "typescript": "catalog:"
+  },
+  "engines": {
+    "node": ">=22.12"
   }
 }

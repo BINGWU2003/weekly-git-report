@@ -8,6 +8,7 @@ export interface GitCommit {
   author: string;
   authorEmail: string;
   subject: string;
+  body?: string;
 }
 
 export interface ProjectCommitResult {
@@ -80,7 +81,7 @@ async function collectProjectCommitsFromBranch(
     `refs/remotes/origin/${project.branch}`,
     `--since=${period.start} 00:00:00`,
     `--until=${period.end} 23:59:59`,
-    "--pretty=format:%cI%x1f%h%x1f%an%x1f%ae%x1f%s",
+    "--pretty=format:%cI%x1f%H%x1f%an%x1f%ae%x1f%s%x1f%b%x1e",
   ];
 
   const output = await runGit(args, project.path);
@@ -93,12 +94,13 @@ function parseGitLog(output: string): GitCommit[] {
   }
 
   return output
-    .split(/\r?\n/)
+    .split("\x1e")
+    .map((record) => record.replace(/^\r?\n/, "").replace(/\r?\n$/, ""))
     .filter(Boolean)
-    .map((line) => {
-      const [committedAt = "", hash = "", author = "", authorEmail = "", subject = ""] =
-        line.split("\x1f");
-      return { committedAt, hash, author, authorEmail, subject };
+    .map((record) => {
+      const [committedAt = "", hash = "", author = "", authorEmail = "", subject = "", body = ""] =
+        record.split("\x1f");
+      return { committedAt, hash, author, authorEmail, subject, body: body.trim() };
     });
 }
 

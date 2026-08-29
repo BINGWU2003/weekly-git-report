@@ -1,20 +1,31 @@
-import type { Period, ReportCadence } from "@weekly-git-report/shared";
+import type { Period, ReportType } from "@weekly-git-report/shared";
 
 const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
-export function validateSummaryPeriod(cadence: ReportCadence, period: Period): Period {
+export function validateSummaryPeriod(reportType: ReportType, period: Period): Period {
   const start = parseDate(period.start);
   const end = parseDate(period.end);
   if (end < start) throw new Error("Summary period end cannot be before start.");
 
-  if (cadence === "daily") {
+  if (reportType === "custom") {
+    const days = Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1;
+    if (days > 366) throw new Error("Custom report period cannot exceed 366 days.");
+    const today = new Date();
+    const localToday = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+    if (end.getTime() > localToday) {
+      throw new Error("Custom report period cannot include future dates.");
+    }
+    return period;
+  }
+
+  if (reportType === "daily") {
     if (period.start !== period.end) {
       throw new Error("Daily summary requires the same start and end date.");
     }
     return period;
   }
 
-  if (cadence === "weekly") {
+  if (reportType === "weekly") {
     if (start.getUTCDay() !== 1) {
       throw new Error("Weekly summary must start on Monday.");
     }

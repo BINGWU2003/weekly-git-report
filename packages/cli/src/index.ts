@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 
 import { runDoctorCommand } from "./commands/doctor.js";
+import { runAiCommand } from "./commands/ai.js";
+import { runFeishuCommand } from "./commands/feishu.js";
+import { runRunsCommand } from "./commands/runs.js";
+import { runTasksCommand } from "./commands/tasks.js";
 import { runEditConfigCommand, runInitCommand } from "./commands/init.js";
 import { runCollectCommand, runRawCommand, runSummaryCommand } from "./commands/report.js";
 import { runTemplatesCommand } from "./commands/templates.js";
@@ -50,6 +54,18 @@ try {
       break;
     case "doctor":
       await runDoctorCommand();
+      break;
+    case "ai":
+      await runAiCommand(commandArgs[0], commandArgs.slice(1));
+      break;
+    case "feishu":
+      await runFeishuCommand(commandArgs[0], commandArgs.slice(1));
+      break;
+    case "tasks":
+      await runTasksCommand(commandArgs[0], commandArgs.slice(1));
+      break;
+    case "runs":
+      await runRunsCommand(commandArgs[0], commandArgs.slice(1));
       break;
     case "--help":
     case "-h":
@@ -143,11 +159,16 @@ Usage:
   weekly collect --since <YYYY-MM-DD> --until <YYYY-MM-DD> [--author <name-or-email>] [--project <id-or-name>] [--all]
   weekly raw index --start <YYYY-MM-DD> --end <YYYY-MM-DD>
   weekly raw read --start <YYYY-MM-DD> --end <YYYY-MM-DD>
-  weekly summary save [--type daily|weekly|monthly] --start <YYYY-MM-DD> --end <YYYY-MM-DD> [--file <path>] [--force]
-  weekly templates init [--type daily|weekly|monthly|--all]
-  weekly templates read [--type daily|weekly|monthly] [--start <YYYY-MM-DD> --end <YYYY-MM-DD>]
-  weekly templates write [--type daily|weekly|monthly] [--file <path>] (--revision <revision>|--force)
-  weekly templates reset [--type daily|weekly|monthly] --force
+  weekly summary save [--type daily|weekly|monthly|custom] --start <YYYY-MM-DD> --end <YYYY-MM-DD> [--title <title>] [--report-id <id>] [--file <path>] [--force]
+  weekly templates init [--type daily|weekly|monthly|custom|--all]
+  weekly templates read [--type daily|weekly|monthly|custom] [--start <YYYY-MM-DD> --end <YYYY-MM-DD>]
+  weekly templates write [--type daily|weekly|monthly|custom] [--file <path>] (--revision <revision>|--force)
+  weekly templates reset [--type daily|weekly|monthly|custom] --force
   weekly doctor
+  weekly ai configure|status|test|clear
+  weekly feishu configure|status|test|clear
+  weekly tasks list|add|edit|remove|enable|disable|run|execute|schedule
+  weekly runs prepare [--type daily|weekly|monthly|custom] [--start <YYYY-MM-DD> --end <YYYY-MM-DD>] [--title <title>] [--report-id <id>]
+  weekly runs complete|fail|list|show|retry|cancel|publish
 `);
 }

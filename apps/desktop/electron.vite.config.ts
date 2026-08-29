@@ -9,7 +9,11 @@ export default defineConfig({
   main: {
     build: {
       externalizeDeps: {
-        exclude: ["@weekly-git-report/core", "@weekly-git-report/shared"],
+        exclude: [
+          "@weekly-git-report/core",
+          "@weekly-git-report/shared",
+          "@weekly-git-report/workflow",
+        ],
       },
       rollupOptions: {
         input: path.resolve(__dirname, "electron/main/index.ts"),

@@ -46,6 +46,7 @@
     "@tanstack/react-table": "catalog:desktop",
     "@weekly-git-report/core": "workspace:*",
     "@weekly-git-report/shared": "workspace:*",
+    "@weekly-git-report/workflow": "workspace:*",
     "class-variance-authority": "catalog:desktop",
     "clsx": "catalog:desktop",
     "cmdk": "catalog:desktop",

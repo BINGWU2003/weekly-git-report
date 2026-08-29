@@ -4,7 +4,7 @@ weekly-git-report 的统一命令行入口。它既提供交互式配置、项�
 
 ## 环境要求
 
-- Node.js 20.19+
+- Node.js 22.12+
 - Git
 - 初始化、添加、编辑和删除项目时需要交互式终端
 
@@ -46,27 +46,31 @@ weekly
 
 ## 命令
 
-| 命令                                        | 是否交互 | 说明                                     |
-| ------------------------------------------- | -------- | ---------------------------------------- |
-| `weekly`                                    | 是       | 在 TTY 中显示操作菜单；非 TTY 中显示帮助 |
-| `weekly init`                               | 是       | 初始化配置、输出目录和项目索引           |
-| `weekly config edit`                        | 是       | 编辑全局目录、空项目策略和作者身份       |
-| `weekly projects add`                       | 是       | 验证远程仓库并添加项目                   |
-| `weekly projects edit`                      | 是       | 编辑并重新同步项目                       |
-| `weekly projects remove`                    | 是       | 移除项目，可选择同时删除 Bare Git 缓存   |
-| `weekly projects import [folder] [--all]`   | 可选     | 从本地文件夹识别并批量添加仓库           |
-| `weekly projects list`                      | 否       | 以稳定 JSON DTO 输出全部显式项目         |
-| `weekly projects sync [selection]`          | 可选     | 同步全部或指定的已启用项目               |
-| `weekly collect [options]`                  | 否       | 同步并采集指定周期的 Git 提交            |
-| `weekly raw index --start ... --end ...`    | 否       | 读取周期 raw 索引                        |
-| `weekly raw read --start ... --end ...`     | 否       | 读取周期内的项目 Markdown                |
-| `weekly summary save --type ... [period]`   | 否       | 保存日报、周报或月报及其 Sidecar         |
-| `weekly templates init [--type ...\|--all]` | 否       | 初始化缺失的默认生成模板                 |
-| `weekly templates read --type ... [period]` | 否       | 读取指定类型模板及日期变量渲染结果       |
-| `weekly templates write [options]`          | 否       | 从文件或 stdin 安全更新模板              |
-| `weekly templates reset --force`            | 否       | 恢复当前版本的内置默认模板               |
-| `weekly doctor`                             | 否       | 检查环境、模板、Sidecar 和仓库           |
-| `weekly --help`                             | 否       | 显示命令帮助                             |
+| 命令                                                                      | 是否交互 | 说明                                     |
+| ------------------------------------------------------------------------- | -------- | ---------------------------------------- |
+| `weekly`                                                                  | 是       | 在 TTY 中显示操作菜单；非 TTY 中显示帮助 |
+| `weekly init`                                                             | 是       | 初始化配置、输出目录和项目索引           |
+| `weekly config edit`                                                      | 是       | 编辑全局目录、空项目策略和作者身份       |
+| `weekly projects add`                                                     | 是       | 验证远程仓库并添加项目                   |
+| `weekly projects edit`                                                    | 是       | 编辑并重新同步项目                       |
+| `weekly projects remove`                                                  | 是       | 移除项目，可选择同时删除 Bare Git 缓存   |
+| `weekly projects import [folder] [--all]`                                 | 可选     | 从本地文件夹识别并批量添加仓库           |
+| `weekly projects list`                                                    | 否       | 以稳定 JSON DTO 输出全部显式项目         |
+| `weekly projects sync [selection]`                                        | 可选     | 同步全部或指定的已启用项目               |
+| `weekly collect [options]`                                                | 否       | 同步并采集指定周期的 Git 提交            |
+| `weekly raw index --start ... --end ...`                                  | 否       | 读取周期 raw 索引                        |
+| `weekly raw read --start ... --end ...`                                   | 否       | 读取周期内的项目 Markdown                |
+| `weekly summary save --type ... [period]`                                 | 否       | 保存日报、周报或月报及其 Sidecar         |
+| `weekly templates init [--type ...\|--all]`                               | 否       | 初始化缺失的默认生成模板                 |
+| `weekly templates read --type ... [period]`                               | 否       | 读取指定类型模板及日期变量渲染结果       |
+| `weekly templates write [options]`                                        | 否       | 从文件或 stdin 安全更新模板              |
+| `weekly templates reset --force`                                          | 否       | 恢复当前版本的内置默认模板               |
+| `weekly doctor`                                                           | 否       | 检查环境、模板、Sidecar 和仓库           |
+| `weekly ai configure\|status\|test\|clear`                                | 可选     | 配置并测试 OpenAI 或 DeepSeek            |
+| `weekly feishu configure\|status\|test\|clear`                            | 可选     | 配置并测试飞书群机器人                   |
+| `weekly tasks list\|add\|edit\|remove\|enable\|disable\|run\|schedule`    | 否       | 管理系统调度任务                         |
+| `weekly runs prepare\|complete\|fail\|list\|show\|retry\|cancel\|publish` | 否       | 统一报告 Run 协议                        |
+| `weekly --help`                                                           | 否       | 显示命令帮助                             |
 
 使用 `npx` 时，将表中的 `weekly` 替换为 `npx -y @weekly-git-report/cli@latest`。
 
@@ -100,7 +104,7 @@ npx -y @weekly-git-report/cli@latest templates read --type daily --start 2026-08
 npx -y @weekly-git-report/cli@latest templates read --type monthly --start 2026-08-01 --end 2026-08-28
 ```
 
-未传 `--type` 时默认 `weekly`。三种模板分别保存在 `templates/daily`、`templates/weekly`、`templates/monthly` 下。CLI stdout 返回正文、渲染结果、路径、revision 和默认状态。读取时若文件缺失会自动创建，但绝不会覆盖已有内容。`templates init --all` 可一次补齐全部模板。
+未传 `--type` 时默认 `weekly`。四种模板分别保存在 `templates/daily`、`templates/weekly`、`templates/monthly`、`templates/custom` 下。CLI stdout 返回正文、渲染结果、路径、revision 和默认状态。读取时若文件缺失会自动创建，但绝不会覆盖已有内容。`templates init --all` 可一次补齐全部模板。
 
 更新模板前先读取 revision，然后从文件或 stdin 写入：
 
@@ -228,22 +232,20 @@ npx -y @weekly-git-report/cli@latest projects sync --all
 
 ## Agent 和脚本自动化
 
-以下命令构成完整的总结流程：
+外部 Agent 使用统一的两阶段 Run 协议：
 
 ```sh
-npx -y @weekly-git-report/cli@latest collect --since 2026-08-17 --until 2026-08-23 --all
-npx -y @weekly-git-report/cli@latest templates read --type weekly --start 2026-08-17 --end 2026-08-23
-npx -y @weekly-git-report/cli@latest raw read --start 2026-08-17 --end 2026-08-23
-npx -y @weekly-git-report/cli@latest summary save --type weekly --start 2026-08-17 --end 2026-08-23 --file ./weekly-summary.md
+npx -y @weekly-git-report/cli@latest runs prepare --type weekly --start 2026-08-17 --end 2026-08-23
+npx -y @weekly-git-report/cli@latest runs complete RUN_ID --file ./weekly-summary.md
 ```
 
-`collect` 支持重复的 `--author <name-or-email>` 和 `--project <id-or-name>`。`summary save` 未传 `--file` 时从 stdin 读取 Markdown：
+`runs prepare` 每次重新同步和采集，并返回固定模板及不含专门的作者邮箱、本地路径、远程 URL 和 Diff 字段的 `generationInput`；提交文本或补充事实中原本存在的内容仍会保留。日报、周报、月报未传日期时默认生成当前周期；自定义报告必须传 `--start/--end`，可附加 `--title`。`runs complete` 未传 `--file` 时从 stdin 读取 Markdown；只有明确使用 `--publish` 才推送飞书。同类型同周期已有报告但元数据无法校验时，确认覆盖后可追加 `--force`，原文件会先备份到 `.history`。
 
 ```sh
 Get-Content ./weekly-summary.md | npx -y @weekly-git-report/cli@latest summary save --type weekly --start 2026-08-17 --end 2026-08-23
 ```
 
-Raw 与报告类型无关，只按日期范围保存。Summary Markdown 继续写入 `summary/{year}/{month}/{start}_{end}.md`，同时生成同名 `.meta.json`，记录类型、周期、保存时间和内容 Hash。旧 Markdown 没有 Sidecar 时按 legacy 周报展示；同类型重复保存会备份到 `.history`，跨类型覆盖必须显式传入 `--force`。
+Raw 与报告类型无关，只按日期范围保存。标准 Summary 写入 `summary/{year}/{month}/{start}_{end}.{daily|weekly|monthly}.md`，自定义报告写入 `{start}_{end}.custom.{reportId}.md`；同名 `.meta.json` 记录报告 ID、类型、Run、生成器、模型、模板 revision、Raw manifest Hash、周期和内容 Hash。缺少有效 Sidecar 的 Markdown 不可推送；同类型重复保存会备份到 `.history`。
 
 自动化命令只向 stdout 写入 JSON。配置错误、参数错误等诊断写入 stderr 并返回退出码 `1`；同步或采集出现项目级错误时，也会保留完整 JSON 并返回退出码 `1`。
 

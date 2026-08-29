@@ -8,6 +8,10 @@ export interface VersionedText {
   revision: string;
 }
 
+export interface AtomicWriteOptions {
+  prepareTemporaryFile?(temporaryFile: string): Promise<void>;
+}
+
 export class FileRevisionConflictError extends Error {
   constructor(file: string) {
     super(`File changed since it was loaded: ${file}`);
@@ -38,15 +42,24 @@ export async function assertFileRevision(
   }
 }
 
-export async function writeJsonAtomic(file: string, value: unknown): Promise<void> {
-  await writeTextAtomic(file, `${JSON.stringify(value, null, 2)}\n`);
+export async function writeJsonAtomic(
+  file: string,
+  value: unknown,
+  options?: AtomicWriteOptions,
+): Promise<void> {
+  await writeTextAtomic(file, `${JSON.stringify(value, null, 2)}\n`, options);
 }
 
-export async function writeTextAtomic(file: string, content: string): Promise<void> {
+export async function writeTextAtomic(
+  file: string,
+  content: string,
+  options?: AtomicWriteOptions,
+): Promise<void> {
   await mkdir(path.dirname(file), { recursive: true });
   const temporaryFile = `${file}.${process.pid}.${Date.now()}.tmp`;
   try {
     await writeFile(temporaryFile, content, "utf8");
+    await options?.prepareTemporaryFile?.(temporaryFile);
     await rename(temporaryFile, file);
   } catch (error) {
     await rm(temporaryFile, { force: true });

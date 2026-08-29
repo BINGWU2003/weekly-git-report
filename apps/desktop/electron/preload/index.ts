@@ -1,8 +1,15 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { Config, Period, ReportCadence } from "@weekly-git-report/shared";
+import type {
+  AiProvider,
+  Config,
+  Period,
+  ReportType,
+  TasksDocument,
+} from "@weekly-git-report/shared";
 
 import type {
   DesktopAPI,
+  GenerateReportRequest,
   ImportRepositoriesRequest,
   SaveRepositoryRequest,
   SummaryTemplatePreviewRequest,
@@ -30,8 +37,8 @@ const electronAPI: DesktopAPI = Object.freeze({
       ipcRenderer.invoke(IPC_CHANNELS.configSave, config, expectedRevision),
   }),
   templates: Object.freeze({
-    read: (cadence?: ReportCadence, period?: Period) =>
-      ipcRenderer.invoke(IPC_CHANNELS.templatesRead, cadence, period),
+    read: (reportType?: ReportType, period?: Period, reportTitle?: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.templatesRead, reportType, period, reportTitle),
     preview: (request: SummaryTemplatePreviewRequest) =>
       ipcRenderer.invoke(IPC_CHANNELS.templatesPreview, request),
     save: (request: SummaryTemplateSaveRequest) =>
@@ -56,9 +63,51 @@ const electronAPI: DesktopAPI = Object.freeze({
       ipcRenderer.invoke(IPC_CHANNELS.projectsRemove, id, deleteCache, expectedRevision),
   }),
   reports: Object.freeze({
-    list: () => ipcRenderer.invoke(IPC_CHANNELS.reportsList),
+    list: (trashed?: boolean) => ipcRenderer.invoke(IPC_CHANNELS.reportsList, trashed),
     read: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.reportsRead, id),
     showInFolder: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.reportsShowInFolder, id),
+    publish: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.reportsPublish, id),
+    trash: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.reportsTrash, id),
+    restore: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.reportsRestore, id),
+    deletePermanently: (id: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.reportsDeletePermanently, id),
+  }),
+  ai: Object.freeze({
+    status: () => ipcRenderer.invoke(IPC_CHANNELS.aiStatus),
+    configure: (provider: AiProvider, apiKey: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.aiConfigure, provider, apiKey),
+    test: () => ipcRenderer.invoke(IPC_CHANNELS.aiTest),
+    clear: () => ipcRenderer.invoke(IPC_CHANNELS.aiClear),
+  }),
+  feishu: Object.freeze({
+    status: () => ipcRenderer.invoke(IPC_CHANNELS.feishuStatus),
+    configure: (webhookUrl: string, signingSecret?: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.feishuConfigure, webhookUrl, signingSecret),
+    test: () => ipcRenderer.invoke(IPC_CHANNELS.feishuTest),
+    clear: () => ipcRenderer.invoke(IPC_CHANNELS.feishuClear),
+  }),
+  tasks: Object.freeze({
+    state: () => ipcRenderer.invoke(IPC_CHANNELS.tasksState),
+    save: (document: TasksDocument, expectedRevision: string | null) =>
+      ipcRenderer.invoke(IPC_CHANNELS.tasksSave, document, expectedRevision),
+    run: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.tasksRun, id),
+  }),
+  runs: Object.freeze({
+    list: (limit?: number) => ipcRenderer.invoke(IPC_CHANNELS.runsList, limit),
+    get: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.runsGet, id),
+    readDraft: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.runsReadDraft, id),
+    generate: (request: GenerateReportRequest) =>
+      ipcRenderer.invoke(IPC_CHANNELS.runsGenerate, request),
+    approve: (id: string, content: string, publish?: boolean, force?: boolean) =>
+      ipcRenderer.invoke(IPC_CHANNELS.runsApprove, id, content, publish, force),
+    cancel: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.runsCancel, id),
+    retry: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.runsRetry, id),
+    onGenerationDelta: (listener: (runId: string, delta: string) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, runId: string, delta: string) =>
+        listener(runId, delta);
+      ipcRenderer.on(IPC_CHANNELS.runsGenerationDelta, handler);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.runsGenerationDelta, handler);
+    },
   }),
   system: Object.freeze({
     diagnostics: () => ipcRenderer.invoke(IPC_CHANNELS.systemDiagnostics),

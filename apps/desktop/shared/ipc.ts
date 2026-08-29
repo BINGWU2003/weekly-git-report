@@ -1,5 +1,6 @@
 import type {
   Config,
+  AiProvider,
   Identity,
   IndexedReportFile,
   ManifestError,
@@ -7,7 +8,9 @@ import type {
   RepositoryProject,
   RepositoryRuntimeState,
   Period,
-  ReportCadence,
+  ReportType,
+  ReportRun,
+  TasksDocument,
   SummaryTemplateResult,
 } from "@weekly-git-report/shared";
 
@@ -58,22 +61,23 @@ export interface RepositorySyncResult {
 }
 
 export interface SummaryTemplateSaveRequest {
-  cadence: ReportCadence;
+  reportType: ReportType;
   content: string;
   expectedRevision: string;
   period?: Period;
 }
 
 export interface SummaryTemplateResetRequest {
-  cadence: ReportCadence;
+  reportType: ReportType;
   expectedRevision: string;
   period?: Period;
 }
 
 export interface SummaryTemplatePreviewRequest {
-  cadence: ReportCadence;
+  reportType: ReportType;
   content: string;
   period: Period;
+  reportTitle?: string;
 }
 
 export type DiagnosticStatus = "ok" | "warning" | "error";
@@ -91,7 +95,31 @@ export interface DesktopOverview {
   projectCount: number;
   enabledProjectCount: number;
   reportCount: number;
+  enabledTaskCount: number;
+  runCounts: Partial<Record<ReportRun["status"], number>>;
   diagnostics: DiagnosticCheck[];
+}
+
+export interface SecretConfigurationStatus {
+  configured: boolean;
+  provider?: AiProvider;
+  model?: string;
+  signingEnabled?: boolean;
+  testedAt?: string;
+}
+
+export interface TasksState {
+  document: TasksDocument;
+  revision: string | null;
+}
+
+export interface GenerateReportRequest {
+  reportType: ReportType;
+  period: Period;
+  reportId?: string;
+  title?: string;
+  projectIds?: string[];
+  userContext?: string;
 }
 
 export type ReportFile = IndexedReportFile;
@@ -118,7 +146,11 @@ export interface DesktopAPI {
     save(config: Config, expectedRevision: string): Promise<ConfigState>;
   };
   templates: {
-    read(cadence?: ReportCadence, period?: Period): Promise<SummaryTemplateResult>;
+    read(
+      reportType?: ReportType,
+      period?: Period,
+      reportTitle?: string,
+    ): Promise<SummaryTemplateResult>;
     preview(request: SummaryTemplatePreviewRequest): Promise<string>;
     save(request: SummaryTemplateSaveRequest): Promise<SummaryTemplateResult>;
     reset(request: SummaryTemplateResetRequest): Promise<SummaryTemplateResult>;
@@ -136,9 +168,40 @@ export interface DesktopAPI {
     remove(id: string, deleteCache: boolean, expectedRevision: string): Promise<ProjectsState>;
   };
   reports: {
-    list(): Promise<ReportFile[]>;
+    list(trashed?: boolean): Promise<ReportFile[]>;
     read(id: string): Promise<ReportDocument>;
     showInFolder(id: string): Promise<void>;
+    publish(id: string): Promise<void>;
+    trash(id: string): Promise<void>;
+    restore(id: string): Promise<void>;
+    deletePermanently(id: string): Promise<void>;
+  };
+  ai: {
+    status(): Promise<SecretConfigurationStatus>;
+    configure(provider: AiProvider, apiKey: string): Promise<SecretConfigurationStatus>;
+    test(): Promise<SecretConfigurationStatus>;
+    clear(): Promise<SecretConfigurationStatus>;
+  };
+  feishu: {
+    status(): Promise<SecretConfigurationStatus>;
+    configure(webhookUrl: string, signingSecret?: string): Promise<SecretConfigurationStatus>;
+    test(): Promise<SecretConfigurationStatus>;
+    clear(): Promise<SecretConfigurationStatus>;
+  };
+  tasks: {
+    state(): Promise<TasksState>;
+    save(document: TasksDocument, expectedRevision: string | null): Promise<TasksState>;
+    run(id: string): Promise<ReportRun>;
+  };
+  runs: {
+    list(limit?: number): Promise<ReportRun[]>;
+    get(id: string): Promise<ReportRun>;
+    readDraft(id: string): Promise<string>;
+    generate(request: GenerateReportRequest): Promise<ReportRun>;
+    approve(id: string, content: string, publish?: boolean, force?: boolean): Promise<ReportRun>;
+    cancel(id: string): Promise<ReportRun>;
+    retry(id: string): Promise<ReportRun>;
+    onGenerationDelta(listener: (runId: string, delta: string) => void): () => void;
   };
   system: {
     diagnostics(): Promise<DiagnosticCheck[]>;
@@ -171,6 +234,29 @@ export const IPC_CHANNELS = {
   reportsList: "reports:list",
   reportsRead: "reports:read",
   reportsShowInFolder: "reports:show-in-folder",
+  reportsPublish: "reports:publish",
+  reportsTrash: "reports:trash",
+  reportsRestore: "reports:restore",
+  reportsDeletePermanently: "reports:delete-permanently",
+  aiStatus: "ai:status",
+  aiConfigure: "ai:configure",
+  aiTest: "ai:test",
+  aiClear: "ai:clear",
+  feishuStatus: "feishu:status",
+  feishuConfigure: "feishu:configure",
+  feishuTest: "feishu:test",
+  feishuClear: "feishu:clear",
+  tasksState: "tasks:state",
+  tasksSave: "tasks:save",
+  tasksRun: "tasks:run",
+  runsList: "runs:list",
+  runsGet: "runs:get",
+  runsReadDraft: "runs:read-draft",
+  runsGenerate: "runs:generate",
+  runsApprove: "runs:approve",
+  runsCancel: "runs:cancel",
+  runsRetry: "runs:retry",
+  runsGenerationDelta: "runs:generation-delta",
   systemDiagnostics: "system:diagnostics",
   systemOpenOutputRoot: "system:open-output-root",
   systemSelectDirectory: "system:select-directory",

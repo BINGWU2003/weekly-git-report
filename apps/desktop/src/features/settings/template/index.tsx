@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { AlertCircle, Loader2, RefreshCw, RotateCcw, Save } from 'lucide-react'
 import { toast } from 'sonner'
-import type { Period, ReportCadence, SummaryTemplateResult } from '@weekly-git-report/shared'
+import type { Period, ReportType, SummaryTemplateResult } from '@weekly-git-report/shared'
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes'
 import { MarkdownViewer } from '@/components/markdown-viewer'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -27,7 +27,7 @@ import { showSuccessToast } from '@/lib/toast'
 import { ContentSection } from '../components/content-section'
 
 export function SettingsTemplate() {
-  const [cadence, setCadence] = useState<ReportCadence>('weekly')
+  const [cadence, setCadence] = useState<ReportType>('weekly')
   const [dirty, setDirty] = useState(false)
   const period = useMemo(() => getExamplePeriod(cadence), [cadence])
   const template = useQuery({
@@ -36,7 +36,7 @@ export function SettingsTemplate() {
   })
 
   function selectCadence(value: string) {
-    const next = value as ReportCadence
+    const next = value as ReportType
     if (next === cadence) return
     if (dirty && !window.confirm('当前模板有未保存的修改，确定切换模板吗？')) return
     setDirty(false)
@@ -81,7 +81,7 @@ export function SettingsTemplate() {
 
 interface SummaryTemplateEditorProps {
   initial: SummaryTemplateResult
-  cadence?: ReportCadence
+  cadence?: ReportType
   period: Period
   onDirtyChange?(dirty: boolean): void
 }
@@ -113,7 +113,12 @@ export function SummaryTemplateEditor({
 
     async function updatePreview() {
       try {
-        const next = await window.electronAPI.templates.preview({ cadence, content, period })
+        const next = await window.electronAPI.templates.preview({
+          reportType: cadence,
+          content,
+          period,
+          ...(cadence === 'custom' ? { reportTitle: '示例自定义报告' } : {}),
+        })
         if (cancelled) return
         setPreview(next)
         setPreviewError(undefined)
@@ -134,7 +139,7 @@ export function SummaryTemplateEditor({
     mutationFn: () =>
       window.electronAPI.templates.save({
         content,
-        cadence,
+        reportType: cadence,
         expectedRevision: initial.template.revision,
         period,
       }),
@@ -151,7 +156,7 @@ export function SummaryTemplateEditor({
     mutationFn: () =>
       window.electronAPI.templates.reset({
         expectedRevision: initial.template.revision,
-        cadence,
+        reportType: cadence,
         period,
       }),
     onSuccess: (next) => {
@@ -279,7 +284,8 @@ export function SummaryTemplateEditor({
         <CardContent className='space-y-4'>
           <div className='text-sm text-muted-foreground'>
             可用变量：<code>{'{{startDate}}'}</code>、<code>{'{{endDate}}'}</code>
-            。两个变量都必须保留，其他变量不会被接受。
+            {cadence === 'custom' ? <>, <code>{'{{reportTitle}}'}</code>、<code>{'{{dayCount}}'}</code></> : null}
+            。列出的变量都必须保留，其他变量不会被接受。
           </div>
           <Tabs defaultValue='edit'>
             <TabsList>
@@ -320,7 +326,7 @@ export function SummaryTemplateEditor({
 
 function setTemplateQueryData(
   queryClient: QueryClient,
-  cadence: ReportCadence,
+  cadence: ReportType,
   period: Period,
   value: SummaryTemplateResult
 ) {
@@ -335,7 +341,7 @@ function showTemplateError(error: unknown) {
   toast.error(getErrorMessage(error))
 }
 
-function getExamplePeriod(cadence: ReportCadence): Period {
+function getExamplePeriod(cadence: ReportType): Period {
   const end = new Date()
   const start = new Date(end)
   if (cadence === 'weekly') {
@@ -347,17 +353,18 @@ function getExamplePeriod(cadence: ReportCadence): Period {
   return { start: formatDate(start), end: formatDate(end) }
 }
 
-const CADENCE_OPTIONS: Array<{ value: ReportCadence; label: string }> = [
+const CADENCE_OPTIONS: Array<{ value: ReportType; label: string }> = [
   { value: 'daily', label: '日报' },
   { value: 'weekly', label: '周报' },
   { value: 'monthly', label: '月报' },
+  { value: 'custom', label: '自定义报告' },
 ]
 
-function getCadenceLabel(cadence: ReportCadence): string {
+function getCadenceLabel(cadence: ReportType): string {
   return CADENCE_OPTIONS.find((option) => option.value === cadence)?.label ?? '周期报告'
 }
 
-function getTemplateQueryKey(cadence: ReportCadence, period: Period) {
+function getTemplateQueryKey(cadence: ReportType, period: Period) {
   return ['summary-template', cadence, period.start, period.end] as const
 }
 

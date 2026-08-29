@@ -15,7 +15,7 @@ const reports: ReportFile[] = [
     kind: 'summary',
     role: 'summary',
     title: '周期总结',
-    cadence: 'weekly',
+    reportType: 'weekly',
     period: { start: '2026-07-27', end: '2026-08-02' },
   }),
   createReport({
@@ -40,14 +40,6 @@ const reports: ReportFile[] = [
     title: 'Project Alpha · 历史版本',
     period: { start: '2026-08-03', end: '2026-08-09' },
   }),
-  createReport({
-    id: 'tasks/publish.md',
-    kind: 'task',
-    role: 'task',
-    title: '发布任务',
-    period: null,
-    modifiedAt: '2026-08-05T10:00:00.000Z',
-  }),
 ]
 
 describe('report library filtering', () => {
@@ -63,9 +55,8 @@ describe('report library filtering', () => {
       reports[0]?.id,
       reports[1]?.id,
       reports[2]?.id,
-      reports[4]?.id,
     ])
-    expect(getReportTypeCounts(reports, search)).toEqual({ all: 4, summary: 1, raw: 2, task: 1 })
+    expect(getReportTypeCounts(reports, search)).toEqual({ all: 3, summary: 1, raw: 2 })
   })
 
   it('filters semantic search text and raw roles', () => {
@@ -107,8 +98,9 @@ describe('report library filtering', () => {
       daily: 0,
       weekly: 1,
       monthly: 0,
+      custom: 0,
     })
-    expect(getReportTypeCounts(reports, search)).toEqual({ all: 4, summary: 1, raw: 2, task: 1 })
+    expect(getReportTypeCounts(reports, search)).toEqual({ all: 3, summary: 1, raw: 2 })
   })
 
   it('sanitizes route search values', () => {
