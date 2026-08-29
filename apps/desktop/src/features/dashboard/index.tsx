@@ -13,29 +13,26 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { OverflowTooltip } from '@/components/overflow-tooltip'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { getErrorMessage } from '@/lib/errors'
-import { overviewQueryOptions } from '@/lib/desktop-queries'
+import { onboardingQueryOptions, overviewQueryOptions } from '@/lib/desktop-queries'
 import { showSuccessToast } from '@/lib/toast'
 
 export function Dashboard() {
   const overview = useQuery(overviewQueryOptions)
+  const onboarding = useQuery(onboardingQueryOptions)
 
   const data = overview.data
   const healthyChecks = data?.diagnostics.filter((check) => check.status === 'ok').length ?? 0
   const activeRuns = data
-    ? (data.runCounts.queued ?? 0) + (data.runCounts.collecting ?? 0) +
-      (data.runCounts.generating ?? 0) + (data.runCounts.saving ?? 0) +
+    ? (data.runCounts.queued ?? 0) +
+      (data.runCounts.collecting ?? 0) +
+      (data.runCounts.generating ?? 0) +
+      (data.runCounts.saving ?? 0) +
       (data.runCounts.publishing ?? 0)
     : undefined
   const failedRuns = data
@@ -99,6 +96,33 @@ export function Dashboard() {
             </AlertDescription>
           </Alert>
         )}
+
+        {onboarding.data && !onboarding.data.completedAt ? (
+          <Alert>
+            <TriangleAlert />
+            <AlertTitle>首次设置尚未完成</AlertTitle>
+            <AlertDescription>
+              <p>继续配置仓库和 AI，并审核保存第一份报告。当前会话仍可使用已就绪的功能。</p>
+              <Button asChild size='sm' className='mt-2'>
+                <Link to='/setup'>继续首次设置</Link>
+              </Button>
+            </AlertDescription>
+          </Alert>
+        ) : onboarding.data?.completedAt &&
+          (!onboarding.data.readiness.repositoryReady ||
+            !onboarding.data.readiness.aiReady ||
+            !onboarding.data.readiness.templatesReady) ? (
+          <Alert variant='destructive'>
+            <TriangleAlert />
+            <AlertTitle>报告生成条件需要修复</AlertTitle>
+            <AlertDescription>
+              仓库、AI 连接或报告模板已不再就绪。前往初始化检查清单查看并修复。
+              <Button asChild size='sm' variant='outline' className='mt-2 ms-2'>
+                <Link to='/setup'>查看检查清单</Link>
+              </Button>
+            </AlertDescription>
+          </Alert>
+        ) : null}
 
         <div className='grid gap-4 sm:grid-cols-2 xl:grid-cols-4'>
           <MetricCard

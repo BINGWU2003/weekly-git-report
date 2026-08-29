@@ -28,7 +28,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -36,7 +42,7 @@ import { MarkdownViewer } from '@/components/markdown-viewer'
 import { OverflowTooltip } from '@/components/overflow-tooltip'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { getErrorMessage } from '@/lib/errors'
-import { desktopQueryKeys } from '@/lib/desktop-queries'
+import { desktopQueryKeys, onboardingQueryOptions } from '@/lib/desktop-queries'
 import { openOutputRoot, showReportInFolder } from '@/lib/system-actions'
 import { showSuccessToast } from '@/lib/toast'
 import { cn } from '@/lib/utils'
@@ -90,15 +96,13 @@ export function Reports({
   routeSearch: Partial<ReportSearchParams>
   onSearchChange(patch: ReportSearchPatch): void
 }) {
-  const search = useMemo(
-    () => ({ ...DEFAULT_REPORT_SEARCH, ...routeSearch }),
-    [routeSearch],
-  )
+  const search = useMemo(() => ({ ...DEFAULT_REPORT_SEARCH, ...routeSearch }), [routeSearch])
   const [selectedId, setSelectedId] = useState<string>()
   const [generateOpen, setGenerateOpen] = useState(false)
   const [generateTarget, setGenerateTarget] = useState<ReportFile>()
   const [trashView, setTrashView] = useState(false)
   const [groupOverrides, setGroupOverrides] = useState<Record<string, boolean>>({})
+  const onboarding = useQuery(onboardingQueryOptions)
   const reports = useQuery({
     queryKey: [...desktopQueryKeys.reports, trashView ? 'trash' : 'active'],
     queryFn: () => window.electronAPI.reports.list(trashView),
@@ -133,7 +137,13 @@ export function Reports({
     onSuccess: async (_result, variables) => {
       setSelectedId(undefined)
       await reports.refetch()
-      showSuccessToast(variables.action === 'trash' ? '报告已移入回收站' : variables.action === 'restore' ? '报告已恢复' : '报告已永久删除')
+      showSuccessToast(
+        variables.action === 'trash'
+          ? '报告已移入回收站'
+          : variables.action === 'restore'
+            ? '报告已恢复'
+            : '报告已永久删除',
+      )
     },
     onError: (error) => toast.error(getErrorMessage(error)),
   })
@@ -239,14 +249,30 @@ export function Reports({
           <div>
             <h1 className='text-2xl font-bold tracking-tight md:text-3xl'>报告库</h1>
             <p className='text-muted-foreground'>
-              {trashView ? '恢复误删的 Summary，或永久清理回收站。' : '按报告周期和类型快速定位 outputRoot 中的报告。'}
+              {trashView
+                ? '恢复误删的 Summary，或永久清理回收站。'
+                : '按报告周期和类型快速定位 outputRoot 中的报告。'}
             </p>
           </div>
           <div className='flex gap-2'>
-            {!trashView ? <Button onClick={() => openGenerate()}>
-              <Sparkles />
-              生成报告
-            </Button> : null}
+            {!trashView ? (
+              <Button
+                onClick={() => openGenerate()}
+                disabled={
+                  !onboarding.data?.readiness.repositoryReady || !onboarding.data?.readiness.aiReady
+                }
+                title={
+                  !onboarding.data?.readiness.aiReady
+                    ? '请先配置并测试 AI'
+                    : !onboarding.data?.readiness.repositoryReady
+                      ? '请先添加并启用仓库'
+                      : undefined
+                }
+              >
+                <Sparkles />
+                生成报告
+              </Button>
+            ) : null}
             <Button variant='outline' onClick={() => changeTrashView(!trashView)}>
               {trashView ? <Undo2 /> : <Trash2 />}
               {trashView ? '返回报告库' : '回收站'}
@@ -326,16 +352,16 @@ export function Reports({
                         })}
                     {!reports.isLoading && filteredReports.length === 0 ? (
                       <div className='space-y-3 p-8 text-center'>
-                        <p className='text-sm text-muted-foreground'>
-                          当前筛选条件下没有报告。
-                        </p>
+                        <p className='text-sm text-muted-foreground'>当前筛选条件下没有报告。</p>
                         <Button size='sm' variant='outline' onClick={resetFilters}>
                           重置筛选
                         </Button>
                       </div>
                     ) : null}
                     {reports.isLoading ? (
-                      <p className='p-6 text-center text-sm text-muted-foreground'>正在建立报告索引…</p>
+                      <p className='p-6 text-center text-sm text-muted-foreground'>
+                        正在建立报告索引…
+                      </p>
                     ) : null}
                   </div>
                 </ScrollArea>
@@ -418,7 +444,9 @@ function ReportFilters({
             ))}
           </TabsList>
         </Tabs>
-        <span className='text-xs text-muted-foreground'>显示 {shownCount} / 共 {totalCount}</span>
+        <span className='text-xs text-muted-foreground'>
+          显示 {shownCount} / 共 {totalCount}
+        </span>
       </div>
 
       <div className='flex flex-wrap items-center gap-2'>
@@ -452,7 +480,9 @@ function ReportFilters({
           </SelectTrigger>
           <SelectContent>
             {Object.entries(RANGE_LABELS).map(([value, label]) => (
-              <SelectItem key={value} value={value}>{label}</SelectItem>
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -465,11 +495,10 @@ function ReportFilters({
               </Button>
             </PopoverTrigger>
             <PopoverContent className='w-auto p-0' align='end'>
-              <Suspense fallback={<div className='p-6 text-sm text-muted-foreground'>正在加载日历…</div>}>
-                <ReportDateRangePicker
-                  range={customRange}
-                  onChange={onCustomRangeChange}
-                />
+              <Suspense
+                fallback={<div className='p-6 text-sm text-muted-foreground'>正在加载日历…</div>}
+              >
+                <ReportDateRangePicker range={customRange} onChange={onCustomRangeChange} />
               </Suspense>
             </PopoverContent>
           </Popover>
@@ -536,7 +565,9 @@ function ReportGroup({
   const summary = [
     group.counts.summary ? `Summary ${group.counts.summary}` : null,
     group.counts.raw ? `Raw ${group.counts.raw}` : null,
-  ].filter(Boolean).join(' · ')
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
   return (
     <Collapsible open={open} onOpenChange={onOpenChange}>
@@ -549,10 +580,13 @@ function ReportGroup({
           <div className='min-w-0'>
             <p className='truncate text-sm font-semibold'>{group.label}</p>
             <p className='mt-0.5 text-xs text-muted-foreground'>
-              {summary}{group.usesModifiedTime ? ' · 按修改时间' : ''}
+              {summary}
+              {group.usesModifiedTime ? ' · 按修改时间' : ''}
             </p>
           </div>
-          <ChevronDown className={cn('size-4 shrink-0 transition-transform', open && 'rotate-180')} />
+          <ChevronDown
+            className={cn('size-4 shrink-0 transition-transform', open && 'rotate-180')}
+          />
         </button>
       </CollapsibleTrigger>
       <CollapsibleContent className='space-y-2 pt-2'>
@@ -603,27 +637,27 @@ export function ReportListItem({
             />
             <ReportKind kind={report.kind} />
             {report.summaryMetadataStatus === 'invalid' ? (
-              <Badge variant='destructive' title={report.summaryMetadataMessage}>元数据异常</Badge>
+              <Badge variant='destructive' title={report.summaryMetadataMessage}>
+                元数据异常
+              </Badge>
             ) : null}
           </div>
           <OverflowTooltip
             text={detail}
             className='mt-1 text-xs text-muted-foreground'
-            content={(
+            content={
               <div className='space-y-1'>
                 <p>{detail}</p>
                 <p className='font-mono text-primary-foreground/80'>{report.relativePath}</p>
               </div>
-            )}
+            }
             focusable={false}
           />
           <div className='mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground'>
-            <OverflowTooltip
-              text={footerLabel}
-              className='flex-1'
-              focusable={false}
-            />
-            <span className='shrink-0'>{formatModifiedAt(report.modifiedAt)} · {formatBytes(report.size)}</span>
+            <OverflowTooltip text={footerLabel} className='flex-1' focusable={false} />
+            <span className='shrink-0'>
+              {formatModifiedAt(report.modifiedAt)} · {formatBytes(report.size)}
+            </span>
           </div>
         </div>
       </div>
@@ -673,7 +707,7 @@ function ReportPreview({
               <OverflowTooltip
                 text={metadata}
                 className='mt-1 text-xs text-muted-foreground'
-                content={(
+                content={
                   <div className='space-y-1'>
                     <p>
                       {report.period
@@ -682,32 +716,61 @@ function ReportPreview({
                     </p>
                     <p className='font-mono text-primary-foreground/80'>{report.relativePath}</p>
                   </div>
-                )}
+                }
               />
             </div>
             <div className='flex gap-2'>
-              {!trashView && report.kind === 'summary' && report.summaryMetadataStatus === 'valid' && (
-                <Button size='sm' variant='outline' onClick={() => onRegenerate(report)}>
-                  <Sparkles />重新生成
-                </Button>
-              )}
-              {!trashView && report.kind === 'summary' && report.summaryMetadataStatus === 'valid' && (
-                <Button size='sm' variant='outline' onClick={() => publish.mutate(report.id)} disabled={publish.isPending}>
-                  <Send />推送飞书
-                </Button>
-              )}
+              {!trashView &&
+                report.kind === 'summary' &&
+                report.summaryMetadataStatus === 'valid' && (
+                  <Button size='sm' variant='outline' onClick={() => onRegenerate(report)}>
+                    <Sparkles />
+                    重新生成
+                  </Button>
+                )}
+              {!trashView &&
+                report.kind === 'summary' &&
+                report.summaryMetadataStatus === 'valid' && (
+                  <Button
+                    size='sm'
+                    variant='outline'
+                    onClick={() => publish.mutate(report.id)}
+                    disabled={publish.isPending}
+                  >
+                    <Send />
+                    推送飞书
+                  </Button>
+                )}
               {!trashView && report.kind === 'summary' ? (
-                <Button size='sm' variant='outline' onClick={() => onTrash(report.id)} disabled={actionPending}>
-                  <Trash2 />移入回收站
+                <Button
+                  size='sm'
+                  variant='outline'
+                  onClick={() => onTrash(report.id)}
+                  disabled={actionPending}
+                >
+                  <Trash2 />
+                  移入回收站
                 </Button>
               ) : null}
               {trashView ? (
                 <>
-                  <Button size='sm' variant='outline' onClick={() => onRestore(report.id)} disabled={actionPending}>
-                    <Undo2 />恢复
+                  <Button
+                    size='sm'
+                    variant='outline'
+                    onClick={() => onRestore(report.id)}
+                    disabled={actionPending}
+                  >
+                    <Undo2 />
+                    恢复
                   </Button>
-                  <Button size='sm' variant='destructive' onClick={() => onDelete(report.id)} disabled={actionPending}>
-                    <Trash2 />永久删除
+                  <Button
+                    size='sm'
+                    variant='destructive'
+                    onClick={() => onDelete(report.id)}
+                    disabled={actionPending}
+                  >
+                    <Trash2 />
+                    永久删除
                   </Button>
                 </>
               ) : null}

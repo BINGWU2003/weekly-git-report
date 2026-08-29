@@ -24,6 +24,12 @@ const electronAPI: DesktopAPI = Object.freeze({
   overview: Object.freeze({
     get: () => ipcRenderer.invoke(IPC_CHANNELS.overviewGet),
   }),
+  onboarding: Object.freeze({
+    state: () => ipcRenderer.invoke(IPC_CHANNELS.onboardingState),
+    rememberRun: (runId: string | null) =>
+      ipcRenderer.invoke(IPC_CHANNELS.onboardingRememberRun, runId),
+    complete: (runId: string) => ipcRenderer.invoke(IPC_CHANNELS.onboardingComplete, runId),
+  }),
   config: Object.freeze({
     get: () => ipcRenderer.invoke(IPC_CHANNELS.configGet),
     state: () => ipcRenderer.invoke(IPC_CHANNELS.configState),
@@ -100,7 +106,9 @@ const electronAPI: DesktopAPI = Object.freeze({
     approve: (id: string, content: string, publish?: boolean, force?: boolean) =>
       ipcRenderer.invoke(IPC_CHANNELS.runsApprove, id, content, publish, force),
     cancel: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.runsCancel, id),
-    retry: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.runsRetry, id),
+    retry: (id: string, allowEmpty?: boolean) =>
+      ipcRenderer.invoke(IPC_CHANNELS.runsRetry, id, allowEmpty),
+    publish: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.runsPublish, id),
     onGenerationDelta: (listener: (runId: string, delta: string) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, runId: string, delta: string) =>
         listener(runId, delta);

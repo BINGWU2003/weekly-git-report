@@ -36,17 +36,41 @@ describe('Dashboard', () => {
     }
     vi.stubGlobal('electronAPI', {
       overview: { get: vi.fn().mockResolvedValue(overview) },
+      onboarding: {
+        state: vi.fn().mockResolvedValue({
+          version: 1,
+          readiness: {
+            gitReady: true,
+            configReady: true,
+            workspaceReady: true,
+            repositoryReady: false,
+            enabledRepositoryCount: 0,
+            aiReady: false,
+            templatesReady: true,
+            templateTypesReady: ['daily', 'weekly', 'monthly', 'custom'],
+            feishuReady: false,
+            firstReportReady: false,
+          },
+        }),
+      },
     } as unknown as DesktopAPI)
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
     const screen = await render(
       <QueryClientProvider client={queryClient}>
         <Dashboard />
-      </QueryClientProvider>
+      </QueryClientProvider>,
     )
 
     await expect.element(screen.getByText('还没有添加仓库')).toBeInTheDocument()
-    await expect.element(screen.getByRole('link', { name: '继续设置' })).toHaveAttribute('href', '/setup')
-    await expect.element(screen.getByRole('link', { name: '仓库管理' })).toHaveAttribute('href', '/repositories')
+    await expect
+      .element(screen.getByRole('link', { name: '继续设置' }))
+      .toHaveAttribute('href', '/setup')
+    await expect
+      .element(screen.getByRole('link', { name: '仓库管理' }))
+      .toHaveAttribute('href', '/repositories')
+    await expect
+      .element(screen.getByRole('link', { name: '继续首次设置' }))
+      .toHaveAttribute('href', '/setup')
   })
 })

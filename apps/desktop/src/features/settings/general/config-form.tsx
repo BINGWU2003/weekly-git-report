@@ -52,6 +52,7 @@ export function ConfigForm({
         queryClient.invalidateQueries({ queryKey: desktopQueryKeys.reports }),
         queryClient.invalidateQueries({ queryKey: desktopQueryKeys.projectsState }),
         queryClient.invalidateQueries({ queryKey: desktopQueryKeys.diagnostics }),
+        queryClient.invalidateQueries({ queryKey: desktopQueryKeys.onboarding }),
       ])
       onSaved?.(next)
       showSuccessToast(isInitializing ? '初始化完成' : '配置已保存')
@@ -88,7 +89,7 @@ export function ConfigForm({
           </Alert>
         )}
 
-        <ConfigFormFields compact={compact} />
+        <ConfigFormFields compact={compact} cacheEditable={isInitializing} />
 
         {mutation.isError && (
           <Alert variant='destructive'>

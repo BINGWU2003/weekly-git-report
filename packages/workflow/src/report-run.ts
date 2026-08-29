@@ -179,7 +179,12 @@ export async function prepareReportRun(input: PrepareReportRunInput): Promise<Pr
 
 export async function generateBuiltInRun(
   runId: string,
-  options: { onTextDelta?(delta: string): void; autoSave?: boolean; publish?: boolean } = {},
+  options: {
+    onTextDelta?(delta: string): void;
+    autoSave?: boolean;
+    publish?: boolean;
+    allowEmpty?: boolean;
+  } = {},
 ): Promise<ReportRun> {
   const store = new ReportRunStore(getRunsDatabaseFilePath());
   let run = store.require(runId);
@@ -197,6 +202,16 @@ export async function generateBuiltInRun(
     const generationInput = GenerationInputSchema.parse(
       JSON.parse(await readFile(required(run.generationInputPath), "utf8")),
     );
+    if (
+      !options.allowEmpty &&
+      generationInput.repositories.every((repository) => repository.commits.length === 0)
+    ) {
+      throw new RunOperationError(
+        "NO_COMMITS",
+        "所选周期没有匹配的提交。请更换周期，或确认仍然生成空周期报告。",
+        "generate",
+      );
+    }
     if ((await hashFile(required(run.generationInputPath))) !== run.generationInputHash) {
       throw new RunOperationError(
         "INPUT_CHANGED",
@@ -242,7 +257,11 @@ export async function generateBuiltInRun(
   } catch (error) {
     const aiConfig = await loadOptionalAiConfig();
     const message = redactSecrets(getMessage(error), [aiConfig?.apiKey]);
-    const failure = normalizeRunError(new Error(message), "generate");
+    const redactedError =
+      error instanceof RunOperationError
+        ? new RunOperationError(error.code, message, error.retryableFrom)
+        : new Error(message);
+    const failure = normalizeRunError(redactedError, "generate");
     const current = store.require(run.id);
     if (current.status === "cancelled") throw new Error(message, { cause: error });
     run = transition(
@@ -430,7 +449,10 @@ export function cancelReportRun(runId: string): ReportRun {
   }
 }
 
-export async function retryReportRun(runId: string): Promise<ReportRun> {
+export async function retryReportRun(
+  runId: string,
+  options: { allowEmpty?: boolean } = {},
+): Promise<ReportRun> {
   if (getReportRun(runId).status === "publish_failed") {
     return publishReportRun(runId);
   }
@@ -450,7 +472,7 @@ export async function retryReportRun(runId: string): Promise<ReportRun> {
   } finally {
     store.close();
   }
-  return generateBuiltInRun(runId);
+  return generateBuiltInRun(runId, options);
 }
 
 export async function publishReportRun(runId: string): Promise<ReportRun> {

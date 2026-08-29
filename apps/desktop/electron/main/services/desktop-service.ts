@@ -14,6 +14,7 @@ import {
   getRepositoriesRuntimeState,
   getGlobalGitIdentity,
   getConfigFilePath,
+  getWorkDir,
   getRepositoryId,
   getRepositoryName,
   getOutputRoot,
@@ -31,6 +32,7 @@ import {
   loadProjectsIndex,
   loadProjectsIndexSnapshot,
   loadTasksSnapshot,
+  normalizeAbsolutePath,
   removeRepositoryProject,
   readSummaryTemplate,
   renderSummaryTemplate,
@@ -46,13 +48,14 @@ import {
   writeConfigIfRevision,
   writeProjectsIndexIfRevision,
   validateSummaryTemplate,
+  writeJsonAtomic,
 } from "@weekly-git-report/core";
 import {
   AiConfigSchema,
   ConfigSchema,
-  DEFAULT_CONFIG,
   FeishuConfigSchema,
   RepositoryProjectSchema,
+  REPORT_TYPES,
   TasksDocumentSchema,
   SUMMARY_DIR_NAME,
   TRASH_DIR_NAME,
@@ -78,6 +81,7 @@ import {
   listReportRuns,
   maintainReportRuns,
   prepareReportRun,
+  publishReportRun,
   publishSummaryToFeishu,
   registerTaskSchedule,
   resolveCurrentPeriod,
@@ -96,6 +100,7 @@ import type {
   GenerateReportRequest,
   ImportRepositoriesRequest,
   ImportRepositoriesResult,
+  OnboardingState,
   ProjectsState,
   RemoteRepositoryDetails,
   ReportDocument,
@@ -113,6 +118,14 @@ import type {
 } from "../../../shared/ipc.js";
 
 const execFileAsync = promisify(execFile);
+const ONBOARDING_VERSION = 1 as const;
+const ONBOARDING_FILE_NAME = "desktop-onboarding.json";
+
+interface OnboardingProgress {
+  version: typeof ONBOARDING_VERSION;
+  completedAt?: string;
+  firstRunId?: string;
+}
 
 export async function getDesktopOverview(): Promise<DesktopOverview> {
   await maintainReportRuns();
@@ -147,6 +160,86 @@ export async function getDesktopOverview(): Promise<DesktopOverview> {
     runCounts: getReportRunCounts(),
     diagnostics,
   };
+}
+
+export async function getDesktopOnboardingState(): Promise<OnboardingState> {
+  const progress = await loadOnboardingProgress();
+  const [configState, projects, ai, feishu, git] = await Promise.all([
+    getConfigState(),
+    loadOptionalProjects(),
+    loadOptionalAiConfig(),
+    loadOptionalFeishuConfig(),
+    checkGit(),
+  ]);
+  const enabledRepositoryCount = projects.filter((project) => project.enabled).length;
+  const templateChecks = configState.config
+    ? await Promise.all(
+        REPORT_TYPES.map(async (reportType) => {
+          try {
+            await readSummaryTemplate({ reportType });
+            return true;
+          } catch {
+            return false;
+          }
+        }),
+      )
+    : REPORT_TYPES.map(() => false);
+  const templateTypesReady = REPORT_TYPES.filter((_, index) => templateChecks[index]);
+  const firstRun = progress.firstRunId ? loadOptionalDesktopRun(progress.firstRunId) : undefined;
+  const firstReportReady = Boolean(
+    firstRun?.summaryPath &&
+    ["succeeded", "publish_failed"].includes(firstRun.status) &&
+    (await fileExists(firstRun.summaryPath)),
+  );
+  return {
+    ...progress,
+    ...(firstRun ? { firstRun } : {}),
+    readiness: {
+      gitReady: git.status === "ok",
+      configReady: Boolean(configState.config && configState.revision),
+      workspaceReady: Boolean(configState.config && !configState.workspaceError),
+      repositoryReady: enabledRepositoryCount > 0,
+      enabledRepositoryCount,
+      aiReady: Boolean(ai?.testedAt),
+      templatesReady: templateTypesReady.length === REPORT_TYPES.length,
+      templateTypesReady,
+      feishuReady: Boolean(feishu?.testedAt),
+      firstReportReady,
+    },
+  };
+}
+
+export async function rememberDesktopOnboardingRun(runId: string | null): Promise<OnboardingState> {
+  const current = await loadOnboardingProgress();
+  await saveOnboardingProgress({
+    ...current,
+    ...(runId ? { firstRunId: runId } : { firstRunId: undefined }),
+  });
+  return getDesktopOnboardingState();
+}
+
+export async function completeDesktopOnboarding(runId: string): Promise<OnboardingState> {
+  const run = getDesktopRun(runId);
+  if (!run.summaryPath || !["succeeded", "publish_failed"].includes(run.status)) {
+    throw new Error("第一份报告尚未审核并保存，不能完成初始化。");
+  }
+  const readiness = (await getDesktopOnboardingState()).readiness;
+  if (
+    !readiness.gitReady ||
+    !readiness.configReady ||
+    !readiness.workspaceReady ||
+    !readiness.repositoryReady ||
+    !readiness.aiReady ||
+    !readiness.templatesReady
+  ) {
+    throw new Error("Git、基础配置、仓库、AI 和报告模板尚未全部就绪。");
+  }
+  await saveOnboardingProgress({
+    version: ONBOARDING_VERSION,
+    firstRunId: runId,
+    completedAt: new Date().toISOString(),
+  });
+  return getDesktopOnboardingState();
 }
 
 export async function getDesktopAiStatus(): Promise<SecretConfigurationStatus> {
@@ -387,6 +480,10 @@ export async function generateDesktopReport(
   request: GenerateReportRequest,
   onTextDelta: (runId: string, delta: string) => void,
 ): Promise<ReportRun> {
+  const ai = await loadOptionalAiConfig();
+  if (!ai?.testedAt) throw new Error("请先配置并测试 AI，再生成报告。");
+  const enabledProjects = (await loadProjectsIndex()).projects.filter((project) => project.enabled);
+  if (enabledProjects.length === 0) throw new Error("请先添加并启用至少一个仓库。");
   const prepared = await prepareReportRun({
     reportType: request.reportType,
     period: request.period,
@@ -416,8 +513,12 @@ export function cancelDesktopRun(id: string) {
   return cancelReportRun(id);
 }
 
-export function retryDesktopRun(id: string) {
-  return retryReportRun(id);
+export function retryDesktopRun(id: string, allowEmpty = false) {
+  return retryReportRun(id, { allowEmpty });
+}
+
+export function publishDesktopRun(id: string) {
+  return publishReportRun(id);
 }
 
 export function cancelActiveManualRuns(): void {
@@ -484,13 +585,36 @@ export async function getConfigInitializationDefaults(): Promise<ConfigInitializ
 }
 
 export async function initializeDesktopConfig(input: Config): Promise<ConfigState> {
-  const config = ConfigSchema.parse({
-    ...input,
-    repositoryCacheRoot: DEFAULT_CONFIG.repositoryCacheRoot,
-  });
+  const config = ConfigSchema.parse(input);
+  assertInitializationDirectories(config);
   await prepareDesktopWorkspace(config);
   const snapshot = await writeConfigIfRevision(config, null);
   return { config: snapshot.config, revision: snapshot.revision };
+}
+
+function assertInitializationDirectories(config: Config): void {
+  const outputRoot = normalizeAbsolutePath(config.outputRoot);
+  const cacheRoot = normalizeAbsolutePath(config.repositoryCacheRoot);
+  const workDir = normalizeAbsolutePath(getWorkDir());
+  if (pathsOverlap(outputRoot, cacheRoot)) {
+    throw new Error("报告目录和仓库缓存目录不能相同或互相嵌套。");
+  }
+  if (samePath(outputRoot, workDir) || samePath(cacheRoot, workDir)) {
+    throw new Error("报告目录和仓库缓存目录不能直接使用应用配置目录。");
+  }
+}
+
+function pathsOverlap(left: string, right: string): boolean {
+  return isInsideOrSame(left, right) || isInsideOrSame(right, left);
+}
+
+function isInsideOrSame(candidate: string, parent: string): boolean {
+  const relative = path.relative(parent, candidate);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+function samePath(left: string, right: string): boolean {
+  return process.platform === "win32" ? left.toLowerCase() === right.toLowerCase() : left === right;
 }
 
 export async function ensureDesktopWorkspace(config: Config): Promise<void> {
@@ -918,6 +1042,45 @@ async function fileExists(file: string): Promise<boolean> {
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "ENOENT") return false;
     throw error;
+  }
+}
+
+async function loadOnboardingProgress(): Promise<OnboardingProgress> {
+  try {
+    const value: unknown = JSON.parse(
+      await readFile(path.join(getWorkDir(), ONBOARDING_FILE_NAME), "utf8"),
+    );
+    if (!value || typeof value !== "object") throw new Error("桌面初始化状态无效。");
+    const record = value as Record<string, unknown>;
+    if (record.version !== ONBOARDING_VERSION) throw new Error("桌面初始化状态版本无效。");
+    if (record.completedAt !== undefined && typeof record.completedAt !== "string") {
+      throw new Error("桌面初始化完成时间无效。");
+    }
+    if (record.firstRunId !== undefined && typeof record.firstRunId !== "string") {
+      throw new Error("桌面初始化运行记录无效。");
+    }
+    return {
+      version: ONBOARDING_VERSION,
+      ...(typeof record.completedAt === "string" ? { completedAt: record.completedAt } : {}),
+      ...(typeof record.firstRunId === "string" ? { firstRunId: record.firstRunId } : {}),
+    };
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return { version: ONBOARDING_VERSION };
+    }
+    throw error;
+  }
+}
+
+async function saveOnboardingProgress(progress: OnboardingProgress): Promise<void> {
+  await writeJsonAtomic(path.join(getWorkDir(), ONBOARDING_FILE_NAME), progress);
+}
+
+function loadOptionalDesktopRun(runId: string): ReportRun | undefined {
+  try {
+    return getDesktopRun(runId);
+  } catch {
+    return undefined;
   }
 }
 
