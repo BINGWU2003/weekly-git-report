@@ -491,7 +491,7 @@ function ReportFilters({
 
         {search.type === 'summary' ? (
           <Select value={search.cadence} onValueChange={onCadenceChange}>
-            <SelectTrigger className='w-36' aria-label='Summary 报告类型'>
+            <SelectTrigger className='w-38' aria-label='Summary 报告类型'>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
