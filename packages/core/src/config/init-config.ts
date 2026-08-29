@@ -24,7 +24,14 @@ export interface InitConfigResult {
   createdSummaryTemplates: ReportCadence[];
 }
 
-export async function initConfig(config: Config): Promise<InitConfigResult> {
+export interface InitConfigOptions {
+  writeConfig?: boolean;
+}
+
+export async function initConfig(
+  config: Config,
+  options: InitConfigOptions = {},
+): Promise<InitConfigResult> {
   const workDir = getWorkDir();
   const configFile = getConfigFilePath();
   const outputRoot = getOutputRoot(config.outputRoot);
@@ -35,7 +42,8 @@ export async function initConfig(config: Config): Promise<InitConfigResult> {
   await mkdir(rawDir, { recursive: true });
   await mkdir(summaryDir, { recursive: true });
 
-  const createdConfig = await writeConfigIfMissing(configFile, config);
+  const createdConfig =
+    options.writeConfig === false ? false : await writeConfigIfMissing(configFile, config);
   const summaryTemplates = await initializeSummaryTemplates();
   const templatesByCadence = Object.fromEntries(
     summaryTemplates.templates.map((result) => [result.type, result]),

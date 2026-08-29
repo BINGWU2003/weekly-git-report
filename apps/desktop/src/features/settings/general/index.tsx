@@ -2,17 +2,14 @@ import { useQuery } from '@tanstack/react-query'
 import { AlertCircle, Loader2 } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { getErrorMessage } from '@/lib/errors'
+import { configDefaultsQueryOptions, configStateQueryOptions } from '@/lib/desktop-queries'
 import { ContentSection } from '../components/content-section'
 import { ConfigForm } from './config-form'
 
 export function SettingsGeneral() {
-  const state = useQuery({
-    queryKey: ['config-state'],
-    queryFn: () => window.electronAPI.config.state(),
-  })
+  const state = useQuery(configStateQueryOptions)
   const defaults = useQuery({
-    queryKey: ['config-defaults'],
-    queryFn: () => window.electronAPI.config.defaults(),
+    ...configDefaultsQueryOptions,
     enabled: state.data?.config === null,
   })
 

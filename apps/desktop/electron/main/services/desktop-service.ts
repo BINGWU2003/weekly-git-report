@@ -67,11 +67,24 @@ import type {
 const execFileAsync = promisify(execFile);
 
 export async function getDesktopOverview(): Promise<DesktopOverview> {
-  const [config, projects, diagnostics] = await Promise.all([
-    loadOptionalConfig(),
-    loadOptionalProjects(),
-    getDiagnostics(),
-  ]);
+  const config = await loadOptionalConfig();
+  let workspaceError: string | undefined;
+  if (config) {
+    try {
+      await ensureDesktopWorkspace(config);
+    } catch (error) {
+      workspaceError = getErrorMessage(error);
+    }
+  }
+  const [projects, diagnostics] = await Promise.all([loadOptionalProjects(), getDiagnostics()]);
+  if (workspaceError) {
+    diagnostics.unshift({
+      id: "workspace",
+      label: "工作区初始化",
+      status: "error",
+      message: workspaceError,
+    });
+  }
   const reports = config ? await listReportFiles(config) : [];
 
   return {
@@ -96,7 +109,16 @@ export async function loadOptionalConfig(): Promise<Config | null> {
 export async function getConfigState(): Promise<ConfigState> {
   try {
     const snapshot = await loadConfigSnapshot();
-    return { config: snapshot.config, revision: snapshot.revision };
+    try {
+      await ensureDesktopWorkspace(snapshot.config);
+      return { config: snapshot.config, revision: snapshot.revision };
+    } catch (error) {
+      return {
+        config: snapshot.config,
+        revision: snapshot.revision,
+        workspaceError: getErrorMessage(error),
+      };
+    }
   } catch (error) {
     if (error instanceof ConfigNotFoundError) return { config: null, revision: null };
     throw error;
@@ -120,15 +142,31 @@ export async function initializeDesktopConfig(input: Config): Promise<ConfigStat
     ...input,
     repositoryCacheRoot: DEFAULT_CONFIG.repositoryCacheRoot,
   });
+  await prepareDesktopWorkspace(config);
   const snapshot = await writeConfigIfRevision(config, null);
+  return { config: snapshot.config, revision: snapshot.revision };
+}
+
+export async function ensureDesktopWorkspace(config: Config): Promise<void> {
+  await prepareDesktopWorkspace(config);
+}
+
+async function prepareDesktopWorkspace(config: Config): Promise<void> {
+  await initConfig(config, { writeConfig: false });
   try {
     await loadProjectsIndexSnapshot();
   } catch (error) {
     if (!(error instanceof ProjectsIndexNotFoundError)) throw error;
-    await writeProjectsIndexIfRevision({ projects: [] }, null);
+    try {
+      await writeProjectsIndexIfRevision({ projects: [] }, null);
+    } catch (writeError) {
+      try {
+        await loadProjectsIndexSnapshot();
+      } catch {
+        throw writeError;
+      }
+    }
   }
-  await initConfig(config);
-  return { config: snapshot.config, revision: snapshot.revision };
 }
 
 export async function saveDesktopConfig(
@@ -140,8 +178,8 @@ export async function saveDesktopConfig(
     ...input,
     repositoryCacheRoot: current.config.repositoryCacheRoot,
   });
+  await prepareDesktopWorkspace(config);
   const snapshot = await writeConfigIfRevision(config, expectedRevision);
-  await initConfig(config);
   return { config: snapshot.config, revision: snapshot.revision };
 }
 

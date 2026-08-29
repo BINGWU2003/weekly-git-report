@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { getErrorMessage } from '@/lib/errors'
+import { desktopQueryKeys } from '@/lib/desktop-queries'
 import { showSuccessToast } from '@/lib/toast'
 import {
   Sheet,
@@ -42,9 +43,10 @@ interface RepositoryFormProps {
   onOpenChange(open: boolean): void
   project?: RepositoryProject
   state: ProjectsState
+  onSaved?(state: ProjectsState): void
 }
 
-export function RepositoryForm({ open, onOpenChange, project, state }: RepositoryFormProps) {
+export function RepositoryForm({ open, onOpenChange, project, state, onSaved }: RepositoryFormProps) {
   const queryClient = useQueryClient()
   const [remote, setRemote] = useState<RemoteRepositoryDetails | null>(null)
   const [inspecting, setInspecting] = useState(Boolean(project))
@@ -97,17 +99,18 @@ export function RepositoryForm({ open, onOpenChange, project, state }: Repositor
       })
     },
     onSuccess: (next) => {
-      queryClient.setQueryData(['projects-state'], next)
-      void queryClient.invalidateQueries({ queryKey: ['overview'] })
-      void queryClient.invalidateQueries({ queryKey: ['projects-runtime'] })
+      queryClient.setQueryData(desktopQueryKeys.projectsState, next)
+      void queryClient.invalidateQueries({ queryKey: desktopQueryKeys.overview })
+      void queryClient.invalidateQueries({ queryKey: desktopQueryKeys.projectsRuntime })
       showSuccessToast(project ? '仓库配置已更新' : '仓库已添加并完成首次同步')
       form.reset()
+      onSaved?.(next)
       onOpenChange(false)
     },
     onError: async (error) => {
       if (error instanceof Error && error.message.includes('changed since')) {
         toast.error('仓库配置已被其他进程修改，请重新加载。')
-        await queryClient.invalidateQueries({ queryKey: ['projects-state'] })
+        await queryClient.invalidateQueries({ queryKey: desktopQueryKeys.projectsState })
         return
       }
       toast.error(getErrorMessage(error))
