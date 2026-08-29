@@ -105,6 +105,9 @@ import type {
   SummaryTemplatePreviewRequest,
   SummaryTemplateResetRequest,
   SummaryTemplateSaveRequest,
+  AiConfigurationUpdate,
+  FeishuConfigurationUpdate,
+  SecretRevealResult,
   SecretConfigurationStatus,
   TasksState,
 } from "../../../shared/ipc.js";
@@ -153,18 +156,37 @@ export async function getDesktopAiStatus(): Promise<SecretConfigurationStatus> {
         configured: true,
         provider: config.provider,
         model: DEFAULT_AI_MODELS[config.provider],
+        apiKeyMasked: maskApiKey(config.apiKey),
         ...(config.testedAt ? { testedAt: config.testedAt } : {}),
       }
     : { configured: false };
 }
 
-export async function configureDesktopAi(provider: "openai" | "deepseek", apiKey: string) {
+export async function revealDesktopAi(): Promise<SecretRevealResult> {
+  const config = await loadOptionalAiConfig();
+  if (!config) throw new Error("请先配置 AI。 ");
+  return { value: config.apiKey };
+}
+
+export async function configureDesktopAi(input: AiConfigurationUpdate) {
+  const current = await loadOptionalAiConfig();
+  const providerChanged = current?.provider !== input.provider;
+  const apiKey = input.apiKey === undefined ? undefined : input.apiKey.trim();
+  if (!current && !apiKey) throw new Error("API Key 不能为空。 ");
+  if (providerChanged && !apiKey) throw new Error("切换供应商后必须填写新的 API Key。 ");
+  if (input.apiKey !== undefined && !apiKey) throw new Error("API Key 不能为空。 ");
+  if (!input.dataSharingAccepted) throw new Error("请先确认 AI 数据共享说明。 ");
+  const nextApiKey = apiKey ?? current?.apiKey;
+  if (!nextApiKey) throw new Error("API Key 不能为空。 ");
+  const changed = !current || providerChanged || nextApiKey !== current.apiKey;
   await saveAiConfig(
     AiConfigSchema.parse({
       version: 1,
-      provider,
-      apiKey,
-      dataSharingAcceptedAt: new Date().toISOString(),
+      provider: input.provider,
+      apiKey: nextApiKey,
+      dataSharingAcceptedAt:
+        !current || providerChanged ? new Date().toISOString() : current.dataSharingAcceptedAt,
+      ...(!changed && current?.testedAt ? { testedAt: current.testedAt } : {}),
     }),
   );
   return getDesktopAiStatus();
@@ -173,8 +195,10 @@ export async function configureDesktopAi(provider: "openai" | "deepseek", apiKey
 export async function testDesktopAi() {
   const config = await loadOptionalAiConfig();
   if (!config) throw new Error("请先配置 AI。 ");
-  await testAiConfiguration(config);
-  await saveAiConfig({ ...config, testedAt: new Date().toISOString() });
+  const { testedAt: _testedAt, ...untested } = config;
+  if (config.testedAt) await saveAiConfig(untested);
+  await testAiConfiguration(untested);
+  await saveAiConfig({ ...untested, testedAt: new Date().toISOString() });
   return getDesktopAiStatus();
 }
 
@@ -189,17 +213,46 @@ export async function getDesktopFeishuStatus(): Promise<SecretConfigurationStatu
     ? {
         configured: true,
         signingEnabled: Boolean(config.signingSecret),
+        webhookUrlMasked: maskWebhookUrl(config.webhookUrl),
+        ...(config.signingSecret
+          ? { signingSecretMasked: maskSecretSuffix(config.signingSecret) }
+          : {}),
         ...(config.testedAt ? { testedAt: config.testedAt } : {}),
       }
     : { configured: false };
 }
 
-export async function configureDesktopFeishu(webhookUrl: string, signingSecret?: string) {
+export async function revealDesktopFeishu(
+  field: "webhookUrl" | "signingSecret",
+): Promise<SecretRevealResult> {
+  const config = await loadOptionalFeishuConfig();
+  if (!config) throw new Error("请先配置飞书机器人。 ");
+  if (field === "webhookUrl") return { value: config.webhookUrl };
+  if (!config.signingSecret) throw new Error("尚未配置飞书签名密钥。 ");
+  return { value: config.signingSecret };
+}
+
+export async function configureDesktopFeishu(input: FeishuConfigurationUpdate) {
+  const current = await loadOptionalFeishuConfig();
+  const webhookUrl = input.webhookUrl === undefined ? current?.webhookUrl : input.webhookUrl.trim();
+  if (!webhookUrl) throw new Error("Webhook 不能为空。 ");
+  if (typeof input.signingSecret === "string" && !input.signingSecret.trim()) {
+    throw new Error("签名密钥不能为空；如需移除，请使用移除操作。 ");
+  }
+  const signingSecret =
+    input.signingSecret === null
+      ? undefined
+      : input.signingSecret === undefined
+        ? current?.signingSecret
+        : input.signingSecret.trim();
+  const changed =
+    !current || webhookUrl !== current.webhookUrl || signingSecret !== current.signingSecret;
   await saveFeishuConfig(
     FeishuConfigSchema.parse({
       version: 1,
       webhookUrl,
       ...(signingSecret ? { signingSecret } : {}),
+      ...(!changed && current?.testedAt ? { testedAt: current.testedAt } : {}),
     }),
   );
   return getDesktopFeishuStatus();
@@ -208,14 +261,33 @@ export async function configureDesktopFeishu(webhookUrl: string, signingSecret?:
 export async function testDesktopFeishu() {
   const config = await loadOptionalFeishuConfig();
   if (!config) throw new Error("请先配置飞书机器人。 ");
-  await testFeishuConfiguration(config);
-  await saveFeishuConfig({ ...config, testedAt: new Date().toISOString() });
+  const { testedAt: _testedAt, ...untested } = config;
+  if (config.testedAt) await saveFeishuConfig(untested);
+  await testFeishuConfiguration(untested);
+  await saveFeishuConfig({ ...untested, testedAt: new Date().toISOString() });
   return getDesktopFeishuStatus();
 }
 
 export async function clearDesktopFeishu() {
   await clearFeishuConfig();
   return getDesktopFeishuStatus();
+}
+
+export function maskApiKey(value: string): string {
+  const suffix = value.slice(-4);
+  if (value.length <= 4) return "••••";
+  if (value.length <= 8) return `••••${suffix}`;
+  const prefixLength = Math.min(7, value.length - 8);
+  return `${value.slice(0, prefixLength)}••••${suffix}`;
+}
+
+export function maskWebhookUrl(value: string): string {
+  const url = new URL(value);
+  return `${url.host}/••••${value.slice(-4)}`;
+}
+
+export function maskSecretSuffix(value: string): string {
+  return value.length <= 4 ? "••••" : `••••${value.slice(-4)}`;
 }
 
 export async function getDesktopTasksState(): Promise<TasksState> {

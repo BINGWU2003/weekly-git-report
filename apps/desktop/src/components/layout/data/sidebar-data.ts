@@ -1,5 +1,6 @@
 import {
   Activity,
+  Bot,
   CalendarClock,
   FileText,
   FolderGit2,
@@ -25,6 +26,7 @@ export const sidebarData: SidebarData = {
       title: '系统',
       items: [
         { title: '设置', url: '/settings', icon: Settings2 },
+        { title: 'AI 与推送', url: '/settings/automation', icon: Bot },
         { title: '外观', url: '/settings/appearance', icon: Palette },
       ],
     },

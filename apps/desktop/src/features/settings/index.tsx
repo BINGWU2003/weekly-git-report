@@ -1,5 +1,5 @@
 import { Outlet } from '@tanstack/react-router'
-import { FilePenLine, Palette, Settings2 } from 'lucide-react'
+import { Bot, FilePenLine, Palette, Settings2 } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -9,6 +9,7 @@ import { SidebarNav } from './components/sidebar-nav'
 const sidebarNavItems = [
   { title: '常规', href: '/settings', icon: <Settings2 size={18} /> },
   { title: '生成模板', href: '/settings/template', icon: <FilePenLine size={18} /> },
+  { title: 'AI 与推送', href: '/settings/automation', icon: <Bot size={18} /> },
   { title: '外观', href: '/settings/appearance', icon: <Palette size={18} /> },
 ]
 
@@ -22,7 +23,7 @@ export function Settings() {
       <Main fixed>
         <div className='space-y-0.5'>
           <h1 className='text-2xl font-bold tracking-tight md:text-3xl'>设置</h1>
-          <p className='text-muted-foreground'>管理共享配置、周报生成模板和桌面界面偏好。</p>
+          <p className='text-muted-foreground'>管理共享配置、生成模板、自动化服务和桌面界面偏好。</p>
         </div>
         <Separator className='my-4 lg:my-6' />
         <div className='flex flex-1 flex-col space-y-2 overflow-hidden lg:flex-row lg:space-y-0 lg:space-x-12'>

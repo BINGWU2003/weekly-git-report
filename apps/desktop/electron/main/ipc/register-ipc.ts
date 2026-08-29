@@ -21,6 +21,8 @@ import {
   generateDesktopReport,
   getDesktopAiStatus,
   getDesktopFeishuStatus,
+  revealDesktopAi,
+  revealDesktopFeishu,
   getDesktopRun,
   getDesktopTasksState,
   getConfigInitializationDefaults,
@@ -181,24 +183,48 @@ export function registerIpcHandlers(): void {
     return deleteDesktopReportPermanently(id);
   });
   ipcMain.handle(IPC_CHANNELS.aiStatus, () => getDesktopAiStatus());
-  ipcMain.handle(IPC_CHANNELS.aiConfigure, (_event, provider: unknown, apiKey: unknown) => {
-    if (typeof apiKey !== "string" || !apiKey.trim()) throw new Error("API Key 不能为空。");
-    return configureDesktopAi(AiProviderSchema.parse(provider), apiKey.trim());
+  ipcMain.handle(IPC_CHANNELS.aiReveal, () => revealDesktopAi());
+  ipcMain.handle(IPC_CHANNELS.aiConfigure, (_event, input: unknown) => {
+    if (!isRecord(input) || typeof input.dataSharingAccepted !== "boolean") {
+      throw new Error("AI 配置参数无效。");
+    }
+    if (input.apiKey !== undefined && typeof input.apiKey !== "string") {
+      throw new Error("API Key 无效。");
+    }
+    return configureDesktopAi({
+      provider: AiProviderSchema.parse(input.provider),
+      dataSharingAccepted: input.dataSharingAccepted,
+      ...(typeof input.apiKey === "string" ? { apiKey: input.apiKey } : {}),
+    });
   });
   ipcMain.handle(IPC_CHANNELS.aiTest, () => testDesktopAi());
   ipcMain.handle(IPC_CHANNELS.aiClear, () => clearDesktopAi());
   ipcMain.handle(IPC_CHANNELS.feishuStatus, () => getDesktopFeishuStatus());
-  ipcMain.handle(
-    IPC_CHANNELS.feishuConfigure,
-    (_event, webhookUrl: unknown, signingSecret: unknown) => {
-      if (typeof webhookUrl !== "string" || !webhookUrl.trim())
-        throw new Error("Webhook 不能为空。");
-      if (signingSecret !== undefined && typeof signingSecret !== "string") {
-        throw new Error("飞书签名密钥无效。");
-      }
-      return configureDesktopFeishu(webhookUrl.trim(), signingSecret?.trim() || undefined);
-    },
-  );
+  ipcMain.handle(IPC_CHANNELS.feishuReveal, (_event, field: unknown) => {
+    if (field !== "webhookUrl" && field !== "signingSecret") {
+      throw new Error("敏感字段无效。");
+    }
+    return revealDesktopFeishu(field);
+  });
+  ipcMain.handle(IPC_CHANNELS.feishuConfigure, (_event, input: unknown) => {
+    if (!isRecord(input)) throw new Error("飞书配置参数无效。");
+    if (input.webhookUrl !== undefined && typeof input.webhookUrl !== "string") {
+      throw new Error("Webhook 无效。");
+    }
+    if (
+      input.signingSecret !== undefined &&
+      input.signingSecret !== null &&
+      typeof input.signingSecret !== "string"
+    ) {
+      throw new Error("飞书签名密钥无效。");
+    }
+    return configureDesktopFeishu({
+      ...(typeof input.webhookUrl === "string" ? { webhookUrl: input.webhookUrl } : {}),
+      ...(typeof input.signingSecret === "string" || input.signingSecret === null
+        ? { signingSecret: input.signingSecret }
+        : {}),
+    });
+  });
   ipcMain.handle(IPC_CHANNELS.feishuTest, () => testDesktopFeishu());
   ipcMain.handle(IPC_CHANNELS.feishuClear, () => clearDesktopFeishu());
   ipcMain.handle(IPC_CHANNELS.tasksState, () => getDesktopTasksState());

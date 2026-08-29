@@ -18,6 +18,7 @@ import { Route as AuthenticatedRepositoriesIndexRouteImport } from './routes/_au
 import { Route as AuthenticatedRunsIndexRouteImport } from './routes/_authenticated/runs/index'
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
 import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_authenticated/settings/appearance'
+import { Route as AuthenticatedSettingsAutomationRouteImport } from './routes/_authenticated/settings/automation'
 import { Route as AuthenticatedSettingsTemplateRouteImport } from './routes/_authenticated/settings/template'
 import { Route as AuthenticatedTasksIndexRouteImport } from './routes/_authenticated/tasks/index'
 
@@ -70,6 +71,12 @@ const AuthenticatedSettingsAppearanceRoute =
     path: '/appearance',
     getParentRoute: () => AuthenticatedSettingsRouteRoute,
   } as any)
+const AuthenticatedSettingsAutomationRoute =
+  AuthenticatedSettingsAutomationRouteImport.update({
+    id: '/automation',
+    path: '/automation',
+    getParentRoute: () => AuthenticatedSettingsRouteRoute,
+  } as any)
 const AuthenticatedSettingsTemplateRoute =
   AuthenticatedSettingsTemplateRouteImport.update({
     id: '/template',
@@ -87,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/setup': typeof SetupRoute
   '/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
+  '/settings/automation': typeof AuthenticatedSettingsAutomationRoute
   '/settings/template': typeof AuthenticatedSettingsTemplateRoute
   '/reports/': typeof AuthenticatedReportsIndexRoute
   '/repositories/': typeof AuthenticatedRepositoriesIndexRoute
@@ -98,6 +106,7 @@ export interface FileRoutesByTo {
   '/setup': typeof SetupRoute
   '/': typeof AuthenticatedIndexRoute
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
+  '/settings/automation': typeof AuthenticatedSettingsAutomationRoute
   '/settings/template': typeof AuthenticatedSettingsTemplateRoute
   '/reports': typeof AuthenticatedReportsIndexRoute
   '/repositories': typeof AuthenticatedRepositoriesIndexRoute
@@ -112,6 +121,7 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
+  '/_authenticated/settings/automation': typeof AuthenticatedSettingsAutomationRoute
   '/_authenticated/settings/template': typeof AuthenticatedSettingsTemplateRoute
   '/_authenticated/reports/': typeof AuthenticatedReportsIndexRoute
   '/_authenticated/repositories/': typeof AuthenticatedRepositoriesIndexRoute
@@ -126,6 +136,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/settings'
     | '/settings/appearance'
+    | '/settings/automation'
     | '/settings/template'
     | '/reports/'
     | '/repositories/'
@@ -137,6 +148,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/'
     | '/settings/appearance'
+    | '/settings/automation'
     | '/settings/template'
     | '/reports'
     | '/repositories'
@@ -150,6 +162,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/'
     | '/_authenticated/settings/appearance'
+    | '/_authenticated/settings/automation'
     | '/_authenticated/settings/template'
     | '/_authenticated/reports/'
     | '/_authenticated/repositories/'
@@ -228,6 +241,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsAppearanceRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
     }
+    '/_authenticated/settings/automation': {
+      id: '/_authenticated/settings/automation'
+      path: '/automation'
+      fullPath: '/settings/automation'
+      preLoaderRoute: typeof AuthenticatedSettingsAutomationRouteImport
+      parentRoute: typeof AuthenticatedSettingsRouteRoute
+    }
     '/_authenticated/settings/template': {
       id: '/_authenticated/settings/template'
       path: '/template'
@@ -247,6 +267,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedSettingsRouteRouteChildren {
   AuthenticatedSettingsAppearanceRoute: typeof AuthenticatedSettingsAppearanceRoute
+  AuthenticatedSettingsAutomationRoute: typeof AuthenticatedSettingsAutomationRoute
   AuthenticatedSettingsTemplateRoute: typeof AuthenticatedSettingsTemplateRoute
   AuthenticatedSettingsIndexRoute: typeof AuthenticatedSettingsIndexRoute
 }
@@ -254,6 +275,7 @@ interface AuthenticatedSettingsRouteRouteChildren {
 const AuthenticatedSettingsRouteRouteChildren: AuthenticatedSettingsRouteRouteChildren =
   {
     AuthenticatedSettingsAppearanceRoute: AuthenticatedSettingsAppearanceRoute,
+    AuthenticatedSettingsAutomationRoute: AuthenticatedSettingsAutomationRoute,
     AuthenticatedSettingsTemplateRoute: AuthenticatedSettingsTemplateRoute,
     AuthenticatedSettingsIndexRoute: AuthenticatedSettingsIndexRoute,
   }

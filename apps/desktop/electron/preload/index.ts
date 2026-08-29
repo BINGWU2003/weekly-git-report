@@ -1,14 +1,10 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type {
-  AiProvider,
-  Config,
-  Period,
-  ReportType,
-  TasksDocument,
-} from "@weekly-git-report/shared";
+import type { Config, Period, ReportType, TasksDocument } from "@weekly-git-report/shared";
 
 import type {
   DesktopAPI,
+  AiConfigurationUpdate,
+  FeishuConfigurationUpdate,
   GenerateReportRequest,
   ImportRepositoriesRequest,
   SaveRepositoryRequest,
@@ -74,15 +70,18 @@ const electronAPI: DesktopAPI = Object.freeze({
   }),
   ai: Object.freeze({
     status: () => ipcRenderer.invoke(IPC_CHANNELS.aiStatus),
-    configure: (provider: AiProvider, apiKey: string) =>
-      ipcRenderer.invoke(IPC_CHANNELS.aiConfigure, provider, apiKey),
+    reveal: () => ipcRenderer.invoke(IPC_CHANNELS.aiReveal),
+    configure: (input: AiConfigurationUpdate) =>
+      ipcRenderer.invoke(IPC_CHANNELS.aiConfigure, input),
     test: () => ipcRenderer.invoke(IPC_CHANNELS.aiTest),
     clear: () => ipcRenderer.invoke(IPC_CHANNELS.aiClear),
   }),
   feishu: Object.freeze({
     status: () => ipcRenderer.invoke(IPC_CHANNELS.feishuStatus),
-    configure: (webhookUrl: string, signingSecret?: string) =>
-      ipcRenderer.invoke(IPC_CHANNELS.feishuConfigure, webhookUrl, signingSecret),
+    reveal: (field: "webhookUrl" | "signingSecret") =>
+      ipcRenderer.invoke(IPC_CHANNELS.feishuReveal, field),
+    configure: (input: FeishuConfigurationUpdate) =>
+      ipcRenderer.invoke(IPC_CHANNELS.feishuConfigure, input),
     test: () => ipcRenderer.invoke(IPC_CHANNELS.feishuTest),
     clear: () => ipcRenderer.invoke(IPC_CHANNELS.feishuClear),
   }),

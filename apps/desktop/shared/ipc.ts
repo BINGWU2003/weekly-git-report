@@ -107,6 +107,24 @@ export interface SecretConfigurationStatus {
   model?: string;
   signingEnabled?: boolean;
   testedAt?: string;
+  apiKeyMasked?: string;
+  webhookUrlMasked?: string;
+  signingSecretMasked?: string;
+}
+
+export interface AiConfigurationUpdate {
+  provider: AiProvider;
+  apiKey?: string;
+  dataSharingAccepted: boolean;
+}
+
+export interface FeishuConfigurationUpdate {
+  webhookUrl?: string;
+  signingSecret?: string | null;
+}
+
+export interface SecretRevealResult {
+  value: string;
 }
 
 export interface TasksState {
@@ -179,13 +197,15 @@ export interface DesktopAPI {
   };
   ai: {
     status(): Promise<SecretConfigurationStatus>;
-    configure(provider: AiProvider, apiKey: string): Promise<SecretConfigurationStatus>;
+    reveal(): Promise<SecretRevealResult>;
+    configure(input: AiConfigurationUpdate): Promise<SecretConfigurationStatus>;
     test(): Promise<SecretConfigurationStatus>;
     clear(): Promise<SecretConfigurationStatus>;
   };
   feishu: {
     status(): Promise<SecretConfigurationStatus>;
-    configure(webhookUrl: string, signingSecret?: string): Promise<SecretConfigurationStatus>;
+    reveal(field: "webhookUrl" | "signingSecret"): Promise<SecretRevealResult>;
+    configure(input: FeishuConfigurationUpdate): Promise<SecretConfigurationStatus>;
     test(): Promise<SecretConfigurationStatus>;
     clear(): Promise<SecretConfigurationStatus>;
   };
@@ -240,10 +260,12 @@ export const IPC_CHANNELS = {
   reportsRestore: "reports:restore",
   reportsDeletePermanently: "reports:delete-permanently",
   aiStatus: "ai:status",
+  aiReveal: "ai:reveal",
   aiConfigure: "ai:configure",
   aiTest: "ai:test",
   aiClear: "ai:clear",
   feishuStatus: "feishu:status",
+  feishuReveal: "feishu:reveal",
   feishuConfigure: "feishu:configure",
   feishuTest: "feishu:test",
   feishuClear: "feishu:clear",
