@@ -23,9 +23,9 @@ afterEach(() => {
 })
 
 describe('Dashboard', () => {
-  it('引导未初始化用户前往常规设置', async () => {
+  it('为没有仓库的用户保留继续设置入口', async () => {
     const overview: DesktopOverview = {
-      initialized: false,
+      initialized: true,
       config: null,
       projectCount: 0,
       enabledProjectCount: 0,
@@ -45,11 +45,8 @@ describe('Dashboard', () => {
       </QueryClientProvider>
     )
 
-    await expect.element(screen.getByText('尚未完成初始化')).toBeInTheDocument()
-    await expect
-      .element(screen.getByText('前往常规设置创建共享配置、仓库索引、报告目录和生成模板，无需先运行 CLI。'))
-      .toBeInTheDocument()
-    await expect.element(screen.getByRole('link', { name: '开始初始化' })).toHaveAttribute('href', '/settings')
-    await expect.element(screen.getByText('weekly init')).not.toBeInTheDocument()
+    await expect.element(screen.getByText('还没有添加仓库')).toBeInTheDocument()
+    await expect.element(screen.getByRole('link', { name: '继续设置' })).toHaveAttribute('href', '/setup')
+    await expect.element(screen.getByRole('link', { name: '仓库管理' })).toHaveAttribute('href', '/repositories')
   })
 })

@@ -39,6 +39,7 @@ import { Main } from '@/components/layout/main'
 import { OverflowTooltip } from '@/components/overflow-tooltip'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { getErrorMessage } from '@/lib/errors'
+import { desktopQueryKeys, projectsStateQueryOptions } from '@/lib/desktop-queries'
 import { selectSystemDirectory } from '@/lib/system-actions'
 import { showSuccessToast } from '@/lib/toast'
 import { Switch } from '@/components/ui/switch'
@@ -63,22 +64,18 @@ export function Repositories() {
   const [lastSync, setLastSync] = useState<RepositorySyncResult>()
   const [importSession, setImportSession] = useState<{ folder: string; state: ProjectsState }>()
   const [selectingImportFolder, setSelectingImportFolder] = useState(false)
-  const projects = useQuery({
-    queryKey: ['projects-state'],
-    queryFn: () => window.electronAPI.projects.state(),
-  })
+  const projects = useQuery(projectsStateQueryOptions)
 
   function applyState(next: ProjectsState) {
-    queryClient.setQueryData(['projects-state'], next)
-    void queryClient.invalidateQueries({ queryKey: ['projects'] })
-    void queryClient.invalidateQueries({ queryKey: ['overview'] })
-    void queryClient.invalidateQueries({ queryKey: ['projects-runtime'] })
+    queryClient.setQueryData(desktopQueryKeys.projectsState, next)
+    void queryClient.invalidateQueries({ queryKey: desktopQueryKeys.overview })
+    void queryClient.invalidateQueries({ queryKey: desktopQueryKeys.projectsRuntime })
   }
 
   async function handleConflict(error: unknown) {
     if (error instanceof Error && error.message.includes('changed since')) {
       toast.error('仓库配置已被 CLI 或其他窗口修改，已重新加载。')
-      await queryClient.invalidateQueries({ queryKey: ['projects-state'] })
+      await queryClient.invalidateQueries({ queryKey: desktopQueryKeys.projectsState })
       return
     }
     toast.error(getErrorMessage(error))
@@ -97,7 +94,7 @@ export function Repositories() {
     mutationFn: (ids?: string[]) => window.electronAPI.projects.sync(ids),
     onSuccess: (result) => {
       setLastSync(result)
-      void queryClient.invalidateQueries({ queryKey: ['projects-runtime'] })
+      void queryClient.invalidateQueries({ queryKey: desktopQueryKeys.projectsRuntime })
       if (result.errors.length) {
         toast.warning(`同步完成，${result.errors.length} 个仓库失败`)
       } else {
@@ -128,7 +125,7 @@ export function Repositories() {
 
   const state = projects.data ?? { projects: [], revision: null }
   const runtime = useQuery({
-    queryKey: ['projects-runtime'],
+    queryKey: desktopQueryKeys.projectsRuntime,
     queryFn: () => window.electronAPI.projects.runtimeState(),
     enabled: Boolean(state.revision),
   })
@@ -474,7 +471,7 @@ function DeleteRepositoryDialog({
     onError: async (error) => {
       if (error instanceof Error && error.message.includes('changed since')) {
         toast.error('仓库配置已被 CLI 或其他窗口修改，已重新加载。')
-        await queryClient.invalidateQueries({ queryKey: ['projects-state'] })
+        await queryClient.invalidateQueries({ queryKey: desktopQueryKeys.projectsState })
         close()
         return
       }

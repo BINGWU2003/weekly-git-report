@@ -25,13 +25,11 @@ import { Main } from '@/components/layout/main'
 import { OverflowTooltip } from '@/components/overflow-tooltip'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { getErrorMessage } from '@/lib/errors'
+import { overviewQueryOptions } from '@/lib/desktop-queries'
 import { showSuccessToast } from '@/lib/toast'
 
 export function Dashboard() {
-  const overview = useQuery({
-    queryKey: ['desktop-overview'],
-    queryFn: () => window.electronAPI.overview.get(),
-  })
+  const overview = useQuery(overviewQueryOptions)
 
   const data = overview.data
   const healthyChecks = data?.diagnostics.filter((check) => check.status === 'ok').length ?? 0
@@ -84,18 +82,20 @@ export function Dashboard() {
           </Alert>
         )}
 
-        {data && !data.initialized && (
+        {data?.initialized && data.projectCount === 0 && (
           <Alert>
             <TriangleAlert />
-            <AlertTitle>尚未完成初始化</AlertTitle>
+            <AlertTitle>还没有添加仓库</AlertTitle>
             <AlertDescription>
-              <p>前往常规设置创建共享配置、仓库索引、报告目录和生成模板，无需先运行 CLI。</p>
-              <Button asChild size='sm' variant='outline' className='mt-2'>
-                <Link to='/settings'>
-                  <Settings2 />
-                  开始初始化
-                </Link>
-              </Button>
+              <p>可以继续设置并完成首次同步，也可以直接前往仓库管理。</p>
+              <div className='mt-2 flex flex-wrap gap-2'>
+                <Button asChild size='sm'>
+                  <Link to='/setup'>继续设置</Link>
+                </Button>
+                <Button asChild size='sm' variant='outline'>
+                  <Link to='/repositories'>仓库管理</Link>
+                </Button>
+              </div>
             </AlertDescription>
           </Alert>
         )}

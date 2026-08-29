@@ -36,6 +36,7 @@ import { MarkdownViewer } from '@/components/markdown-viewer'
 import { OverflowTooltip } from '@/components/overflow-tooltip'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { getErrorMessage } from '@/lib/errors'
+import { desktopQueryKeys } from '@/lib/desktop-queries'
 import { openOutputRoot, showReportInFolder } from '@/lib/system-actions'
 import { showSuccessToast } from '@/lib/toast'
 import { cn } from '@/lib/utils'
@@ -99,7 +100,7 @@ export function Reports({
   const [trashView, setTrashView] = useState(false)
   const [groupOverrides, setGroupOverrides] = useState<Record<string, boolean>>({})
   const reports = useQuery({
-    queryKey: ['reports', trashView ? 'trash' : 'active'],
+    queryKey: [...desktopQueryKeys.reports, trashView ? 'trash' : 'active'],
     queryFn: () => window.electronAPI.reports.list(trashView),
   })
   const filteredReports = useMemo(

@@ -17,6 +17,7 @@ import type {
 export interface ConfigState {
   config: Config | null;
   revision: string | null;
+  workspaceError?: string;
 }
 
 export interface ConfigInitializationDefaults {
@@ -83,7 +84,7 @@ export interface SummaryTemplatePreviewRequest {
 export type DiagnosticStatus = "ok" | "warning" | "error";
 
 export interface DiagnosticCheck {
-  id: "git" | "config" | "projects" | "output";
+  id: "git" | "config" | "projects" | "output" | "workspace";
   label: string;
   status: DiagnosticStatus;
   message: string;
