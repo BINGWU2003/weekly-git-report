@@ -110,89 +110,91 @@ export function GenerateReportDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !generate.isPending && !approve.isPending && onOpenChange(next)}>
-      <DialogContent className='max-h-[90vh] overflow-y-auto sm:max-w-3xl'>
+      <DialogContent className='max-h-[calc(100vh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-3xl'>
         <DialogHeader>
           <DialogTitle>{regenerating ? '重新生成报告' : '生成报告'}</DialogTitle>
           <DialogDescription>每次都会重新同步和采集。AI 输出先作为草稿，确认后才写入 Summary。</DialogDescription>
         </DialogHeader>
-        <div className='grid gap-4 sm:grid-cols-2'>
-          <div className='space-y-2'>
-            <Label>报告类型</Label>
-            <Select value={reportType} onValueChange={changeReportType} disabled={generate.isPending}>
-              <SelectTrigger className='w-full'><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value='daily'>日报</SelectItem>
-                <SelectItem value='weekly'>周报</SelectItem>
-                <SelectItem value='monthly'>月报</SelectItem>
-                <SelectItem value='custom'>自定义报告</SelectItem>
-              </SelectContent>
-            </Select>
+        <div className='min-h-0 space-y-4 overflow-y-auto overscroll-contain pe-1'>
+          <div className='grid gap-4 sm:grid-cols-2'>
+            <div className='space-y-2'>
+              <Label>报告类型</Label>
+              <Select value={reportType} onValueChange={changeReportType} disabled={generate.isPending}>
+                <SelectTrigger className='w-full'><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value='daily'>日报</SelectItem>
+                  <SelectItem value='weekly'>周报</SelectItem>
+                  <SelectItem value='monthly'>月报</SelectItem>
+                  <SelectItem value='custom'>自定义报告</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {reportType === 'custom' ? (
+              <div className='space-y-2'>
+                <Label>日期范围</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button type='button' variant='outline' className='w-full justify-start font-normal' disabled={generate.isPending}>
+                      <CalendarDays />
+                      {period ? `${period.start} ~ ${period.end}` : '选择开始和结束日期'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align='start' className='w-auto p-0'>
+                    <Calendar
+                      mode='range'
+                      numberOfMonths={2}
+                      max={365}
+                      selected={customRange}
+                      onSelect={setCustomRange}
+                      disabled={{ after: new Date() }}
+                      defaultMonth={customRange?.from}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            ) : (
+              <div className='space-y-2'>
+                <Label>生成周期</Label>
+                <div className='flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm'>
+                  {period?.start} ~ {period?.end}
+                </div>
+              </div>
+            )}
           </div>
           {reportType === 'custom' ? (
             <div className='space-y-2'>
-              <Label>日期范围</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button type='button' variant='outline' className='w-full justify-start font-normal' disabled={generate.isPending}>
-                    <CalendarDays />
-                    {period ? `${period.start} ~ ${period.end}` : '选择开始和结束日期'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent align='start' className='w-auto p-0'>
-                  <Calendar
-                    mode='range'
-                    numberOfMonths={2}
-                    max={365}
-                    selected={customRange}
-                    onSelect={setCustomRange}
-                    disabled={{ after: new Date() }}
-                    defaultMonth={customRange?.from}
-                  />
-                </PopoverContent>
-              </Popover>
+              <Label>报告标题（可选）</Label>
+              <Input value={title} onChange={(event) => setTitle(event.target.value)} disabled={generate.isPending} placeholder='默认使用“自定义报告”' />
             </div>
-          ) : (
+          ) : null}
+          <div className='space-y-2'>
+            <Label>本次补充事实（可选）</Label>
+            <Textarea value={context} onChange={(event) => setContext(event.target.value)} disabled={generate.isPending} placeholder='只填写模型无法从 Git 提交中得知的背景或结果。' />
+          </div>
+          {(generate.isPending || draft) && (
             <div className='space-y-2'>
-              <Label>生成周期</Label>
-              <div className='flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm'>
-                {period?.start} ~ {period?.end}
-              </div>
+              <Label>报告草稿</Label>
+              <Textarea
+                aria-label='报告草稿'
+                className='field-sizing-fixed h-80 min-h-80 max-h-80 resize-none overflow-y-auto font-mono'
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                readOnly={generate.isPending}
+              />
+              {generate.isPending && <p className='flex items-center gap-2 text-sm text-muted-foreground'><Loader2 className='size-4 animate-spin' />正在同步、采集并生成，内容会实时显示…</p>}
             </div>
           )}
+          {runId && !generate.isPending && (
+            <label className='flex items-center gap-2 text-sm'><Checkbox checked={publish} onCheckedChange={(value) => setPublish(value === true)} />保存后推送到飞书</label>
+          )}
+          {forceSave && (
+            <Alert variant='destructive'>
+              <AlertTitle>目标周期已有报告</AlertTitle>
+              <AlertDescription>现有报告的元数据缺失、无效或类型不同。再次确认会覆盖报告，并将原文件备份到同目录的 .history 中。</AlertDescription>
+            </Alert>
+          )}
         </div>
-        {reportType === 'custom' ? (
-          <div className='space-y-2'>
-            <Label>报告标题（可选）</Label>
-            <Input value={title} onChange={(event) => setTitle(event.target.value)} disabled={generate.isPending} placeholder='默认使用“自定义报告”' />
-          </div>
-        ) : null}
-        <div className='space-y-2'>
-          <Label>本次补充事实（可选）</Label>
-          <Textarea value={context} onChange={(event) => setContext(event.target.value)} disabled={generate.isPending} placeholder='只填写模型无法从 Git 提交中得知的背景或结果。' />
-        </div>
-        {(generate.isPending || draft) && (
-          <div className='space-y-2'>
-            <Label>报告草稿</Label>
-            <Textarea
-              aria-label='报告草稿'
-              className='field-sizing-fixed h-80 min-h-80 max-h-80 resize-none overflow-y-auto font-mono'
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              readOnly={generate.isPending}
-            />
-            {generate.isPending && <p className='flex items-center gap-2 text-sm text-muted-foreground'><Loader2 className='size-4 animate-spin' />正在同步、采集并生成，内容会实时显示…</p>}
-          </div>
-        )}
-        {runId && !generate.isPending && (
-          <label className='flex items-center gap-2 text-sm'><Checkbox checked={publish} onCheckedChange={(value) => setPublish(value === true)} />保存后推送到飞书</label>
-        )}
-        {forceSave && (
-          <Alert variant='destructive'>
-            <AlertTitle>目标周期已有报告</AlertTitle>
-            <AlertDescription>现有报告的元数据缺失、无效或类型不同。再次确认会覆盖报告，并将原文件备份到同目录的 .history 中。</AlertDescription>
-          </Alert>
-        )}
-        <DialogFooter>
+        <DialogFooter className='border-t pt-4'>
           {generate.isPending && runId ? (
             <Button variant='outline' onClick={() => cancel.mutate()} disabled={cancel.isPending}>取消运行</Button>
           ) : (

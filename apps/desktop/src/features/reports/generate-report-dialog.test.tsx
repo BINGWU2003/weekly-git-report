@@ -108,6 +108,11 @@ describe('GenerateReportDialog', () => {
         />
       </QueryClientProvider>
     )
+    await expect.element(screen.getByRole('dialog', { name: '重新生成报告' })).toHaveClass(
+      'max-h-[calc(100vh-2rem)]',
+      'grid-rows-[auto_minmax(0,1fr)_auto]',
+      'overflow-hidden'
+    )
     await expect.element(screen.getByText('重新生成报告')).toBeInTheDocument()
     await expect.element(screen.getByRole('button', { name: /2026-08-01 ~ 2026-08-03/ })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: '开始生成' }))
