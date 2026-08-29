@@ -398,6 +398,48 @@ export const SaveWeekSummaryInputSchema = PeriodSchema.extend({
   content: z.string().min(1),
 });
 
+export const PrepareReportInputSchema = z
+  .object({
+    reportType: ReportTypeSchema,
+    period: PeriodSchema.optional(),
+    title: z.string().trim().min(1).max(200).optional(),
+    reportId: z.string().trim().min(1).optional(),
+    projectIds: z.array(z.string().trim().min(1)).default([]),
+    userContext: z.string().trim().max(20_000).optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.reportType === "custom" && !value.period) {
+      context.addIssue({
+        code: "custom",
+        path: ["period"],
+        message: "Custom reports require an explicit period.",
+      });
+    }
+  });
+
+export const CompleteReportInputSchema = z
+  .object({
+    runId: z.string().trim().min(1),
+    content: z.string().refine((value) => value.trim().length > 0, "Report content is required."),
+    publish: z.boolean().default(false),
+    force: z.boolean().default(false),
+  })
+  .strict();
+
+export const FailReportInputSchema = z
+  .object({
+    runId: z.string().trim().min(1),
+    message: z.string().trim().min(1),
+  })
+  .strict();
+
+export const PublishReportInputSchema = z
+  .object({
+    runId: z.string().trim().min(1),
+  })
+  .strict();
+
 export const SaveSummaryInputSchema = SaveWeekSummaryInputSchema.extend({
   reportType: ReportTypeSchema.default("weekly"),
   reportId: z.string().trim().min(1).optional(),
@@ -423,10 +465,8 @@ export const SummaryTemplateResultSchema = z.object({
 });
 
 export const McpToolInputSchema = z.union([
-  ListProjectsInputSchema,
-  SyncProjectsInputSchema,
-  CollectGitLogsInputSchema,
-  GetWeekIndexInputSchema,
-  ReadWeekRawInputSchema,
-  SaveWeekSummaryInputSchema,
+  PrepareReportInputSchema,
+  CompleteReportInputSchema,
+  FailReportInputSchema,
+  PublishReportInputSchema,
 ]);

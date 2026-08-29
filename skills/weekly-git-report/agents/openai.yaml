@@ -1,0 +1,4 @@
+interface:
+  display_name: "Weekly Git Report"
+  short_description: "基于已配置 Git 提交生成并保存周期或自定义报告"
+  default_prompt: "使用 $weekly-git-report 基于已配置仓库生成并保存本周周报。"

@@ -26,7 +26,8 @@
   },
   "scripts": {
     "build": "tsup",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "catalog:",
@@ -39,7 +40,8 @@
     "@weekly-git-report/typescript-config": "workspace:*",
     "@weekly-git-report/workflow": "workspace:*",
     "tsup": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "engines": {
     "node": ">=22.12"

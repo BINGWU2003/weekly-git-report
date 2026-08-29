@@ -4,10 +4,12 @@ import type {
   AiConfigSchema,
   AiProviderSchema,
   CollectGitLogsInputSchema,
+  CompleteReportInputSchema,
   CollectOptionsSchema,
   AuthorListSchema,
   ConfigSchema,
   FeishuConfigSchema,
+  FailReportInputSchema,
   GenerationCommitSchema,
   GenerationInputSchema,
   GenerationRepositorySchema,
@@ -21,6 +23,7 @@ import type {
   ManifestSchema,
   McpToolInputSchema,
   PeriodSchema,
+  PrepareReportInputSchema,
   ProjectSchema,
   RepositoryProjectSchema,
   RepositoryFolderScanResultSchema,
@@ -41,6 +44,7 @@ import type {
   ReportTaskScheduleSchema,
   ReportTaskSchema,
   ProjectsIndexSchema,
+  PublishReportInputSchema,
   ReadWeekRawInputSchema,
   SaveWeekSummaryInputSchema,
   SaveSummaryInputSchema,
@@ -95,6 +99,10 @@ export type RepositoryFolderScanResult = z.infer<typeof RepositoryFolderScanResu
 export type ListProjectsInput = z.infer<typeof ListProjectsInputSchema>;
 export type SyncProjectsInput = z.infer<typeof SyncProjectsInputSchema>;
 export type CollectGitLogsInput = z.infer<typeof CollectGitLogsInputSchema>;
+export type PrepareReportInput = z.infer<typeof PrepareReportInputSchema>;
+export type CompleteReportInput = z.infer<typeof CompleteReportInputSchema>;
+export type FailReportInput = z.infer<typeof FailReportInputSchema>;
+export type PublishReportInput = z.infer<typeof PublishReportInputSchema>;
 export type GetWeekIndexInput = z.infer<typeof GetWeekIndexInputSchema>;
 export type ReadWeekRawInput = z.infer<typeof ReadWeekRawInputSchema>;
 export type SaveWeekSummaryInput = z.infer<typeof SaveWeekSummaryInputSchema>;

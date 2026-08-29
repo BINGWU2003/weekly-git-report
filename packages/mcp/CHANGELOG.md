@@ -1,5 +1,12 @@
 # @weekly-git-report/mcp
 
+## Unreleased
+
+### Major Changes
+
+- 将旧的 weekly-only 底层工具替换为 `prepare_report`、`complete_report`、`fail_report`
+  和 `publish_report`。MCP 现在只承载外部 Agent 报告流程，不管理任务、配置或内置 AI。
+
 ## 2.0.1
 
 ### Patch Changes

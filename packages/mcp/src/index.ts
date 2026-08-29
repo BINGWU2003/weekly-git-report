@@ -3,21 +3,17 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
-  CollectGitLogsInputSchema,
-  GetWeekIndexInputSchema,
-  ListProjectsInputSchema,
-  ReadWeekRawInputSchema,
-  SaveWeekSummaryInputSchema,
-  SyncProjectsInputSchema,
+  CompleteReportInputSchema,
+  FailReportInputSchema,
+  PrepareReportInputSchema,
+  PublishReportInputSchema,
 } from "@weekly-git-report/shared";
 
-import { collectGitLogs } from "./tools/collect-git-logs.js";
-import { getWeekIndex } from "./tools/get-week-index.js";
-import { listProjects } from "./tools/list-projects.js";
+import { completeReport } from "./tools/complete-report.js";
+import { failReport } from "./tools/fail-report.js";
+import { prepareReport } from "./tools/prepare-report.js";
+import { publishReport } from "./tools/publish-report.js";
 import { jsonResponse } from "./tools/response.js";
-import { readWeekRaw } from "./tools/read-week-raw.js";
-import { saveWeekSummary } from "./tools/save-week-summary.js";
-import { syncProjects } from "./tools/sync-projects.js";
 
 const server = new McpServer({
   name: "weekly-git-report",
@@ -25,57 +21,42 @@ const server = new McpServer({
 });
 
 server.registerTool(
-  "list_projects",
+  "prepare_report",
   {
-    description: "列出 ~/.weekly-git-report/projects.json 中显式配置的 Git 项目。",
-    inputSchema: ListProjectsInputSchema,
+    description:
+      "准备一次外部 Agent 报告：同步并采集已配置仓库，返回固定模板和脱敏 generationInput；不会调用内置 AI。",
+    inputSchema: PrepareReportInputSchema,
   },
-  async (input) => jsonResponse(await listProjects(input)),
+  async (input) => jsonResponse(await prepareReport(input)),
 );
 
 server.registerTool(
-  "sync_projects",
+  "complete_report",
   {
-    description: "同步显式配置的远程 Git 项目和分支。",
-    inputSchema: SyncProjectsInputSchema,
+    description:
+      "提交外部 Agent 生成的 Markdown，校验本次 Raw 和模板后保存 Summary；仅 publish=true 时尝试推送飞书。",
+    inputSchema: CompleteReportInputSchema,
   },
-  async (input) => jsonResponse(await syncProjects(input)),
+  async (input) => jsonResponse(await completeReport(input)),
 );
 
 server.registerTool(
-  "collect_git_logs",
+  "fail_report",
   {
-    description: "采集指定时间范围内的 Git 提交记录，并写入周报原始记录文件。",
-    inputSchema: CollectGitLogsInputSchema,
+    description: "外部 Agent 无法完成生成时，显式结束对应 Run 并记录失败原因。",
+    inputSchema: FailReportInputSchema,
   },
-  async (input) => jsonResponse(await collectGitLogs(input)),
+  async (input) => jsonResponse(failReport(input)),
 );
 
 server.registerTool(
-  "get_week_index",
+  "publish_report",
   {
-    description: "读取指定周期已生成的周报原始记录索引 index.md。",
-    inputSchema: GetWeekIndexInputSchema,
+    description:
+      "推送指定 Run 已保存且校验有效的 Summary 到飞书，也用于重试 publish_failed 的推送。",
+    inputSchema: PublishReportInputSchema,
   },
-  async (input) => jsonResponse(await getWeekIndex(input)),
-);
-
-server.registerTool(
-  "read_week_raw",
-  {
-    description: "读取指定周期已生成的所有项目 Markdown 原始记录。",
-    inputSchema: ReadWeekRawInputSchema,
-  },
-  async (input) => jsonResponse(await readWeekRaw(input)),
-);
-
-server.registerTool(
-  "save_week_summary",
-  {
-    description: "保存指定周期的周报总结 Markdown 到 summary 目录。",
-    inputSchema: SaveWeekSummaryInputSchema,
-  },
-  async (input) => jsonResponse(await saveWeekSummary(input)),
+  async (input) => jsonResponse(await publishReport(input)),
 );
 
 async function main(): Promise<void> {
