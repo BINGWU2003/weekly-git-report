@@ -109,6 +109,27 @@ export interface SecretConfigurationStatus {
   testedAt?: string;
 }
 
+export interface DesktopReadiness {
+  gitReady: boolean;
+  configReady: boolean;
+  workspaceReady: boolean;
+  repositoryReady: boolean;
+  enabledRepositoryCount: number;
+  aiReady: boolean;
+  templatesReady: boolean;
+  templateTypesReady: ReportType[];
+  feishuReady: boolean;
+  firstReportReady: boolean;
+}
+
+export interface OnboardingState {
+  version: 1;
+  completedAt?: string;
+  firstRunId?: string;
+  firstRun?: ReportRun;
+  readiness: DesktopReadiness;
+}
+
 export interface TasksState {
   document: TasksDocument;
   revision: string | null;
@@ -138,6 +159,11 @@ export interface DesktopAPI {
   }>;
   overview: {
     get(): Promise<DesktopOverview>;
+  };
+  onboarding: {
+    state(): Promise<OnboardingState>;
+    rememberRun(runId: string | null): Promise<OnboardingState>;
+    complete(runId: string): Promise<OnboardingState>;
   };
   config: {
     get(): Promise<Config | null>;
@@ -201,7 +227,8 @@ export interface DesktopAPI {
     generate(request: GenerateReportRequest): Promise<ReportRun>;
     approve(id: string, content: string, publish?: boolean, force?: boolean): Promise<ReportRun>;
     cancel(id: string): Promise<ReportRun>;
-    retry(id: string): Promise<ReportRun>;
+    retry(id: string, allowEmpty?: boolean): Promise<ReportRun>;
+    publish(id: string): Promise<ReportRun>;
     onGenerationDelta(listener: (runId: string, delta: string) => void): () => void;
   };
   system: {
@@ -213,6 +240,9 @@ export interface DesktopAPI {
 
 export const IPC_CHANNELS = {
   overviewGet: "overview:get",
+  onboardingState: "onboarding:state",
+  onboardingRememberRun: "onboarding:remember-run",
+  onboardingComplete: "onboarding:complete",
   configGet: "config:get",
   configState: "config:state",
   configDefaults: "config:defaults",
@@ -257,6 +287,7 @@ export const IPC_CHANNELS = {
   runsApprove: "runs:approve",
   runsCancel: "runs:cancel",
   runsRetry: "runs:retry",
+  runsPublish: "runs:publish",
   runsGenerationDelta: "runs:generation-delta",
   systemDiagnostics: "system:diagnostics",
   systemOpenOutputRoot: "system:open-output-root",

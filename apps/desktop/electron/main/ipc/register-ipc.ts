@@ -12,6 +12,7 @@ import {
 import { IPC_CHANNELS } from "../../../shared/ipc.js";
 import {
   getDesktopOverview,
+  completeDesktopOnboarding,
   approveDesktopRun,
   cancelDesktopRun,
   clearDesktopAi,
@@ -23,6 +24,7 @@ import {
   getDesktopFeishuStatus,
   getDesktopRun,
   getDesktopTasksState,
+  getDesktopOnboardingState,
   getConfigInitializationDefaults,
   getConfigState,
   getDiagnostics,
@@ -41,6 +43,7 @@ import {
   readDesktopRunDraft,
   previewDesktopSummaryTemplate,
   publishDesktopReport,
+  publishDesktopRun,
   trashDesktopReport,
   restoreDesktopReport,
   deleteDesktopReportPermanently,
@@ -57,10 +60,20 @@ import {
   syncDesktopRepositories,
   testDesktopAi,
   testDesktopFeishu,
+  rememberDesktopOnboardingRun,
 } from "../services/desktop-service.js";
 
 export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.overviewGet, () => getDesktopOverview());
+  ipcMain.handle(IPC_CHANNELS.onboardingState, () => getDesktopOnboardingState());
+  ipcMain.handle(IPC_CHANNELS.onboardingRememberRun, (_event, runId: unknown) => {
+    if (runId !== null && typeof runId !== "string") throw new Error("Run id 无效。");
+    return rememberDesktopOnboardingRun(runId);
+  });
+  ipcMain.handle(IPC_CHANNELS.onboardingComplete, (_event, runId: unknown) => {
+    if (typeof runId !== "string") throw new Error("Run id 不能为空。");
+    return completeDesktopOnboarding(runId);
+  });
   ipcMain.handle(IPC_CHANNELS.configGet, () => loadOptionalConfig());
   ipcMain.handle(IPC_CHANNELS.configState, () => getConfigState());
   ipcMain.handle(IPC_CHANNELS.configDefaults, () => getConfigInitializationDefaults());
@@ -255,9 +268,16 @@ export function registerIpcHandlers(): void {
     if (typeof id !== "string") throw new Error("Run id is required.");
     return cancelDesktopRun(id);
   });
-  ipcMain.handle(IPC_CHANNELS.runsRetry, (_event, id: unknown) => {
+  ipcMain.handle(IPC_CHANNELS.runsRetry, (_event, id: unknown, allowEmpty: unknown) => {
     if (typeof id !== "string") throw new Error("Run id is required.");
-    return retryDesktopRun(id);
+    if (allowEmpty !== undefined && typeof allowEmpty !== "boolean") {
+      throw new Error("空周期重试参数无效。");
+    }
+    return retryDesktopRun(id, allowEmpty === true);
+  });
+  ipcMain.handle(IPC_CHANNELS.runsPublish, (_event, id: unknown) => {
+    if (typeof id !== "string") throw new Error("Run id is required.");
+    return publishDesktopRun(id);
   });
   ipcMain.handle(IPC_CHANNELS.systemDiagnostics, () => getDiagnostics());
   ipcMain.handle(IPC_CHANNELS.systemOpenOutputRoot, async () => {

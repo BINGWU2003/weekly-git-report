@@ -21,10 +21,17 @@ import { selectSystemDirectory } from '@/lib/system-actions'
 
 export type ConfigFormInput = z.input<typeof ConfigSchema>
 
-export function ConfigFormFields({ compact = false }: { compact?: boolean }) {
+export function ConfigFormFields({
+  compact = false,
+  cacheEditable = false,
+}: {
+  compact?: boolean
+  cacheEditable?: boolean
+}) {
   const form = useFormContext<ConfigFormInput, unknown, Config>()
   const identities = useFieldArray({ control: form.control, name: 'identities' })
   const [selectingOutput, setSelectingOutput] = useState(false)
+  const [selectingCache, setSelectingCache] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
 
   async function selectOutputDirectory() {
@@ -39,6 +46,18 @@ export function ConfigFormFields({ compact = false }: { compact?: boolean }) {
     }
   }
 
+  async function selectCacheDirectory() {
+    setSelectingCache(true)
+    try {
+      const selected = await selectSystemDirectory(form.getValues('repositoryCacheRoot'))
+      if (selected) {
+        form.setValue('repositoryCacheRoot', selected, { shouldDirty: true, shouldValidate: true })
+      }
+    } finally {
+      setSelectingCache(false)
+    }
+  }
+
   const outputField = (
     <FormField
       control={form.control}
@@ -47,7 +66,9 @@ export function ConfigFormFields({ compact = false }: { compact?: boolean }) {
         <FormItem>
           <FormLabel>报告输出目录</FormLabel>
           <div className='flex gap-2'>
-            <FormControl><Input {...field} /></FormControl>
+            <FormControl>
+              <Input {...field} />
+            </FormControl>
             <Button
               type='button'
               variant='outline'
@@ -72,9 +93,31 @@ export function ConfigFormFields({ compact = false }: { compact?: boolean }) {
       render={({ field }) => (
         <FormItem>
           <FormLabel>仓库缓存目录</FormLabel>
-          <FormControl><Input {...field} readOnly className='bg-muted/50' /></FormControl>
+          <div className='flex gap-2'>
+            <FormControl>
+              <Input
+                {...field}
+                readOnly={!cacheEditable}
+                className={cacheEditable ? undefined : 'bg-muted/50'}
+              />
+            </FormControl>
+            {cacheEditable ? (
+              <Button
+                type='button'
+                variant='outline'
+                onClick={() => void selectCacheDirectory()}
+                disabled={selectingCache}
+              >
+                {selectingCache ? <Loader2 className='animate-spin' /> : <FolderSearch />}
+                选择
+              </Button>
+            ) : null}
+          </div>
           <FormDescription>
-            应用在这里维护只用于读取 Git 日志的 Bare 仓库。初始化后 Electron 不允许修改该目录。
+            应用在这里维护只用于读取 Git 日志的 Bare 仓库。
+            {cacheEditable
+              ? ' 初始化完成后不能在桌面端修改。'
+              : ' 初始化后 Electron 不允许修改该目录。'}
           </FormDescription>
           <FormMessage />
         </FormItem>
@@ -92,7 +135,9 @@ export function ConfigFormFields({ compact = false }: { compact?: boolean }) {
             <FormLabel>显示无提交仓库</FormLabel>
             <FormDescription>在报告中显示当前周期没有匹配提交的已启用仓库。</FormDescription>
           </div>
-          <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+          <FormControl>
+            <Switch checked={field.value} onCheckedChange={field.onChange} />
+          </FormControl>
         </FormItem>
       )}
     />
@@ -111,19 +156,31 @@ export function ConfigFormFields({ compact = false }: { compact?: boolean }) {
         </CardContent>
       </Card>
 
-      <IdentityFields fields={identities.fields} append={identities.append} remove={identities.remove} />
+      <IdentityFields
+        fields={identities.fields}
+        append={identities.append}
+        remove={identities.remove}
+      />
 
       {compact ? (
         <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
           <Card>
             <CardHeader>
               <CollapsibleTrigger asChild>
-                <Button type='button' variant='ghost' className='h-auto w-full justify-between p-0 text-start'>
+                <Button
+                  type='button'
+                  variant='ghost'
+                  className='h-auto w-full justify-between p-0 text-start'
+                >
                   <span>
                     <CardTitle>高级设置</CardTitle>
                     <CardDescription className='mt-1.5'>缓存目录和无提交仓库规则。</CardDescription>
                   </span>
-                  <ChevronDown className={advancedOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />
+                  <ChevronDown
+                    className={
+                      advancedOpen ? 'rotate-180 transition-transform' : 'transition-transform'
+                    }
+                  />
                 </Button>
               </CollapsibleTrigger>
             </CardHeader>
@@ -137,7 +194,9 @@ export function ConfigFormFields({ compact = false }: { compact?: boolean }) {
         </Collapsible>
       ) : (
         <Card>
-          <CardHeader><CardTitle>采集规则</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle>采集规则</CardTitle>
+          </CardHeader>
           <CardContent>{includeEmptyField}</CardContent>
         </Card>
       )}
@@ -162,21 +221,31 @@ function IdentityFields({
           <CardTitle>Git 作者身份</CardTitle>
           <CardDescription>采集时只保留匹配这些姓名或邮箱的提交。</CardDescription>
         </div>
-        <Button type='button' size='sm' variant='outline' onClick={() => append({ name: '', email: '' })}>
+        <Button
+          type='button'
+          size='sm'
+          variant='outline'
+          onClick={() => append({ name: '', email: '' })}
+        >
           <Plus />
           添加身份
         </Button>
       </CardHeader>
       <CardContent className='space-y-3'>
         {fields.map((identity, index) => (
-          <div key={identity.id} className='grid gap-3 rounded-lg border p-3 sm:grid-cols-[1fr_1fr_auto]'>
+          <div
+            key={identity.id}
+            className='grid gap-3 rounded-lg border p-3 sm:grid-cols-[1fr_1fr_auto]'
+          >
             <FormField
               control={form.control}
               name={`identities.${index}.name`}
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>姓名</FormLabel>
-                  <FormControl><Input {...field} /></FormControl>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -187,7 +256,9 @@ function IdentityFields({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>邮箱</FormLabel>
-                  <FormControl><Input type='email' {...field} /></FormControl>
+                  <FormControl>
+                    <Input type='email' {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
