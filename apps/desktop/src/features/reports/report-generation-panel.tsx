@@ -27,6 +27,7 @@ export function ReportGenerationPanel({
   initialReport,
   initialRunId,
   onboarding = false,
+  fixedHeight = false,
   onRunChange,
   onSaved,
   onClose,
@@ -35,6 +36,7 @@ export function ReportGenerationPanel({
   initialReport?: ReportFile
   initialRunId?: string
   onboarding?: boolean
+  fixedHeight?: boolean
   onRunChange?(runId: string | null): void
   onSaved(run: ReportRun): void
   onClose?(): void
@@ -226,150 +228,168 @@ export function ReportGenerationPanel({
   }
 
   return (
-    <div className='space-y-4'>
-      <div className='grid gap-4 sm:grid-cols-2'>
-        <div className='space-y-2'>
-          <Label>报告类型</Label>
-          <Select value={reportType} onValueChange={changeReportType} disabled={generating}>
-            <SelectTrigger className='w-full'>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value='daily'>日报</SelectItem>
-              <SelectItem value='weekly'>周报</SelectItem>
-              <SelectItem value='monthly'>月报</SelectItem>
-              {!onboarding ? <SelectItem value='custom'>自定义报告</SelectItem> : null}
-            </SelectContent>
-          </Select>
+    <div
+      className={
+        fixedHeight
+          ? 'grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-4'
+          : 'space-y-4'
+      }
+    >
+      <div className='space-y-4'>
+        <div className='grid gap-4 sm:grid-cols-2'>
+          <div className='space-y-2'>
+            <Label>报告类型</Label>
+            <Select value={reportType} onValueChange={changeReportType} disabled={generating}>
+              <SelectTrigger className='w-full'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='daily'>日报</SelectItem>
+                <SelectItem value='weekly'>周报</SelectItem>
+                <SelectItem value='monthly'>月报</SelectItem>
+                {!onboarding ? <SelectItem value='custom'>自定义报告</SelectItem> : null}
+              </SelectContent>
+            </Select>
+          </div>
+          {reportType === 'custom' ? (
+            <div className='space-y-2'>
+              <Label>日期范围</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type='button'
+                    variant='outline'
+                    className='w-full justify-start font-normal'
+                    disabled={generating}
+                  >
+                    <CalendarDays />
+                    {period ? `${period.start} ~ ${period.end}` : '选择开始和结束日期'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align='start' className='w-auto p-0'>
+                  <Calendar
+                    mode='range'
+                    numberOfMonths={2}
+                    max={365}
+                    selected={customRange}
+                    onSelect={setCustomRange}
+                    disabled={{ after: new Date() }}
+                    defaultMonth={customRange?.from}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          ) : (
+            <div className='space-y-2'>
+              <Label>{onboarding ? '推荐完整周期' : '生成周期'}</Label>
+              <div className='flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm'>
+                {period?.start} ~ {period?.end}
+              </div>
+            </div>
+          )}
         </div>
         {reportType === 'custom' ? (
           <div className='space-y-2'>
-            <Label>日期范围</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  type='button'
-                  variant='outline'
-                  className='w-full justify-start font-normal'
-                  disabled={generating}
-                >
-                  <CalendarDays />
-                  {period ? `${period.start} ~ ${period.end}` : '选择开始和结束日期'}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align='start' className='w-auto p-0'>
-                <Calendar
-                  mode='range'
-                  numberOfMonths={2}
-                  max={365}
-                  selected={customRange}
-                  onSelect={setCustomRange}
-                  disabled={{ after: new Date() }}
-                  defaultMonth={customRange?.from}
-                />
-              </PopoverContent>
-            </Popover>
+            <Label>报告标题（可选）</Label>
+            <Input
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              disabled={generating}
+              placeholder='默认使用“自定义报告”'
+            />
           </div>
-        ) : (
-          <div className='space-y-2'>
-            <Label>{onboarding ? '推荐完整周期' : '生成周期'}</Label>
-            <div className='flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm'>
-              {period?.start} ~ {period?.end}
-            </div>
-          </div>
-        )}
-      </div>
-      {reportType === 'custom' ? (
+        ) : null}
         <div className='space-y-2'>
-          <Label>报告标题（可选）</Label>
-          <Input
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
+          <Label>本次补充事实（可选）</Label>
+          <Textarea
+            value={context}
+            onChange={(event) => setContext(event.target.value)}
             disabled={generating}
-            placeholder='默认使用“自定义报告”'
+            placeholder='只填写模型无法从 Git 提交中得知的背景或结果。'
           />
         </div>
-      ) : null}
-      <div className='space-y-2'>
-        <Label>本次补充事实（可选）</Label>
-        <Textarea
-          value={context}
-          onChange={(event) => setContext(event.target.value)}
-          disabled={generating}
-          placeholder='只填写模型无法从 Git 提交中得知的背景或结果。'
-        />
       </div>
       {generating || draft ? (
-        <div className='space-y-2'>
-          <Label>报告草稿</Label>
+        <div className={fixedHeight ? 'flex min-h-0 flex-col gap-2' : 'space-y-2'}>
+          <Label className='shrink-0'>报告草稿</Label>
           <Textarea
             aria-label='报告草稿'
-            className='field-sizing-fixed h-80 min-h-80 max-h-80 resize-none overflow-y-auto font-mono'
+            className={
+              fixedHeight
+                ? 'field-sizing-fixed min-h-0 flex-1 resize-none overflow-y-auto font-mono'
+                : 'field-sizing-fixed h-80 min-h-80 max-h-80 resize-none overflow-y-auto font-mono'
+            }
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             readOnly={generating}
           />
           {generating ? (
-            <p className='flex items-center gap-2 text-sm text-muted-foreground'>
+            <p className='flex shrink-0 items-center gap-2 text-sm text-muted-foreground'>
               <Loader2 className='size-4 animate-spin' />
               正在同步、采集并生成，内容会实时显示…
             </p>
           ) : null}
         </div>
       ) : null}
-      {noCommits ? (
-        <Alert>
-          <AlertTitle>这个周期没有匹配提交</AlertTitle>
-          <AlertDescription>
-            AI 尚未被调用。你可以选择其他报告类型和周期重新采集，或基于空周期继续生成。
-          </AlertDescription>
-        </Alert>
-      ) : null}
-      {readyForReview && !onboarding ? (
-        <label className='flex items-center gap-2 text-sm'>
-          <Checkbox checked={publish} onCheckedChange={(value) => setPublish(value === true)} />
-          保存后推送到飞书
-        </label>
-      ) : null}
-      {forceSave ? (
-        <Alert variant='destructive'>
-          <AlertTitle>目标周期已有报告</AlertTitle>
-          <AlertDescription>
-            现有报告的元数据缺失、无效或类型不同。再次确认会覆盖报告，并将原文件备份到同目录的
-            .history 中。
-          </AlertDescription>
-        </Alert>
-      ) : null}
-      <div className='flex flex-wrap justify-end gap-2 border-t pt-4'>
-        {generating && runId ? (
-          <Button variant='outline' onClick={() => cancel.mutate()} disabled={cancel.isPending}>
-            取消运行
-          </Button>
-        ) : onClose ? (
-          <Button variant='outline' onClick={onClose} disabled={busy}>
-            关闭
-          </Button>
-        ) : null}
+      <div className={fixedHeight ? 'row-start-3 space-y-4' : 'space-y-4'}>
         {noCommits ? (
-          <>
-            <Button variant='outline' onClick={() => generate.mutate()} disabled={busy || !period}>
-              <Sparkles />
-              更换周期后重新采集
+          <Alert>
+            <AlertTitle>这个周期没有匹配提交</AlertTitle>
+            <AlertDescription>
+              AI 尚未被调用。你可以选择其他报告类型和周期重新采集，或基于空周期继续生成。
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        {readyForReview && !onboarding ? (
+          <label className='flex items-center gap-2 text-sm'>
+            <Checkbox checked={publish} onCheckedChange={(value) => setPublish(value === true)} />
+            保存后推送到飞书
+          </label>
+        ) : null}
+        {forceSave ? (
+          <Alert variant='destructive'>
+            <AlertTitle>目标周期已有报告</AlertTitle>
+            <AlertDescription>
+              现有报告的元数据缺失、无效或类型不同。再次确认会覆盖报告，并将原文件备份到同目录的
+              .history 中。
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        <div className='flex flex-wrap justify-end gap-2 border-t pt-4'>
+          {generating && runId ? (
+            <Button variant='outline' onClick={() => cancel.mutate()} disabled={cancel.isPending}>
+              取消运行
             </Button>
-            <Button onClick={() => retry.mutate(true)} disabled={busy}>
-              {retry.isPending ? <Loader2 className='animate-spin' /> : <Sparkles />}仍然生成
+          ) : onClose ? (
+            <Button variant='outline' onClick={onClose} disabled={busy}>
+              关闭
             </Button>
-          </>
-        ) : readyForReview ? (
-          <Button onClick={() => approve.mutate()} disabled={approve.isPending || !draft.trim()}>
-            {approve.isPending ? <Loader2 className='animate-spin' /> : <Save />}
-            {forceSave ? '覆盖并保存' : '确认并保存'}
-          </Button>
-        ) : (
-          <Button onClick={() => generate.mutate()} disabled={busy || !period}>
-            {generating ? <Loader2 className='animate-spin' /> : <Sparkles />}开始生成
-          </Button>
-        )}
+          ) : null}
+          {noCommits ? (
+            <>
+              <Button
+                variant='outline'
+                onClick={() => generate.mutate()}
+                disabled={busy || !period}
+              >
+                <Sparkles />
+                更换周期后重新采集
+              </Button>
+              <Button onClick={() => retry.mutate(true)} disabled={busy}>
+                {retry.isPending ? <Loader2 className='animate-spin' /> : <Sparkles />}仍然生成
+              </Button>
+            </>
+          ) : readyForReview ? (
+            <Button onClick={() => approve.mutate()} disabled={approve.isPending || !draft.trim()}>
+              {approve.isPending ? <Loader2 className='animate-spin' /> : <Save />}
+              {forceSave ? '覆盖并保存' : '确认并保存'}
+            </Button>
+          ) : (
+            <Button onClick={() => generate.mutate()} disabled={busy || !period}>
+              {generating ? <Loader2 className='animate-spin' /> : <Sparkles />}开始生成
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   )

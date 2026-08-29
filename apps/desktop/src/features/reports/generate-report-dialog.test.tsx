@@ -51,9 +51,8 @@ describe('GenerateReportDialog', () => {
       .element(screen.getByRole('textbox', { name: '报告草稿' }))
       .toHaveClass(
         'field-sizing-fixed',
-        'h-80',
-        'min-h-80',
-        'max-h-80',
+        'min-h-0',
+        'flex-1',
         'resize-none',
         'overflow-y-auto',
       )
@@ -111,10 +110,13 @@ describe('GenerateReportDialog', () => {
     await expect
       .element(screen.getByRole('dialog', { name: '重新生成报告' }))
       .toHaveClass(
-        'max-h-[calc(100vh-2rem)]',
-        'grid-rows-[auto_minmax(0,1fr)_auto]',
+        'h-[min(54rem,calc(100vh-2rem))]',
+        'grid-rows-[auto_minmax(0,1fr)]',
         'overflow-hidden',
       )
+    await expect
+      .element(screen.getByTestId('report-dialog-body'))
+      .toHaveClass('min-h-0', 'overflow-hidden')
     await expect.element(screen.getByText('重新生成报告')).toBeInTheDocument()
     await expect
       .element(screen.getByRole('button', { name: /2026-08-01 ~ 2026-08-03/ }))

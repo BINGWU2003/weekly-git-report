@@ -23,15 +23,16 @@ export function GenerateReportDialog({
   const [busy, setBusy] = useState(false)
   return (
     <Dialog open={open} onOpenChange={(next) => !busy && onOpenChange(next)}>
-      <DialogContent className='max-h-[calc(100vh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-3xl'>
+      <DialogContent className='h-[min(54rem,calc(100vh-2rem))] grid-rows-[auto_minmax(0,1fr)] overflow-hidden sm:max-w-3xl'>
         <DialogHeader>
           <DialogTitle>{initialReport ? '重新生成报告' : '生成报告'}</DialogTitle>
           <DialogDescription>
             每次都会重新同步和采集。AI 输出先作为草稿，确认后才写入 Summary。
           </DialogDescription>
         </DialogHeader>
-        <div className='min-h-0 overflow-y-auto overscroll-contain pe-1'>
+        <div data-testid='report-dialog-body' className='min-h-0 overflow-hidden'>
           <ReportGenerationPanel
+            fixedHeight
             initialReport={initialReport}
             onSaved={() => {
               onSaved()
