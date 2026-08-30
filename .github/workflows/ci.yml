@@ -23,6 +23,8 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+      - name: Install Chromium for desktop tests
+        run: pnpm --filter @weekly-git-report/desktop exec playwright install --with-deps chromium
       - run: pnpm run format:check
       - run: pnpm run test
       - run: pnpm run lint
