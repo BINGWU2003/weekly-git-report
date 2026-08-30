@@ -1,15 +1,53 @@
 # @weekly-git-report/workflow
 
-内部应用服务包，供 CLI、Electron 和兼容 MCP 复用。
+Weekly Git Report 的内部用例编排层，供 CLI、MCP 和 Desktop Main 复用。
 
 ```text
-cli / electron / mcp -> workflow -> core -> shared
+CLI / MCP / Desktop Main → Workflow → Core → Shared
 ```
 
-统一生成入口为 `prepareReportRun`、`generateBuiltInRun`、`completeExternalRun` 和 `approveReportRun`。运行元数据与步骤写入 Node 22 内置 SQLite，Raw、结构化生成输入、草稿和正文只保存在文件系统。SQLite 同时承担跨 CLI/Electron 进程的单运行队列约束，后来的采集与生成请求保持 `queued`，直到当前 Run 离开采集/生成阶段。
+## 职责
 
-`listProjects` 和 `syncProjects` 会附加本地缓存中的配置分支最新提交运行状态，但不会因此访问远程仓库。
+- 编排 ReportRun 的排队、同步、采集、生成、审核、保存、发布、取消和重试。
+- 使用 Node.js 内置 SQLite 持久化 Run 与步骤状态，并协调跨进程活动槽位。
+- 生成和验证脱敏 `generationInput`、模板 revision 与 Raw manifest 哈希。
+- 通过 AI SDK 连接 OpenAI 和 DeepSeek，流式写入草稿。
+- 保存报告正文与关联信息文件，处理历史备份和强制覆盖确认。
+- 校验报告内容后构建飞书卡片、签名并执行有限网络重试。
+- 将报告任务同步到 Windows Task Scheduler、macOS `launchd` 和 Linux 用户级 `systemd timer`。
+- 提供仓库列表、同步、采集、Raw 读取和 Summary 保存等低阶工作流。
 
-`collectGitLogs` 会先同步显式配置且已启用的项目，再采集指定远程分支；Raw 与日报、周报、月报、自定义报告类型无关。`saveSummary` 校验类型周期、写入 Sidecar，并按类型化文件名隔离不同报告；同一文件被替换时写入历史备份。路径安全逻辑限制 Raw 与 Summary 操作位于 `outputRoot` 内。
+## ReportRun API
 
-内置 AI 使用 AI SDK 7 的 OpenAI、DeepSeek 官方 Provider，不自动重试或切换模型。飞书发布只接受 Sidecar 和内容 Hash 均有效的 Summary，网络错误最多重试三次。系统调度适配 Windows Task Scheduler、macOS launchd 和 Linux user systemd timer，每次触发执行一次后退出。
+统一生成入口包括：
+
+- `prepareReportRun`
+- `generateBuiltInRun`
+- `completeExternalRun`
+- `approveReportRun`
+
+内置 AI 与 external-agent 在生成阶段不同，但共享准备、完整性校验、保存和推送链路。完整状态图见[工作原理](../../docs/how-it-works.md#reportrun-状态)。
+
+## 一致性
+
+- SQLite 状态转换拒绝非法跳转。
+- 唯一活动索引限制同时处于采集或生成的 Run。
+- 保存前校验 generation input 哈希、模板 revision 和 manifest 哈希。
+- Sidecar 记录正文哈希；飞书发送前再次读取并验证。
+- 正常替换自动备份；`force` 只处理用户确认的既有 Sidecar 异常。
+
+## 外部集成
+
+- **AI**：仅 OpenAI 与 DeepSeek，不自动重试或切换供应商；模型和参数由应用版本管理。
+- **飞书**：只发送有效的已保存报告；临时网络/限流最多重试 3 次，即最多 4 次请求。
+- **调度**：注册系统原生一次性触发命令，不运行常驻轮询服务。
+
+## 开发
+
+```sh
+pnpm --filter @weekly-git-report/workflow check-types
+pnpm --filter @weekly-git-report/workflow test
+pnpm --filter @weekly-git-report/workflow build
+```
+
+该包是私有 workspace 包。分层与入口见[系统架构](../../docs/architecture.md#workflow应用用例)。

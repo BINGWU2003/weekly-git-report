@@ -1,81 +1,114 @@
 # Weekly Git Report Desktop
 
-Electron 桌面客户端。桌面端与 CLI 共用 `~/.weekly-git-report/config.json` 和
-`projects.json`，直接调用系统 Git 和本机凭据，并在 `config.outputRoot` 下浏览现有
-Markdown 报告。
+Weekly Git Report 的 Electron 桌面客户端，是普通用户的默认入口。它提供首次设置、仓库管理、AI 草稿生成、报告审核与浏览、飞书推送、系统定时任务和应用更新界面。
 
-## 当前能力
+跨入口的完整说明见[项目文档](../../docs/README.md)。
 
-- 未完成首次设置时自动进入单页六步引导：环境与目录、Git 作者身份、仓库、AI、首份报告、可选扩展，无需先运行 CLI。
-- 至少一个启用仓库、AI 连接测试和首份报告审核保存是必要步骤；当前会话可暂时进入工作台，下次启动会继续引导。
-- 初始化运行 ID 保存在 `desktop-onboarding.json`，页面刷新后可以恢复待审核草稿；完成后 `/setup` 保留只读检查清单。
-- 启动时非破坏性补齐缺失的空仓库索引、报告目录和生成模板，不覆盖已有内容。
-- 编辑报告目录、空仓库策略和全局 Git 作者身份。
-- 分别编辑 CLI 与 Agent 共用的日报、周报、月报、自定义报告生成提示词，支持变量预览、恢复默认和 revision 冲突保护。
-- 添加、编辑、启停和同步仓库，支持远程分支读取和仓库专属作者身份。
-- 从本地父目录递归识别多个仓库，预览默认配置并批量同步添加。
-- 从本地缓存展示每个采集分支的最新提交，不在页面加载时访问远程。
-- 删除仓库配置，并可在绝对路径二次确认后安全删除 Bare Git 缓存。
-- 总览本机 Git、共享配置、仓库数量和报告数量。
-- 只索引 `outputRoot` 下规范的 `summary` 和 `raw` 报告目录，排除临时文件与其他 Markdown。
-- 报告库支持类型、Summary 报告类型（含自定义报告）、周期预设、自定义日期、Raw 角色和语义搜索筛选，并按报告周期折叠分组。
-- 标准报告手动生成当前周期，自定义报告使用日历选择最多 366 天；首次报告默认上一完整周。空周期会在调用 AI 前停止，用户可以更换周期或明确继续生成。
-- 从 Raw manifest 读取仓库名称、周期和生成时间；Raw 元数据损坏时停止展示。Summary Sidecar 缺失或损坏时保留 Markdown 并显示“元数据异常”。
-- 支持 Markdown 渲染预览、源码查看和资源管理器定位，Raw 历史版本默认隐藏。
-- 通过独立的“AI 与推送”设置页管理 OpenAI、DeepSeek 和飞书机器人配置；敏感值默认掩码，只有手动查看时才按字段读取明文。
-- 设置桌面端外观。
-- 通过沙箱 Preload 暴露白名单 IPC，Renderer 不直接访问 Node.js。
-- 配置并测试 OpenAI 或 DeepSeek，流式生成可编辑草稿，审核后保存 Summary。
-- 配置一个全局飞书群机器人，对有效 Summary 手动推送或随自动任务推送。
-- 创建日报、周报和月报任务，通过系统原生调度运行；日报生成当天，周一生成上一完整周，每月 1 日生成上一完整月。自定义报告不进入任务。
-- Windows x64 正式安装包通过 GitHub Releases 检查、下载并安装可选更新；开发模式和 unpacked 构建默认禁用。
-- “关于与更新”展示当前/最新版本、下载进度、Release Notes 和更新日志入口；报告生成、保存或推送期间不会立即安装。
+## 平台与要求
 
-## 配置说明
+- 正式安装包：Windows x64。
+- 必需环境：Git。
+- 正式安装包已经包含应用运行时，不要求用户单独安装 Node.js。
+- 开发模式、解压构建以及 macOS/Linux 构建不启用自动更新。
 
-- 报告输出目录可以手动输入或通过目录选择器设置；修改后不会迁移旧报告。
-- `repositoryCacheRoot` 用于存放只读取 Git 日志的 Bare 仓库。初始化时可手动输入或选择，初始化完成后在桌面端只读，避免已有仓库路径整体失效。
-- 报告目录和缓存目录不能相同、互相嵌套，也不能直接使用 `~/.weekly-git-report` 应用配置目录。
-- 桌面端保存配置时会校验共享 Schema，并检测配置是否在此期间被 CLI 或其他窗口修改。
-- Git 不可用时会阻止继续；未检测到全局身份时可以手动填写。四套模板在创建工作区时自动就绪，不要求首次逐个编辑。
-- AI 与飞书密钥保存在当前用户可访问、受文件 ACL 保护的本地 JSON 中，并非系统 Keychain/DPAPI；界面不会回显或写入日志。
-- 生成模板分别保存在 `~/.weekly-git-report/templates/{daily,weekly,monthly,custom}/summary.md`，不会写入 `config.json` 或报告输出目录。
-- 仓库 URL 添加后不可直接修改，需要移除旧配置后重新添加。
-- 桌面端启动时不会自动同步仓库，可按需同步单个仓库或全部已启用仓库。
-- 文件夹导入只读取源仓库的 `origin`，不会把开发工作区作为缓存，也不会修改或删除源目录。
-- 最新提交是最后一次成功同步后的本地缓存状态；同步失败时旧提交会标记为可能过期。
-- 报告筛选条件保存在路由查询参数中；默认展示最近三个月，周期有重叠即视为命中。
-- AI API Key、飞书 Webhook 和签名密钥仍保存在仅当前系统用户可访问的本地配置文件中。桌面端状态接口只返回掩码，未修改的敏感字段在保存时保持原值。
+从 [GitHub Releases](https://github.com/BINGWU2003/weekly-git-report/releases) 下载最新安装包。首次使用见[入门指南](../../docs/getting-started.md#desktop)。
+
+## 功能
+
+### 首次设置
+
+- 检查 Git、报告目录和仓库缓存目录。
+- 读取或填写用于筛选提交的 Git 作者身份。
+- 添加并同步至少一个仓库。
+- 配置并测试 OpenAI 或 DeepSeek。
+- 生成、审核并保存第一份报告。
+- 中断后恢复已完成步骤和待审核草稿。
+- 将飞书机器人和报告任务作为可选扩展。
+
+### 仓库
+
+- 添加、编辑、启停和同步显式配置的仓库。
+- 读取远程分支并配置仓库专属作者身份。
+- 扫描本地父目录，批量识别已有仓库的 `origin` 并建立独立缓存。
+- 从本地缓存展示配置分支的最新提交，不在页面加载时访问远程 API。
+- 删除仓库配置，并在多重路径校验和二次确认后选择性删除缓存。
+
+### 报告
+
+- 生成日报、周报、月报和最长 366 天的自定义报告。
+- 使用 OpenAI 或 DeepSeek 流式生成可编辑草稿。
+- 在保存前审核草稿；报告任务可选择自动保存。
+- 浏览报告正文（Summary）与采集数据（Raw），按类型、周期、角色和搜索词筛选。
+- 预览 Markdown、查看原文、定位文件、恢复回收站报告。
+- 校验关联信息文件（Sidecar）；异常报告仍可查看，但不能直接推送。
+- 分别编辑四种报告模板，支持变量预览、恢复默认和 revision 冲突保护。
+
+### 自动化与集成
+
+- 配置一个 OpenAI 或 DeepSeek 供应商，模型和生成参数由应用管理。
+- 配置全局飞书群自定义机器人，可选签名密钥。
+- 创建日报、周报和月报任务，使用操作系统原生计划任务触发。
+- 查看 ReportRun 执行记录、步骤状态、错误、Token 用量和待审核草稿。
+
+### 更新
+
+- Windows x64 正式安装包从 GitHub Releases 检查 stable 更新。
+- 启动后延迟检查，并按周期静默检查；也可手动检查。
+- 不自动下载，下载和安装都由用户确认。
+- 报告正在生成、保存或推送时阻止安装。
+
+更新发布和真实升级演练见[Desktop 发布文档](../../docs/desktop-release.md)。
+
+## 关键行为
+
+- 手动日报使用当天，周报使用本周一至今天，月报使用本月 1 日至今天。
+- 系统周报任务生成上一完整周，月报任务生成上一完整月。
+- 自定义报告只用于临时手动生成，不进入报告任务。
+- 飞书推送与保存方式分别配置；自动保存不代表一定推送。
+- Desktop 启动不会自动同步全部仓库，生成报告或用户主动同步时才访问远程。
+
+详见[工作原理](../../docs/how-it-works.md)。
+
+## 配置与安全
+
+Desktop 与 CLI 共用 `~/.weekly-git-report/` 下的配置、仓库、模板、任务和 Run 数据，也共用报告目录。
+
+- 报告目录和缓存目录不能相同、互相嵌套或直接使用应用配置目录。
+- 缓存目录在首次设置后由 Desktop 只读管理，避免已有仓库路径整体失效。
+- AI 与飞书密钥保存在当前用户受限权限的本地 JSON，不使用系统 Keychain/DPAPI。
+- 界面默认只显示掩码；用户明确查看某个字段时才读取该字段明文。
+- Renderer 不直接访问 Node.js，只能调用沙箱 Preload 暴露的白名单 API。
+
+文件布局见[数据与存储](../../docs/data-and-storage.md)，详细边界见[安全与隐私](../../docs/security.md)。
+
+## 目录
+
+```text
+electron/main/       Electron 主进程、IPC、服务与更新
+electron/preload/    暴露给 Renderer 的受限 Desktop API
+shared/              Main、Preload、Renderer 共用的 IPC 类型
+src/                 React Renderer、路由、功能页和组件
+```
+
+调用链和分层见[系统架构](../../docs/architecture.md#desktop-架构)。
 
 ## 开发
 
-在 monorepo 根目录执行：
+在 Monorepo 根目录执行：
 
 ```sh
 pnpm install
 pnpm --filter @weekly-git-report/desktop dev
 ```
 
-质量检查和构建：
+验证和构建：
 
 ```sh
 pnpm --filter @weekly-git-report/desktop check-types
 pnpm --filter @weekly-git-report/desktop test
 pnpm --filter @weekly-git-report/desktop build
+pnpm --filter @weekly-git-report/desktop build:unpack
 pnpm --filter @weekly-git-report/desktop build:win
 ```
 
-Desktop 使用 Changesets 管理版本，正式发布与真实升级演练见
-[`docs/desktop-release.md`](../../docs/desktop-release.md)。
-
-## 目录
-
-```text
-electron/main/       主进程、IPC 和本地服务
-electron/preload/    白名单 Desktop API
-shared/              Main、Preload、Renderer 共用的 IPC 类型
-src/                 React Renderer
-```
-
-原始 UI 基于 Shadcn Admin Dashboard 模板进行二次开发，通用 Shadcn/Radix 组件、主题、
-TanStack Router、React Query 和测试基础设施继续保留。
+更多信息见[开发指南](../../docs/development.md#desktop-开发)。
