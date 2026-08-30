@@ -1,10 +1,13 @@
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
-import path from "node:path";
-
 import { ProjectsIndexSchema } from "@weekly-git-report/shared";
 import type { ProjectsIndex } from "@weekly-git-report/shared";
 
 import { getProjectsFilePath } from "../utils/path.js";
+import { assertFileRevision, readVersionedText, writeJsonAtomic } from "../utils/versioned-json.js";
+
+export interface ProjectsIndexSnapshot {
+  index: ProjectsIndex;
+  revision: string;
+}
 
 export class ProjectsIndexNotFoundError extends Error {
   constructor(projectsFile = getProjectsFilePath()) {
@@ -18,24 +21,22 @@ export async function writeProjectsIndex(
   projectsFile = getProjectsFilePath(),
 ): Promise<void> {
   const parsed = ProjectsIndexSchema.parse(index);
-  await mkdir(path.dirname(projectsFile), { recursive: true });
-  const temporaryFile = `${projectsFile}.${process.pid}.${Date.now()}.tmp`;
-  try {
-    await writeFile(temporaryFile, `${JSON.stringify(parsed, null, 2)}\n`, "utf8");
-    await rename(temporaryFile, projectsFile);
-  } catch (error) {
-    await rm(temporaryFile, { force: true });
-    throw error;
-  }
+  await writeJsonAtomic(projectsFile, parsed);
 }
 
 export async function loadProjectsIndex(
   projectsFile = getProjectsFilePath(),
 ): Promise<ProjectsIndex> {
-  let content: string;
+  return (await loadProjectsIndexSnapshot(projectsFile)).index;
+}
+
+export async function loadProjectsIndexSnapshot(
+  projectsFile = getProjectsFilePath(),
+): Promise<ProjectsIndexSnapshot> {
+  let document;
 
   try {
-    content = await readFile(projectsFile, "utf8");
+    document = await readVersionedText(projectsFile);
   } catch (error) {
     if (isNodeError(error) && error.code === "ENOENT") {
       throw new ProjectsIndexNotFoundError(projectsFile);
@@ -44,7 +45,21 @@ export async function loadProjectsIndex(
     throw error;
   }
 
-  return ProjectsIndexSchema.parse(JSON.parse(content));
+  return {
+    index: ProjectsIndexSchema.parse(JSON.parse(document.content)),
+    revision: document.revision,
+  };
+}
+
+export async function writeProjectsIndexIfRevision(
+  index: ProjectsIndex,
+  expectedRevision: string | null,
+  projectsFile = getProjectsFilePath(),
+): Promise<ProjectsIndexSnapshot> {
+  const parsed = ProjectsIndexSchema.parse(index);
+  await assertFileRevision(projectsFile, expectedRevision);
+  await writeJsonAtomic(projectsFile, parsed);
+  return loadProjectsIndexSnapshot(projectsFile);
 }
 
 function isNodeError(error: unknown): error is NodeJS.ErrnoException {

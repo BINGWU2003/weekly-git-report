@@ -1,17 +1,25 @@
 #!/usr/bin/env node
 
 import { runDoctorCommand } from "./commands/doctor.js";
+import { runAiCommand } from "./commands/ai.js";
+import { runFeishuCommand } from "./commands/feishu.js";
+import { runRunsCommand } from "./commands/runs.js";
+import { runTasksCommand } from "./commands/tasks.js";
 import { runEditConfigCommand, runInitCommand } from "./commands/init.js";
+import { runCollectCommand, runRawCommand, runSummaryCommand } from "./commands/report.js";
+import { runTemplatesCommand } from "./commands/templates.js";
 import {
   runAddProjectCommand,
   runEditProjectCommand,
+  runImportProjectsCommand,
   runListProjectsCommand,
   runRemoveProjectCommand,
   runSyncProjectsCommand,
 } from "./commands/projects.js";
+import { handleCliError } from "./utils/error.js";
 import { promptOptions, prompts } from "./utils/prompt.js";
 
-const [command, subcommand, ...commandArgs] = process.argv.slice(2);
+const [command, ...commandArgs] = process.argv.slice(2);
 
 try {
   switch (command) {
@@ -21,15 +29,43 @@ try {
     case "init":
       await runInitCommand();
       break;
-    case "config":
-      if (subcommand !== "edit") throw new Error(`Unknown config command: ${subcommand ?? ""}`);
+    case "config": {
+      const [configSubcommand] = commandArgs;
+      if (configSubcommand !== "edit") {
+        throw new Error(`Unknown config command: ${configSubcommand ?? ""}`);
+      }
       await runEditConfigCommand();
       break;
+    }
     case "projects":
-      await runProjectsCommand(subcommand, commandArgs);
+      await runProjectsCommand(commandArgs[0], commandArgs.slice(1));
+      break;
+    case "collect":
+      await runCollectCommand(commandArgs);
+      break;
+    case "raw":
+      await runRawCommand(commandArgs[0], commandArgs.slice(1));
+      break;
+    case "summary":
+      await runSummaryCommand(commandArgs[0], commandArgs.slice(1));
+      break;
+    case "templates":
+      await runTemplatesCommand(commandArgs[0], commandArgs.slice(1));
       break;
     case "doctor":
       await runDoctorCommand();
+      break;
+    case "ai":
+      await runAiCommand(commandArgs[0], commandArgs.slice(1));
+      break;
+    case "feishu":
+      await runFeishuCommand(commandArgs[0], commandArgs.slice(1));
+      break;
+    case "tasks":
+      await runTasksCommand(commandArgs[0], commandArgs.slice(1));
+      break;
+    case "runs":
+      await runRunsCommand(commandArgs[0], commandArgs.slice(1));
       break;
     case "--help":
     case "-h":
@@ -39,8 +75,7 @@ try {
       throw new Error(`Unknown command: ${command}`);
   }
 } catch (error) {
-  console.error(error instanceof Error ? error.message : error);
-  process.exitCode = 1;
+  handleCliError(error);
 }
 
 async function runMenu(): Promise<void> {
@@ -57,6 +92,7 @@ async function runMenu(): Promise<void> {
         { title: "Initialize configuration", value: "init" },
         { title: "Edit global configuration", value: "config" },
         { title: "Add repository", value: "add" },
+        { title: "Import repositories from folder", value: "import" },
         { title: "Edit repository", value: "edit" },
         { title: "Remove repository", value: "remove" },
         { title: "List repositories", value: "list" },
@@ -79,8 +115,10 @@ async function runMenu(): Promise<void> {
       return runRemoveProjectCommand();
     case "list":
       return runListProjectsCommand();
+    case "import":
+      return runImportProjectsCommand([]);
     case "sync":
-      return runSyncProjectsCommand();
+      return runSyncProjectsCommand([]);
     case "doctor":
       return runDoctorCommand();
   }
@@ -99,8 +137,10 @@ async function runProjectsCommand(
       return runRemoveProjectCommand();
     case "list":
       return runListProjectsCommand();
+    case "import":
+      return runImportProjectsCommand(args);
     case "sync":
-      return runSyncProjectsCommand(args[0]);
+      return runSyncProjectsCommand(args);
     default:
       throw new Error(`Unknown projects command: ${subcommandName ?? ""}`);
   }
@@ -114,7 +154,21 @@ Usage:
   weekly init
   weekly config edit
   weekly projects add|edit|remove|list
-  weekly projects sync [id-or-name]
+  weekly projects import [folder] [--all]
+  weekly projects sync [id-or-name|--project <id-or-name>|--all]
+  weekly collect --since <YYYY-MM-DD> --until <YYYY-MM-DD> [--author <name-or-email>] [--project <id-or-name>] [--all]
+  weekly raw index --start <YYYY-MM-DD> --end <YYYY-MM-DD>
+  weekly raw read --start <YYYY-MM-DD> --end <YYYY-MM-DD>
+  weekly summary save [--type daily|weekly|monthly|custom] --start <YYYY-MM-DD> --end <YYYY-MM-DD> [--title <title>] [--report-id <id>] [--file <path>] [--force]
+  weekly templates init [--type daily|weekly|monthly|custom|--all]
+  weekly templates read [--type daily|weekly|monthly|custom] [--start <YYYY-MM-DD> --end <YYYY-MM-DD>]
+  weekly templates write [--type daily|weekly|monthly|custom] [--file <path>] (--revision <revision>|--force)
+  weekly templates reset [--type daily|weekly|monthly|custom] --force
   weekly doctor
+  weekly ai configure|status|test|clear
+  weekly feishu configure|status|test|clear
+  weekly tasks list|add|edit|remove|enable|disable|run|execute|schedule
+  weekly runs prepare [--type daily|weekly|monthly|custom] [--start <YYYY-MM-DD> --end <YYYY-MM-DD>] [--title <title>] [--report-id <id>]
+  weekly runs complete|fail|list|show|retry|cancel|publish
 `);
 }

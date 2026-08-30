@@ -4,5 +4,44 @@
     "correctness": "error",
     "suspicious": "error"
   },
-  "plugins": ["typescript", "import", "node", "promise", "vitest"]
+  "ignorePatterns": ["apps/desktop/src/components/ui/**", "apps/desktop/src/routeTree.gen.ts"],
+  "plugins": ["typescript", "import", "node", "promise", "react", "vitest"],
+  "rules": {
+    "react/react-in-jsx-scope": "off"
+  },
+  "overrides": [
+    {
+      "files": ["apps/desktop/src/**/*.{ts,tsx}"],
+      "rules": {
+        "eslint/no-shadow": "off",
+        "eslint/no-underscore-dangle": "off",
+        "eslint/no-unused-vars": "off",
+        "import/no-named-as-default": "off",
+        "react/no-unstable-nested-components": "off",
+        "react/purity": "off"
+      }
+    },
+    {
+      "files": [
+        "apps/desktop/src/**/*.test.ts",
+        "apps/desktop/src/**/*.test.tsx",
+        "apps/desktop/src/test-utils/**/*.{ts,tsx}"
+      ],
+      "rules": {
+        "vitest/require-mock-type-parameters": "off"
+      }
+    },
+    {
+      "files": ["apps/desktop/src/main.tsx", "apps/desktop/src/tanstack-table.d.ts"],
+      "rules": {
+        "import/no-unassigned-import": "off"
+      }
+    },
+    {
+      "files": ["apps/desktop/electron/**/*.ts"],
+      "rules": {
+        "promise/always-return": "off"
+      }
+    }
+  ]
 }

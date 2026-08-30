@@ -1,0 +1,533 @@
+import { useMemo, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  AlertCircle,
+  Edit3,
+  FolderSearch,
+  Loader2,
+  MoreHorizontal,
+  Plus,
+  RefreshCw,
+  Trash2,
+} from 'lucide-react'
+import type { RepositoryProject, RepositoryRuntimeState } from '@weekly-git-report/shared'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Header } from '@/components/layout/header'
+import { Main } from '@/components/layout/main'
+import { OverflowTooltip } from '@/components/overflow-tooltip'
+import { ThemeSwitch } from '@/components/theme-switch'
+import { getErrorMessage } from '@/lib/errors'
+import { desktopQueryKeys, projectsStateQueryOptions } from '@/lib/desktop-queries'
+import { selectSystemDirectory } from '@/lib/system-actions'
+import { showErrorToast, showSuccessToast, showWarningToast } from '@/lib/toast'
+import { Switch } from '@/components/ui/switch'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import type { ProjectsState, RepositorySyncResult } from '../../../shared/ipc'
+import { RepositoryForm } from './repository-form'
+import { RepositoryImportSheet } from './repository-import-sheet'
+
+export function Repositories() {
+  const queryClient = useQueryClient()
+  const [formOpen, setFormOpen] = useState(false)
+  const [editing, setEditing] = useState<RepositoryProject>()
+  const [deleting, setDeleting] = useState<RepositoryProject>()
+  const [lastSync, setLastSync] = useState<RepositorySyncResult>()
+  const [importSession, setImportSession] = useState<{ folder: string; state: ProjectsState }>()
+  const [selectingImportFolder, setSelectingImportFolder] = useState(false)
+  const projects = useQuery(projectsStateQueryOptions)
+
+  function applyState(next: ProjectsState) {
+    queryClient.setQueryData(desktopQueryKeys.projectsState, next)
+    void queryClient.invalidateQueries({ queryKey: desktopQueryKeys.overview })
+    void queryClient.invalidateQueries({ queryKey: desktopQueryKeys.projectsRuntime })
+  }
+
+  async function handleConflict(error: unknown) {
+    if (error instanceof Error && error.message.includes('changed since')) {
+      showErrorToast('仓库配置已在其他位置修改，已为你重新加载。')
+      await queryClient.invalidateQueries({ queryKey: desktopQueryKeys.projectsState })
+      return
+    }
+    showErrorToast(getErrorMessage(error))
+  }
+
+  const toggle = useMutation({
+    mutationFn: ({ project, enabled }: { project: RepositoryProject; enabled: boolean }) => {
+      if (!projects.data?.revision) throw new Error('仓库配置版本缺失。')
+      return window.electronAPI.projects.setEnabled(project.id, enabled, projects.data.revision)
+    },
+    onSuccess: applyState,
+    onError: handleConflict,
+  })
+
+  const sync = useMutation({
+    mutationFn: (ids?: string[]) => window.electronAPI.projects.sync(ids),
+    onSuccess: (result) => {
+      setLastSync(result)
+      void queryClient.invalidateQueries({ queryKey: desktopQueryKeys.projectsRuntime })
+      if (result.errors.length) {
+        showWarningToast(`同步已完成，但有 ${result.errors.length} 个仓库失败`)
+      } else {
+        showSuccessToast(`已同步 ${result.synced.length} 个仓库`)
+      }
+    },
+  })
+
+  function openAdd() {
+    setEditing(undefined)
+    setFormOpen(true)
+  }
+
+  function openEdit(project: RepositoryProject) {
+    setEditing(project)
+    setFormOpen(true)
+  }
+
+  async function openImport() {
+    setSelectingImportFolder(true)
+    try {
+      const folder = await selectSystemDirectory()
+      if (folder) setImportSession({ folder, state })
+    } finally {
+      setSelectingImportFolder(false)
+    }
+  }
+
+  const state = projects.data ?? { projects: [], revision: null }
+  const runtime = useQuery({
+    queryKey: desktopQueryKeys.projectsRuntime,
+    queryFn: () => window.electronAPI.projects.runtimeState(),
+    enabled: Boolean(state.revision),
+  })
+  const runtimeById = useMemo(
+    () => new Map(runtime.data?.map((item) => [item.projectId, item]) ?? []),
+    [runtime.data]
+  )
+  const staleProjectIds = useMemo(
+    () => new Set(lastSync?.errors.flatMap((error) => error.projectId ?? []) ?? []),
+    [lastSync]
+  )
+
+  return (
+    <>
+      <Header>
+        <div className='me-auto'>
+          <p className='text-sm font-medium'>仓库配置</p>
+          <p className='text-xs text-muted-foreground'>配置文件：~/.weekly-git-report/projects.json</p>
+        </div>
+        <ThemeSwitch />
+      </Header>
+      <Main className='space-y-6'>
+        <div className='flex flex-wrap items-end justify-between gap-3'>
+          <div>
+            <h1 className='text-2xl font-bold tracking-tight md:text-3xl'>仓库</h1>
+            <p className='text-muted-foreground'>管理参与同步和报告采集的 Git 仓库。</p>
+          </div>
+          <div className='flex gap-2'>
+            <Button
+              variant='outline'
+              onClick={() => sync.mutate(undefined)}
+              disabled={sync.isPending || !state.projects.some((project) => project.enabled)}
+            >
+              <RefreshCw className={sync.isPending ? 'animate-spin' : ''} />
+              同步全部
+            </Button>
+            <Button
+              variant='outline'
+              onClick={() => void openImport()}
+              disabled={!state.revision || selectingImportFolder}
+            >
+              {selectingImportFolder
+                ? <Loader2 className='animate-spin' />
+                : <FolderSearch />}
+              从文件夹导入
+            </Button>
+            <Button onClick={openAdd} disabled={!state.revision}>
+              <Plus />
+              添加仓库
+            </Button>
+          </div>
+        </div>
+
+        {!state.revision && !projects.isLoading && (
+          <Alert>
+            <AlertCircle />
+            <AlertTitle>请先完成首次设置</AlertTitle>
+            <AlertDescription>在“常规设置”中保存本地配置后即可添加仓库。</AlertDescription>
+          </Alert>
+        )}
+
+        {projects.isError && (
+          <Alert variant='destructive'>
+            <AlertCircle />
+            <AlertTitle>无法读取仓库配置</AlertTitle>
+            <AlertDescription>{getErrorMessage(projects.error)}</AlertDescription>
+          </Alert>
+        )}
+
+        {lastSync?.errors.length ? (
+          <Alert variant='destructive'>
+            <AlertCircle />
+            <AlertTitle>部分仓库同步失败</AlertTitle>
+            <AlertDescription>
+              <ul className='list-disc space-y-1 ps-5 [overflow-wrap:anywhere]'>
+                {lastSync.errors.map((error, index) => (
+                  <li key={`${error.projectId ?? error.name}-${index}`}>
+                    {error.name ?? error.projectId ?? '未知仓库'}：{error.message}
+                  </li>
+                ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
+        <Card className='overflow-hidden py-0'>
+          <CardContent className='p-0'>
+            <Table className='table-fixed'>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className='w-[46%] ps-4'>仓库</TableHead>
+                  <TableHead>最新提交</TableHead>
+                  <TableHead className='w-20 text-center'>启用</TableHead>
+                  <TableHead className='w-14 pe-4 text-end'>操作</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {state.projects.map((project) => {
+                  const syncing = sync.isPending && sync.variables?.includes(project.id)
+                  const toggling = toggle.isPending && toggle.variables?.project.id === project.id
+                  const authorSummary = project.authors?.length
+                    ? `${project.authors.length} 个专属身份`
+                    : '全局身份'
+                  const authorDetails = project.authors?.length
+                    ? project.authors
+                        .map((author) => `${author.name} <${author.email}>`)
+                        .join('\n')
+                    : '继承全局 Git 作者身份'
+                  return (
+                    <TableRow key={project.id}>
+                      <TableCell className='whitespace-normal ps-4'>
+                        <div className='min-w-0 space-y-1.5'>
+                          <OverflowTooltip text={project.name} className='font-medium' />
+                          <OverflowTooltip
+                            text={project.url}
+                            className='text-xs text-muted-foreground'
+                            monospace
+                          />
+                          <div className='flex min-w-0 items-center gap-2'>
+                            <Badge variant='outline' className='max-w-40'>
+                              <OverflowTooltip text={project.branch} monospace />
+                            </Badge>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span
+                                  className='min-w-0 truncate text-xs text-muted-foreground'
+                                  tabIndex={0}
+                                >
+                                  {authorSummary}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent
+                                sideOffset={4}
+                                className='max-w-[min(36rem,calc(100vw-2rem))] whitespace-pre-line text-start [overflow-wrap:anywhere]'
+                              >
+                                {authorDetails}
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className='whitespace-normal'>
+                        <LatestCommitCell
+                          loading={runtime.isLoading}
+                          runtime={runtimeById.get(project.id)}
+                          stale={staleProjectIds.has(project.id)}
+                        />
+                      </TableCell>
+                      <TableCell className='text-center'>
+                        {toggling ? (
+                          <Loader2 className='mx-auto size-4 animate-spin' />
+                        ) : (
+                          <Switch
+                            checked={project.enabled}
+                            onCheckedChange={(enabled) => toggle.mutate({ project, enabled })}
+                            aria-label={`${project.name} 启用状态`}
+                          />
+                        )}
+                      </TableCell>
+                      <TableCell className='pe-4 text-end'>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              size='icon'
+                              variant='ghost'
+                              aria-label={`${project.name} 操作`}
+                            >
+                              {syncing
+                                ? <Loader2 className='animate-spin' />
+                                : <MoreHorizontal />}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align='end'>
+                            <DropdownMenuItem
+                              disabled={sync.isPending}
+                              onSelect={() => sync.mutate([project.id])}
+                            >
+                              <RefreshCw />
+                              同步仓库
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => openEdit(project)}>
+                              <Edit3 />
+                              编辑配置
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              variant='destructive'
+                              onSelect={() => setDeleting(project)}
+                            >
+                              <Trash2 />
+                              删除仓库
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+                {!projects.isLoading && state.projects.length === 0 && state.revision && (
+                  <TableRow>
+                    <TableCell colSpan={4} className='h-32 text-center text-muted-foreground'>
+                      还没有仓库，点击“添加仓库”开始配置。
+                    </TableCell>
+                  </TableRow>
+                )}
+                {projects.isLoading && (
+                  <TableRow>
+                    <TableCell colSpan={4} className='h-32 text-center text-muted-foreground'>
+                      <Loader2 className='mx-auto mb-2 animate-spin' />
+                      正在读取仓库…
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </Main>
+
+      {formOpen && (
+        <RepositoryForm
+          key={editing?.id ?? 'new'}
+          open={formOpen}
+          onOpenChange={setFormOpen}
+          project={editing}
+          state={state}
+        />
+      )}
+      {importSession ? (
+        <RepositoryImportSheet
+          key={importSession.folder}
+          open
+          folder={importSession.folder}
+          initialState={importSession.state}
+          onImported={applyState}
+          onOpenChange={(open) => !open && setImportSession(undefined)}
+        />
+      ) : null}
+      <DeleteRepositoryDialog
+        project={deleting}
+        state={state}
+        onClose={() => setDeleting(undefined)}
+        onDeleted={applyState}
+      />
+    </>
+  )
+}
+
+function LatestCommitCell({
+  loading,
+  runtime,
+  stale,
+}: {
+  loading: boolean
+  runtime?: RepositoryRuntimeState
+  stale: boolean
+}) {
+  if (loading && !runtime) return <Loader2 className='size-4 animate-spin text-muted-foreground' />
+  if (!runtime) return <span className='text-xs text-muted-foreground'>暂无状态</span>
+  if (!runtime.latestCommit) {
+    const label =
+      runtime.status === 'not-synced'
+        ? '尚未同步'
+        : runtime.status === 'missing-branch'
+          ? '分支尚无缓存'
+          : '缓存读取失败'
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className='text-xs text-muted-foreground' tabIndex={0}>{label}</span>
+        </TooltipTrigger>
+        <TooltipContent
+          sideOffset={4}
+          className='max-w-[min(36rem,calc(100vw-2rem))] whitespace-normal text-start [overflow-wrap:anywhere]'
+        >
+          {runtime.message}
+        </TooltipContent>
+      </Tooltip>
+    )
+  }
+
+  const commit = runtime.latestCommit
+  const timestamp = formatCommitTime(commit.committedAt)
+  return (
+    <div className='min-w-0'>
+      <OverflowTooltip
+        text={commit.subject}
+        className='text-sm font-medium'
+        content={(
+          <div className='space-y-1'>
+            <p>{commit.subject}</p>
+            <p className='text-primary-foreground/80'>
+              <code>{commit.hash}</code>
+              <br />
+              {commit.authorName} &lt;{commit.authorEmail}&gt;
+              <br />
+              {timestamp}
+            </p>
+          </div>
+        )}
+      />
+      <p className='mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground'>
+        <code className='shrink-0'>{commit.hash.slice(0, 7)}</code>
+        <span>·</span>
+        <span className='truncate'>{timestamp}</span>
+        {stale ? <Badge variant='destructive'>可能过期</Badge> : null}
+      </p>
+    </div>
+  )
+}
+
+function formatCommitTime(value: string): string {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN', { hour12: false })
+}
+
+function DeleteRepositoryDialog({
+  project,
+  state,
+  onClose,
+  onDeleted,
+}: {
+  project?: RepositoryProject
+  state: ProjectsState
+  onClose(): void
+  onDeleted(next: ProjectsState): void
+}) {
+  const queryClient = useQueryClient()
+  const [deleteCache, setDeleteCache] = useState(false)
+  const [confirmCache, setConfirmCache] = useState(false)
+  const mutation = useMutation({
+    mutationFn: () => {
+      if (!project || !state.revision) throw new Error('仓库配置版本缺失。')
+      return window.electronAPI.projects.remove(project.id, deleteCache, state.revision)
+    },
+    onSuccess: (next) => {
+      onDeleted(next)
+      showSuccessToast(
+        deleteCache ? '仓库配置和缓存已删除' : '仓库配置已删除，缓存已保留'
+      )
+      close()
+    },
+    onError: async (error) => {
+      if (error instanceof Error && error.message.includes('changed since')) {
+        showErrorToast('仓库配置已在其他位置修改，已为你重新加载。')
+        await queryClient.invalidateQueries({ queryKey: desktopQueryKeys.projectsState })
+        close()
+        return
+      }
+      showErrorToast(getErrorMessage(error))
+    },
+  })
+
+  function close() {
+    setDeleteCache(false)
+    setConfirmCache(false)
+    onClose()
+  }
+
+  function submit(event: React.MouseEvent) {
+    event.preventDefault()
+    if (deleteCache && !confirmCache) {
+      setConfirmCache(true)
+      return
+    }
+    mutation.mutate()
+  }
+
+  return (
+    <AlertDialog open={Boolean(project)} onOpenChange={(open) => !open && close()}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{confirmCache ? '确认永久删除缓存' : `删除 ${project?.name ?? '仓库'}`}</AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className='space-y-4'>
+              {confirmCache ? (
+                <>
+                  <p>将永久删除以下本地缓存目录，此操作无法撤销：</p>
+                  <code className='block break-all rounded-md bg-muted p-3 text-foreground'>{project?.localPath}</code>
+                </>
+              ) : (
+                <>
+                  <p>默认只删除应用中的仓库配置，本地缓存会保留。</p>
+                  <label className='flex items-start gap-3 rounded-md border p-3 text-foreground'>
+                    <Checkbox checked={deleteCache} onCheckedChange={(value) => setDeleteCache(value === true)} />
+                    <span>
+                      <span className='block text-sm font-medium'>同时删除本地缓存</span>
+                      <span className='block break-all text-xs text-muted-foreground'>{project?.localPath}</span>
+                    </span>
+                  </label>
+                </>
+              )}
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={mutation.isPending}>取消</AlertDialogCancel>
+          <AlertDialogAction onClick={submit} disabled={mutation.isPending}>
+            {mutation.isPending && <Loader2 className='animate-spin' />}
+            {deleteCache ? (confirmCache ? '永久删除缓存' : '下一步') : '删除配置'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}

@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { getOutputRoot, getPeriodOutputDir, getSummaryDir } from "@weekly-git-report/core";
 import { INDEX_FILE_NAME, MANIFEST_FILE_NAME, ManifestSchema } from "@weekly-git-report/shared";
-import type { Manifest, Period } from "@weekly-git-report/shared";
+import type { Manifest, Period, ReportType } from "@weekly-git-report/shared";
 
 export function assertWithinOutputRoot(targetPath: string, outputRoot: string): void {
   const root = getOutputRoot(outputRoot);
@@ -61,19 +61,33 @@ export async function readWeekProjectFiles(outputRoot: string, period: Period) {
   return files;
 }
 
-export function getSafeWeekSummaryFile(outputRoot: string, period: Period): string {
+export function getSafeSummaryFile(
+  outputRoot: string,
+  period: Period,
+  reportType: ReportType = "weekly",
+  reportId?: string,
+): string {
   const [year, month] = period.start.split("-");
 
   if (!year || !month) {
     throw new Error(`Invalid period start: ${period.start}`);
   }
 
+  if (reportType === "custom" && !reportId) {
+    throw new Error("Custom reports require a report id.");
+  }
+  if (reportId && !/^[a-zA-Z0-9_-]+$/.test(reportId)) {
+    throw new Error("Invalid report id.");
+  }
+  const suffix = reportType === "custom" ? `.custom.${reportId}` : `.${reportType}`;
   const summaryFile = path.join(
     getSummaryDir(outputRoot),
     year,
     month,
-    `${period.start}_${period.end}.md`,
+    `${period.start}_${period.end}${suffix}.md`,
   );
   assertWithinOutputRoot(summaryFile, outputRoot);
   return summaryFile;
 }
+
+export const getSafeWeekSummaryFile = getSafeSummaryFile;

@@ -1,17 +1,13 @@
 # @weekly-git-report/typescript-config
 
-内部 TypeScript 和 tsup 配置包，为 monorepo 子包提供统一基础配置。
-
-## 发布状态
-
-不发布到 npm。只在当前 workspace 内使用。
+Monorepo 内部共享的 TypeScript 与 tsup 配置包，不发布到 npm。
 
 ## 导出
 
 - `@weekly-git-report/typescript-config/base.json`：Node.js TypeScript 基础配置。
-- `@weekly-git-report/typescript-config/tsup`：共享 tsup 配置。
+- `@weekly-git-report/typescript-config/tsup`：共享 tsup 构建配置。
 
-## 使用
+## TypeScript
 
 子包 `tsconfig.json`：
 
@@ -27,19 +23,18 @@
 }
 ```
 
-子包 `tsup.config.ts`：
+## tsup
+
+内部库包保留 workspace 依赖边界：
 
 ```ts
 export { nodeLibraryConfig as default } from "@weekly-git-report/typescript-config/tsup";
 ```
 
-bin 包使用：
+CLI 和 MCP 等可执行发布包使用 bundled bin 配置，把内部 `@weekly-git-report/*` 依赖打入最终产物：
 
 ```ts
 export { nodeBundledBinConfig as default } from "@weekly-git-report/typescript-config/tsup";
 ```
 
-## 配置说明
-
-- library 包使用 `nodeLibraryConfig`，保留 workspace 依赖边界。
-- bin 包使用 `nodeBundledBinConfig`，会把 `@weekly-git-report/*` 内部包打包进最终产物。
+配置实现与公开导出以 `tsup.config.js` 和 `package.json` 为准。全仓构建方式见[开发指南](../../docs/development.md)。

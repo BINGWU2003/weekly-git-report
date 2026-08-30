@@ -1,0 +1,165 @@
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+
+import { describe, expect, test } from "vitest";
+
+import {
+  DEFAULT_SUMMARY_TEMPLATE,
+  FileRevisionConflictError,
+  initializeSummaryTemplate,
+  readSummaryTemplate,
+  resetSummaryTemplate,
+  saveSummaryTemplate,
+  validateSummaryTemplate,
+} from "../src/index.js";
+
+describe("summary template management", () => {
+  test("initializes once and renders the supported date variables", async () => {
+    await withTemplate(async (templateFile) => {
+      const initialized = await initializeSummaryTemplate({ templateFile });
+      expect(initialized.created).toBe(true);
+      expect(initialized.template.isDefault).toBe(true);
+      expect(initialized.template.renderedContent).toBeNull();
+
+      const existing = await readSummaryTemplate({
+        templateFile,
+        period: { start: "2026-08-17", end: "2026-08-23" },
+      });
+      expect(existing.created).toBe(false);
+      expect(existing.template.renderedContent).toContain("2026-08-17 ~ 2026-08-23");
+      expect(existing.template.renderedContent).not.toContain("{{startDate}}");
+    });
+  });
+
+  test("never overwrites an existing template during initialization", async () => {
+    await withTemplate(async (templateFile) => {
+      await initializeSummaryTemplate({ templateFile });
+      const custom = DEFAULT_SUMMARY_TEMPLATE.replaceAll("本周工作概览", "工作概览");
+      await writeFile(templateFile, custom, "utf8");
+
+      const result = await initializeSummaryTemplate({ templateFile });
+      expect(result.created).toBe(false);
+      expect(result.template.content).toContain("## 工作概览");
+      expect(result.template.isDefault).toBe(false);
+    });
+  });
+
+  test("validates variables and rejects stale saves", async () => {
+    await withTemplate(async (templateFile) => {
+      const initial = await initializeSummaryTemplate({ templateFile });
+      expect(() => validateSummaryTemplate("only {{startDate}}")).toThrow(
+        /Missing summary template variables: endDate/,
+      );
+      expect(() => validateSummaryTemplate("{{startDate}} {{endDate}} {{rawContent}}")).toThrow(
+        /Unsupported summary template variables: rawContent/,
+      );
+
+      const custom = DEFAULT_SUMMARY_TEMPLATE.replace("主要工作", "工作明细");
+      const saved = await saveSummaryTemplate({
+        templateFile,
+        content: custom,
+        expectedRevision: initial.template.revision,
+      });
+      expect(saved.template.isDefault).toBe(false);
+
+      await writeFile(templateFile, DEFAULT_SUMMARY_TEMPLATE, "utf8");
+      await expect(
+        saveSummaryTemplate({
+          templateFile,
+          content: custom,
+          expectedRevision: saved.template.revision,
+        }),
+      ).rejects.toBeInstanceOf(FileRevisionConflictError);
+    });
+  });
+
+  test("resets safely with a revision or explicitly forces replacement", async () => {
+    await withTemplate(async (templateFile) => {
+      const initial = await initializeSummaryTemplate({ templateFile });
+      const custom = DEFAULT_SUMMARY_TEMPLATE.replace("关键改动", "技术改动");
+      const saved = await saveSummaryTemplate({
+        templateFile,
+        content: custom,
+        expectedRevision: initial.template.revision,
+      });
+
+      const reset = await resetSummaryTemplate({
+        templateFile,
+        expectedRevision: saved.template.revision,
+      });
+      expect(reset.template.isDefault).toBe(true);
+
+      await writeFile(templateFile, custom, "utf8");
+      await resetSummaryTemplate({ templateFile, force: true });
+      expect(await readFile(templateFile, "utf8")).toBe(DEFAULT_SUMMARY_TEMPLATE);
+    });
+  });
+
+  test("uses cadence-specific defaults and validates period boundaries", async () => {
+    await withTemplate(async (templateFile) => {
+      const daily = await initializeSummaryTemplate({ reportType: "daily", templateFile });
+      expect(daily.type).toBe("daily");
+      expect(daily.template.content).toContain("今日工作概览");
+      await expect(
+        readSummaryTemplate({
+          reportType: "daily",
+          templateFile,
+          period: { start: "2026-08-17", end: "2026-08-18" },
+        }),
+      ).rejects.toThrow(/same start and end/);
+    });
+
+    await withTemplate(async (templateFile) => {
+      const monthly = await initializeSummaryTemplate({ reportType: "monthly", templateFile });
+      expect(monthly.type).toBe("monthly");
+      expect(monthly.template.content).toContain("主要工作主题");
+      await expect(
+        readSummaryTemplate({
+          reportType: "monthly",
+          templateFile,
+          period: { start: "2026-08-02", end: "2026-08-28" },
+        }),
+      ).rejects.toThrow(/day 01/);
+    });
+  });
+
+  test("renders custom report variables and enforces custom period limits", async () => {
+    await withTemplate(async (templateFile) => {
+      const custom = await initializeSummaryTemplate({ reportType: "custom", templateFile });
+      expect(custom.type).toBe("custom");
+      expect(custom.template.content).toContain("{{reportTitle}}");
+      const rendered = await readSummaryTemplate({
+        reportType: "custom",
+        templateFile,
+        reportTitle: "版本回顾",
+        period: { start: "2026-08-01", end: "2026-08-03" },
+      });
+      expect(rendered.template.renderedContent).toContain("版本回顾");
+      expect(rendered.template.renderedContent).toContain("共 3 天");
+      await expect(
+        readSummaryTemplate({
+          reportType: "custom",
+          templateFile,
+          period: { start: "2024-01-01", end: "2025-01-01" },
+        }),
+      ).rejects.toThrow(/cannot exceed 366 days/);
+      await expect(
+        readSummaryTemplate({
+          reportType: "custom",
+          templateFile,
+          period: { start: "2999-01-01", end: "2999-01-02" },
+        }),
+      ).rejects.toThrow(/future dates/);
+    });
+  });
+});
+
+async function withTemplate(run: (templateFile: string) => Promise<void>): Promise<void> {
+  const root = await mkdtemp(path.join(os.tmpdir(), "weekly-summary-template-"));
+  try {
+    await run(path.join(root, "templates", "weekly", "summary.md"));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}

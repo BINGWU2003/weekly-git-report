@@ -1,7 +1,8 @@
 import { mkdir, writeFile } from "node:fs/promises";
 
-import type { Config } from "@weekly-git-report/shared";
+import type { Config, ReportType } from "@weekly-git-report/shared";
 
+import { initializeSummaryTemplates } from "../template/summary-template.js";
 import {
   getConfigFilePath,
   getOutputRoot,
@@ -16,10 +17,21 @@ export interface InitConfigResult {
   outputRoot: string;
   rawDir: string;
   summaryDir: string;
+  summaryTemplateFile: string;
+  summaryTemplateFiles: Record<ReportType, string>;
   createdConfig: boolean;
+  createdSummaryTemplate: boolean;
+  createdSummaryTemplates: ReportType[];
 }
 
-export async function initConfig(config: Config): Promise<InitConfigResult> {
+export interface InitConfigOptions {
+  writeConfig?: boolean;
+}
+
+export async function initConfig(
+  config: Config,
+  options: InitConfigOptions = {},
+): Promise<InitConfigResult> {
   const workDir = getWorkDir();
   const configFile = getConfigFilePath();
   const outputRoot = getOutputRoot(config.outputRoot);
@@ -30,7 +42,15 @@ export async function initConfig(config: Config): Promise<InitConfigResult> {
   await mkdir(rawDir, { recursive: true });
   await mkdir(summaryDir, { recursive: true });
 
-  const createdConfig = await writeConfigIfMissing(configFile, config);
+  const createdConfig =
+    options.writeConfig === false ? false : await writeConfigIfMissing(configFile, config);
+  const summaryTemplates = await initializeSummaryTemplates();
+  const templatesByCadence = Object.fromEntries(
+    summaryTemplates.templates.map((result) => [result.type, result]),
+  ) as Record<ReportType, (typeof summaryTemplates.templates)[number]>;
+  const createdSummaryTemplates = summaryTemplates.templates
+    .filter((result) => result.created)
+    .map((result) => result.type);
 
   return {
     workDir,
@@ -38,7 +58,16 @@ export async function initConfig(config: Config): Promise<InitConfigResult> {
     outputRoot,
     rawDir,
     summaryDir,
+    summaryTemplateFile: templatesByCadence.weekly.template.path,
+    summaryTemplateFiles: {
+      daily: templatesByCadence.daily.template.path,
+      weekly: templatesByCadence.weekly.template.path,
+      monthly: templatesByCadence.monthly.template.path,
+      custom: templatesByCadence.custom.template.path,
+    },
     createdConfig,
+    createdSummaryTemplate: templatesByCadence.weekly.created,
+    createdSummaryTemplates,
   };
 }
 

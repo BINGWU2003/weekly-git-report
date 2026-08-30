@@ -56,19 +56,6 @@
       "problemMatcher": []
     },
     {
-      "label": "build: Agent CLI with dependencies",
-      "type": "shell",
-      "command": "pnpm",
-      "args": [
-        "turbo",
-        "run",
-        "build",
-        "--filter=@weekly-git-report/agent-cli...",
-        "--concurrency=1"
-      ],
-      "problemMatcher": []
-    },
-    {
       "label": "test: core watch",
       "type": "shell",
       "command": "pnpm",

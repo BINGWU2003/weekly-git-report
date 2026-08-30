@@ -24,8 +24,15 @@ coverage
 # Build Outputs
 .next/
 out/
+release/
+.release/
 build
 dist
+
+# Generated router and test artifacts
+.tanstack/
+**/__screenshots__/
+.vitest-attachments/
 
 
 # Debug

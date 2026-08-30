@@ -1,0 +1,365 @@
+import { useEffect, useState, type FormEvent } from 'react'
+import { useFieldArray, useForm, type FieldErrors } from 'react-hook-form'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { zodResolver } from '@hookform/resolvers/zod'
+import type { z } from 'zod'
+import { ChevronDown, Loader2, Plus, Search, Trash2 } from 'lucide-react'
+import { RepositoryProjectSchema } from '@weekly-git-report/shared'
+import type { RepositoryProject } from '@weekly-git-report/shared'
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes'
+import { Button } from '@/components/ui/button'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { getErrorMessage } from '@/lib/errors'
+import { desktopQueryKeys } from '@/lib/desktop-queries'
+import { showErrorToast, showSuccessToast } from '@/lib/toast'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
+import { Switch } from '@/components/ui/switch'
+import type { ProjectsState, RemoteRepositoryDetails } from '../../../shared/ipc'
+
+type RepositoryFormInput = z.input<typeof RepositoryProjectSchema>
+
+interface RepositoryFormProps {
+  open: boolean
+  onOpenChange(open: boolean): void
+  project?: RepositoryProject
+  state: ProjectsState
+  onSaved?(state: ProjectsState): void
+}
+
+export function RepositoryForm({ open, onOpenChange, project, state, onSaved }: RepositoryFormProps) {
+  const queryClient = useQueryClient()
+  const [remote, setRemote] = useState<RemoteRepositoryDetails | null>(null)
+  const [inspecting, setInspecting] = useState(Boolean(project))
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [inheritAuthors, setInheritAuthors] = useState(project?.authors === undefined)
+  const form = useForm<RepositoryFormInput, unknown, RepositoryProject>({
+    resolver: zodResolver(RepositoryProjectSchema),
+    defaultValues: project ?? {
+      id: '',
+      name: '',
+      url: '',
+      branch: '',
+      localPath: '',
+      enabled: true,
+    },
+  })
+  const authors = useFieldArray({ control: form.control, name: 'authors' })
+  const dirty = form.formState.isDirty
+  useUnsavedChanges(open && dirty)
+
+  useEffect(() => {
+    if (!open || !project) return
+    let active = true
+    const url = project.url
+
+    async function loadRemote() {
+      try {
+        const value = await window.electronAPI.projects.inspect(url)
+        if (active) setRemote(value)
+      } catch (error) {
+        if (active) showErrorToast(`无法读取远程仓库：${getErrorMessage(error)}`)
+      } finally {
+        if (active) setInspecting(false)
+      }
+    }
+
+    void loadRemote()
+    return () => {
+      active = false
+    }
+  }, [open, project])
+
+  const save = useMutation({
+    mutationFn: (value: RepositoryProject) => {
+      if (!state.revision) throw new Error('请先完成首次设置。')
+      return window.electronAPI.projects.save({
+        project: value,
+        expectedRevision: state.revision,
+        ...(project ? { currentId: project.id } : {}),
+      })
+    },
+    onSuccess: (next) => {
+      queryClient.setQueryData(desktopQueryKeys.projectsState, next)
+      void queryClient.invalidateQueries({ queryKey: desktopQueryKeys.overview })
+      void queryClient.invalidateQueries({ queryKey: desktopQueryKeys.projectsRuntime })
+      showSuccessToast(project ? '仓库配置已更新' : '仓库已添加并完成首次同步')
+      form.reset()
+      onSaved?.(next)
+      onOpenChange(false)
+    },
+    onError: async (error) => {
+      if (error instanceof Error && error.message.includes('changed since')) {
+        showErrorToast('仓库配置已在其他位置修改，请重新加载后再保存。')
+        await queryClient.invalidateQueries({ queryKey: desktopQueryKeys.projectsState })
+        return
+      }
+      showErrorToast(getErrorMessage(error))
+    },
+  })
+
+  async function inspectRemote() {
+    const url = form.getValues('url')?.trim()
+    if (!url) {
+      form.setError('url', { message: '请输入仓库地址。' })
+      return
+    }
+    setInspecting(true)
+    try {
+      const details = await window.electronAPI.projects.inspect(url)
+      setRemote(details)
+      form.clearErrors('url')
+      if (!project) {
+        form.setValue('id', details.suggestedId, { shouldDirty: true })
+        form.setValue('name', details.suggestedName, { shouldDirty: true })
+        form.setValue('localPath', details.suggestedLocalPath, { shouldDirty: true })
+      }
+      const currentBranch = form.getValues('branch')
+      const branch = details.branches.includes(currentBranch)
+        ? currentBranch
+        : (details.defaultBranch ?? details.branches[0] ?? '')
+      form.setValue('branch', branch, { shouldDirty: true, shouldValidate: true })
+      showSuccessToast(`已读取 ${details.branches.length} 个远程分支`)
+    } catch (error) {
+      showErrorToast(`无法读取远程仓库：${getErrorMessage(error)}`)
+    } finally {
+      setInspecting(false)
+    }
+  }
+
+  function handleOpenChange(next: boolean) {
+    if (!next && dirty && !window.confirm('仓库表单有未保存的修改，确定放弃吗？')) return
+    onOpenChange(next)
+  }
+
+  function setAuthorsInherited(checked: boolean) {
+    setInheritAuthors(checked)
+    if (checked) {
+      form.setValue('authors', undefined, { shouldDirty: true })
+    } else if (!form.getValues('authors')?.length) {
+      form.setValue('authors', [{ name: '', email: '' }], { shouldDirty: true })
+    }
+  }
+
+  function submitRepository() {
+    if (!remote) {
+      const message = '请先读取远程分支，确认仓库地址和本机 Git 凭据可用。'
+      form.setError('url', { type: 'manual', message }, { shouldFocus: true })
+      showErrorToast(message)
+      return
+    }
+
+    if (inheritAuthors) {
+      form.setValue('authors', undefined)
+    }
+    void form.handleSubmit((value) => save.mutate(value), handleInvalid)()
+  }
+
+  function handleFormSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    submitRepository()
+  }
+
+  function handleInvalid(errors: FieldErrors<RepositoryFormInput>) {
+    const field = Object.keys(errors)[0] as keyof RepositoryFormInput | undefined
+    const label = field ? FIELD_LABELS[field] : undefined
+
+    if (errors.localPath) {
+      setAdvancedOpen(true)
+      requestAnimationFrame(() => form.setFocus('localPath'))
+    } else if (errors.id) {
+      const message = '仓库标识生成失败，请重新读取远程分支。'
+      form.setError('url', { type: 'manual', message }, { shouldFocus: true })
+    }
+
+    showErrorToast(label ? `请检查${label}后再保存。` : '请检查仓库配置后再保存。')
+  }
+
+  const branches = remote?.branches ?? (project ? [project.branch] : [])
+
+  return (
+    <Sheet open={open} onOpenChange={handleOpenChange}>
+      <SheetContent className='w-full sm:max-w-xl'>
+        <SheetHeader>
+          <SheetTitle>{project ? '编辑仓库' : '添加仓库'}</SheetTitle>
+          <SheetDescription>
+            {project ? '远程地址不可修改；保存前会同步所选分支。' : '读取远程分支后，将仓库同步到本地缓存。'}
+          </SheetDescription>
+        </SheetHeader>
+        <ScrollArea className='min-h-0 flex-1'>
+          <Form {...form}>
+            <form
+              id='repository-form'
+              onSubmit={handleFormSubmit}
+              className='space-y-5 px-4 pb-6'
+            >
+              <FormField
+                control={form.control}
+                name='url'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>远程地址</FormLabel>
+                    <div className='flex gap-2'>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          readOnly={Boolean(project)}
+                          onChange={(event) => {
+                            field.onChange(event)
+                            setRemote(null)
+                          }}
+                          placeholder='git@gitlab.example.com:team/project.git'
+                        />
+                      </FormControl>
+                      <Button type='button' variant='outline' disabled={inspecting} onClick={inspectRemote}>
+                        {inspecting ? <Loader2 className='animate-spin' /> : <Search />}
+                        读取分支
+                      </Button>
+                    </div>
+                    <FormDescription>支持 HTTPS、SSH 和本地 Git 地址，并使用本机已有凭据。</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className='grid gap-4 sm:grid-cols-2'>
+                <FormField
+                  control={form.control}
+                  name='name'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>仓库名称</FormLabel>
+                      <FormControl><Input {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='branch'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>采集分支</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange} disabled={!branches.length}>
+                        <FormControl>
+                          <SelectTrigger className='w-full'><SelectValue placeholder='先读取远程分支' /></SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {branches.map((branch) => <SelectItem key={branch} value={branch}>{branch}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name='enabled'
+                render={({ field }) => (
+                  <FormItem className='flex items-center justify-between rounded-lg border p-4'>
+                    <div>
+                      <FormLabel>启用仓库</FormLabel>
+                      <FormDescription>停用后不参与批量同步和报告采集。</FormDescription>
+                    </div>
+                    <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <div className='flex items-center justify-between rounded-lg border p-4'>
+                <div>
+                  <p className='text-sm font-medium'>继承全局 Git 身份</p>
+                  <p className='text-sm text-muted-foreground'>关闭后为此仓库设置专属作者。</p>
+                </div>
+                <Switch checked={inheritAuthors} onCheckedChange={setAuthorsInherited} />
+              </div>
+
+              {!inheritAuthors && (
+                <div className='space-y-3'>
+                  <div className='flex items-center justify-between'>
+                    <p className='text-sm font-medium'>仓库作者身份</p>
+                    <Button type='button' size='sm' variant='outline' onClick={() => authors.append({ name: '', email: '' })}>
+                      <Plus /> 添加
+                    </Button>
+                  </div>
+                  {authors.fields.map((author, index) => (
+                    <div key={author.id} className='grid gap-3 rounded-lg border p-3 sm:grid-cols-[1fr_1fr_auto]'>
+                      <FormField control={form.control} name={`authors.${index}.name`} render={({ field }) => (
+                        <FormItem><FormLabel>姓名</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={form.control} name={`authors.${index}.email`} render={({ field }) => (
+                        <FormItem><FormLabel>邮箱</FormLabel><FormControl><Input type='email' {...field} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <Button type='button' size='icon' variant='ghost' className='self-end' disabled={authors.fields.length === 1} onClick={() => authors.remove(index)} aria-label='删除作者'>
+                        <Trash2 />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button type='button' variant='ghost' className='w-full justify-between'>
+                    高级设置
+                    <ChevronDown className={advancedOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className='pt-3'>
+                  <FormField
+                    control={form.control}
+                    name='localPath'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>本地缓存路径</FormLabel>
+                        <FormControl><Input {...field} /></FormControl>
+                        <FormDescription>仅用于日志采集，不要指向日常开发工作区。</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CollapsibleContent>
+              </Collapsible>
+            </form>
+          </Form>
+        </ScrollArea>
+        <SheetFooter className='border-t'>
+          <Button type='button' disabled={save.isPending || inspecting} onClick={submitRepository}>
+            {save.isPending && <Loader2 className='animate-spin' />}
+            {save.isPending ? '正在同步并保存…' : '同步并保存'}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+const FIELD_LABELS: Record<keyof RepositoryFormInput, string> = {
+  id: '仓库标识',
+  name: '仓库名称',
+  url: '远程地址',
+  branch: '采集分支',
+  localPath: '本地缓存路径',
+  authors: '仓库作者身份',
+  enabled: '启用状态',
+}
