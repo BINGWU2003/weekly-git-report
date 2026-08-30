@@ -26,7 +26,7 @@ export function AppTitle() {
               className='ms-2 grid min-w-0 flex-1 text-start text-sm leading-tight group-data-[collapsible=icon]:hidden'
             >
               <span className='truncate font-bold'>Weekly Git Report</span>
-              <span className='truncate text-xs'>日报与周报助手</span>
+              <span className='truncate text-xs'>Git 工作报告助手</span>
             </Link>
             <ToggleSidebar />
           </div>
@@ -61,7 +61,7 @@ function ToggleSidebar({
     >
       <X className='md:hidden' />
       <Menu className='max-md:hidden' />
-      <span className='sr-only'>Toggle Sidebar</span>
+      <span className='sr-only'>切换侧边栏</span>
     </Button>
   )
 }

@@ -27,7 +27,7 @@ export function GenerateReportDialog({
         <DialogHeader>
           <DialogTitle>{initialReport ? '重新生成报告' : '生成报告'}</DialogTitle>
           <DialogDescription>
-            每次都会重新同步和采集。AI 输出先作为草稿，确认后才写入 Summary。
+            每次都会重新同步和采集。AI 生成的内容会先保存为草稿，确认后才会加入报告库。
           </DialogDescription>
         </DialogHeader>
         <div data-testid='report-dialog-body' className='min-h-0 overflow-hidden'>

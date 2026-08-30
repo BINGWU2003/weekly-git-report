@@ -63,7 +63,7 @@ describe('SummaryTemplateEditor', () => {
       </QueryClientProvider>
     )
 
-    await userEvent.fill(screen.getByRole('textbox', { name: '周报生成提示词' }), updatedContent)
+    await userEvent.fill(screen.getByRole('textbox', { name: '周报模板内容' }), updatedContent)
     await vi.waitFor(() =>
       expect(preview).toHaveBeenCalledWith({ reportType: 'weekly', content: updatedContent, period })
     )
@@ -77,7 +77,7 @@ describe('SummaryTemplateEditor', () => {
         period,
       })
     )
-    expect(toast.success).toHaveBeenCalledWith('生成模板已保存', { duration: 3000 })
+    expect(toast.success).toHaveBeenCalledWith('报告模板已保存', { duration: 3000 })
   })
 
   it('重新读取期间防止重复操作并在成功后提示', async () => {
@@ -113,7 +113,7 @@ describe('SummaryTemplateEditor', () => {
       template: { ...initial.template, revision: 'revision-2' },
     })
     await vi.waitFor(() => {
-      expect(toast.success).toHaveBeenCalledWith('生成模板已重新读取', { duration: 3000 })
+      expect(toast.success).toHaveBeenCalledWith('报告模板已重新读取', { duration: 3000 })
     })
     await expect.element(reload).not.toBeDisabled()
   })

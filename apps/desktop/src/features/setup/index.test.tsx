@@ -83,7 +83,7 @@ describe('Setup', () => {
     const screen = await renderSetup()
 
     await expect
-      .element(screen.getByRole('heading', { name: '初始化检查清单' }))
+      .element(screen.getByRole('heading', { name: '首次设置检查' }))
       .toBeInTheDocument()
     await expect.element(screen.getByText('四套报告模板')).toBeInTheDocument()
     await expect

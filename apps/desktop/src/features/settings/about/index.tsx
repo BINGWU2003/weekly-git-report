@@ -22,7 +22,7 @@ export function SettingsAbout() {
   return (
     <ContentSection
       title='关于与更新'
-      desc='查看桌面应用版本、更新状态和 GitHub Release 说明。'
+      desc='查看桌面应用版本、更新状态和版本说明。'
       contentClassName='lg:max-w-2xl'
     >
       <DesktopUpdatePanel />
@@ -70,7 +70,7 @@ export function DesktopUpdatePanel() {
           <div className='flex items-start justify-between gap-3'>
             <div>
               <CardTitle>Weekly Git Report Desktop</CardTitle>
-              <CardDescription>正式安装包通过当前仓库的 GitHub Releases 获取稳定更新。</CardDescription>
+              <CardDescription>正式安装版通过 GitHub Releases 获取稳定更新。</CardDescription>
             </div>
             <StatusBadge status={status} />
           </div>
@@ -114,7 +114,7 @@ export function DesktopUpdatePanel() {
               variant='outline'
               onClick={() => void window.electronAPI.updates.openRelease()}
             >
-              <ExternalLink />GitHub Release
+              <ExternalLink />查看发布页面
             </Button>
             <UpdateAction
               status={status}

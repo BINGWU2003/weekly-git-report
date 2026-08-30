@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bot, CheckCircle2, Eye, EyeOff, Loader2, RotateCcw, Send, Trash2 } from 'lucide-react'
 import type { AiProvider } from '@weekly-git-report/shared'
 import type { SecretConfigurationStatus } from '../../../../shared/ipc'
-import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -15,7 +14,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes'
 import { getErrorMessage } from '@/lib/errors'
-import { showSuccessToast } from '@/lib/toast'
+import { showErrorToast, showSuccessToast, showWarningToast } from '@/lib/toast'
 import { ContentSection } from '../components/content-section'
 
 type SecretEditorState =
@@ -34,7 +33,7 @@ export function SettingsAutomation() {
   return (
     <ContentSection
       title='AI 与推送'
-      desc='管理报告生成供应商和飞书机器人；敏感信息默认以掩码显示。'
+      desc='配置报告生成服务和飞书机器人。密钥默认以掩码显示。'
       contentClassName='lg:max-w-2xl'
     >
       <AutomationConfig />
@@ -125,24 +124,24 @@ function AutomationForm({
       setApiKey(secretFromMask(status.apiKeyMasked))
       setAiTestError(testError)
       if (testError) {
-        toast.error(`AI 配置已保存，但连接测试失败：${testError}`)
+        showErrorToast(`AI 配置已保存，但连接测试失败：${testError}`)
       } else {
-        showSuccessToast('AI 配置已保存并测试成功')
+        showSuccessToast('AI 配置已保存，连接正常')
       }
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => showErrorToast(getErrorMessage(error)),
   })
   const aiTest = useMutation({
     mutationFn: () => window.electronAPI.ai.test(),
     onSuccess: (status) => {
       queryClient.setQueryData(['ai-status'], status)
       setAiTestError(undefined)
-      showSuccessToast('AI 连接测试成功')
+      showSuccessToast('AI 连接正常')
     },
     onError: (error) => {
       const message = getErrorMessage(error)
       setAiTestError(message)
-      toast.error(message)
+      showErrorToast(message)
     },
   })
   const feishuSave = useMutation({
@@ -170,24 +169,24 @@ function AutomationForm({
       setRemoveSigningSecret(false)
       setFeishuTestError(testError)
       if (testError) {
-        toast.error(`飞书配置已保存，但连接测试失败：${testError}`)
+        showErrorToast(`飞书配置已保存，但连接测试失败：${testError}`)
       } else {
-        showSuccessToast('飞书配置已保存并测试成功')
+        showSuccessToast('飞书配置已保存，连接正常')
       }
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => showErrorToast(getErrorMessage(error)),
   })
   const feishuTest = useMutation({
     mutationFn: () => window.electronAPI.feishu.test(),
     onSuccess: (status) => {
       queryClient.setQueryData(['feishu-status'], status)
       setFeishuTestError(undefined)
-      showSuccessToast('飞书连接测试成功')
+      showSuccessToast('飞书连接正常')
     },
     onError: (error) => {
       const message = getErrorMessage(error)
       setFeishuTestError(message)
-      toast.error(message)
+      showErrorToast(message)
     },
   })
   const clear = useMutation({
@@ -209,7 +208,7 @@ function AutomationForm({
       setClearTarget(undefined)
       showSuccessToast(target === 'ai' ? 'AI 配置已清除' : '飞书配置已清除')
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => showErrorToast(getErrorMessage(error)),
   })
 
   const revealAi = async () => {
@@ -230,7 +229,7 @@ function AutomationForm({
       const { value } = await window.electronAPI.ai.reveal()
       setApiKey({ mode: 'editing', value, originalValue: value, replacement: false, visible: true })
     } catch (error) {
-      toast.error(getErrorMessage(error))
+      showErrorToast(getErrorMessage(error))
     } finally {
       setRevealing(undefined)
     }
@@ -259,7 +258,7 @@ function AutomationForm({
       const { value } = await window.electronAPI.feishu.reveal(field)
       setState({ mode: 'editing', value, originalValue: value, replacement: false, visible: true })
     } catch (error) {
-      toast.error(getErrorMessage(error))
+      showErrorToast(getErrorMessage(error))
     } finally {
       setRevealing(undefined)
     }
@@ -290,7 +289,7 @@ function AutomationForm({
   }
   const requestClear = (target: Exclude<ClearTarget, undefined>) => {
     if ((target === 'ai' && aiDirty) || (target === 'feishu' && feishuDirty)) {
-      toast.warning('请先保存或取消当前修改，再清除配置。')
+      showWarningToast('请先保存或取消当前修改，再清除配置。')
       return
     }
     setClearTarget(target)
@@ -313,7 +312,7 @@ function AutomationForm({
           <CardHeading
             icon={<Bot />}
             title='AI 生成'
-            desc='只选择供应商并填写密钥；模型和生成参数由应用版本管理。'
+            desc='选择供应商并填写 API 密钥，其他参数由应用自动管理。'
             status={<Status status={aiStatus} dirty={aiDirty} failed={Boolean(aiTestError)} />}
           />
         </CardHeader>
@@ -331,7 +330,7 @@ function AutomationForm({
             </div>
             <SecretField
               id='ai-key'
-              label='API Key'
+              label='API 密钥'
               state={apiKey}
               maskedValue={aiStatus.apiKeyMasked}
               disabled={aiBusy}
@@ -344,7 +343,7 @@ function AutomationForm({
           </div>
           <Alert>
             <AlertTitle>发送给模型的数据</AlertTitle>
-            <AlertDescription>仓库名、分支、Commit Hash、时间、标题、正文、作者姓名和你填写的任务背景。不会主动包含作者邮箱、仓库远程 URL、本地路径或代码 Diff；提交文本和任务背景中自行写入的内容会原样发送。</AlertDescription>
+            <AlertDescription>仓库名、分支、提交哈希、时间、标题、正文、作者姓名和你填写的补充背景。不会主动包含作者邮箱、仓库地址、本地路径或代码差异；提交文本和补充背景中的内容会原样发送。</AlertDescription>
           </Alert>
           <label className='flex items-start gap-2 text-sm'>
             <Checkbox checked={accepted} onCheckedChange={(value) => setAccepted(value === true)} disabled={aiBusy} />
@@ -365,14 +364,14 @@ function AutomationForm({
           <CardHeading
             icon={<Send />}
             title='飞书推送'
-            desc='支持一个全局群自定义机器人 Webhook，可选签名密钥。'
+            desc='配置一个飞书群自定义机器人，签名密钥为可选项。'
             status={<Status status={feishuStatus} dirty={feishuDirty} failed={Boolean(feishuTestError)} />}
           />
         </CardHeader>
         <CardContent className='space-y-4'>
           <SecretField
             id='feishu-webhook'
-            label='Webhook'
+            label='机器人 Webhook'
             state={webhookUrl}
             maskedValue={feishuStatus.webhookUrlMasked}
             disabled={feishuBusy}
@@ -473,11 +472,11 @@ function Status({ status, dirty, failed }: { status?: SecretConfigurationStatus;
   if (dirty) return <Badge variant='outline'>有未保存修改</Badge>
   if (!status?.configured) return <Badge variant='outline'>未配置</Badge>
   if (failed) return <Badge variant='destructive'>测试失败</Badge>
-  return status.testedAt ? <Badge variant='secondary'>已测试</Badge> : <Badge variant='outline'>待测试</Badge>
+  return status.testedAt ? <Badge variant='secondary'>连接正常</Badge> : <Badge variant='outline'>尚未测试</Badge>
 }
 
 function TestError({ message }: { message: string }) {
-  return <Alert variant='destructive'><AlertTitle>连接测试失败</AlertTitle><AlertDescription>{message}</AlertDescription></Alert>
+  return <Alert variant='destructive'><AlertTitle>无法连接</AlertTitle><AlertDescription>{message}</AlertDescription></Alert>
 }
 
 function Loading() {

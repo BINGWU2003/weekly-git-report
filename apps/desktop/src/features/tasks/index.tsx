@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, Edit, Loader2, MoreHorizontal, Play, Plus, Trash2 } from 'lucide-react'
 import type { ReportCadence, ReportTask, ReportTaskMode } from '@weekly-git-report/shared'
-import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -16,7 +15,7 @@ import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { getErrorMessage } from '@/lib/errors'
-import { showSuccessToast } from '@/lib/toast'
+import { showErrorToast, showSuccessToast } from '@/lib/toast'
 
 export function Tasks() {
   const queryClient = useQueryClient()
@@ -32,15 +31,15 @@ export function Tasks() {
       void queryClient.invalidateQueries({ queryKey: ['desktop-overview'] })
       showSuccessToast('任务配置已保存')
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => showErrorToast(getErrorMessage(error)),
   })
   const run = useMutation({
     mutationFn: (id: string) => window.electronAPI.tasks.run(id),
     onSuccess: (result) => {
       void queryClient.invalidateQueries({ queryKey: ['runs'] })
-      showSuccessToast(result.status === 'awaiting_review' ? '报告草稿已生成，请前往运行历史审核' : '任务运行完成')
+      showSuccessToast(result.status === 'awaiting_review' ? '报告草稿已生成，请前往执行记录审核' : '任务执行完成')
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => showErrorToast(getErrorMessage(error)),
   })
 
   function updateTask(task: ReportTask) {
@@ -53,10 +52,10 @@ export function Tasks() {
 
   return (
     <>
-      <Header><div className='me-auto text-sm font-medium'>系统原生调度</div><ThemeSwitch /></Header>
+      <Header><div className='me-auto text-sm font-medium'>定时生成报告</div><ThemeSwitch /></Header>
       <Main className='space-y-6'>
         <div className='flex flex-wrap items-end justify-between gap-3'>
-          <div><h1 className='text-2xl font-bold tracking-tight md:text-3xl'>报告任务</h1><p className='text-muted-foreground'>定时任务按系统本地时区运行；立即运行会生成当前周期。</p></div>
+          <div><h1 className='text-2xl font-bold tracking-tight md:text-3xl'>报告任务</h1><p className='text-muted-foreground'>按本地时间定时生成日报、周报或月报，也可以立即执行。</p></div>
           <Button onClick={() => setEditing(null)}><Plus />新建任务</Button>
         </div>
         <div className='grid gap-4 lg:grid-cols-2'>
@@ -116,11 +115,11 @@ function TaskDialog({ task, open, onOpenChange, onSave }: { task: ReportTask | n
     })
   }
 
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent><DialogHeader><DialogTitle>{task ? '编辑任务' : '新建任务'}</DialogTitle><DialogDescription>系统调度只负责按时启动一次 CLI/Electron 任务，不会常驻轮询。</DialogDescription></DialogHeader><div className='space-y-4'>
+  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent><DialogHeader><DialogTitle>{task ? '编辑任务' : '新建任务'}</DialogTitle><DialogDescription>应用会将任务添加到系统计划中，到达设定时间后自动执行。</DialogDescription></DialogHeader><div className='space-y-4'>
     <div className='space-y-2'><Label>任务名称</Label><Input value={name} onChange={(event) => setName(event.target.value)} placeholder={`${cadenceLabel(cadence)}任务`} /></div>
-    <div className='grid gap-4 sm:grid-cols-2'><div className='space-y-2'><Label>周期</Label><Select value={cadence} onValueChange={(value) => setCadence(value as ReportCadence)}><SelectTrigger className='w-full'><SelectValue /></SelectTrigger><SelectContent><SelectItem value='daily'>日报</SelectItem><SelectItem value='weekly'>周报</SelectItem><SelectItem value='monthly'>月报</SelectItem></SelectContent></Select></div><div className='space-y-2'><Label>运行模式</Label><Select value={mode} onValueChange={(value) => setMode(value as ReportTaskMode)}><SelectTrigger className='w-full'><SelectValue /></SelectTrigger><SelectContent><SelectItem value='draft'>生成后审核</SelectItem><SelectItem value='autoPublish'>自动保存</SelectItem></SelectContent></Select></div></div>
+    <div className='grid gap-4 sm:grid-cols-2'><div className='space-y-2'><Label>报告周期</Label><Select value={cadence} onValueChange={(value) => setCadence(value as ReportCadence)}><SelectTrigger className='w-full'><SelectValue /></SelectTrigger><SelectContent><SelectItem value='daily'>日报</SelectItem><SelectItem value='weekly'>周报</SelectItem><SelectItem value='monthly'>月报</SelectItem></SelectContent></Select></div><div className='space-y-2'><Label>保存方式</Label><Select value={mode} onValueChange={(value) => setMode(value as ReportTaskMode)}><SelectTrigger className='w-full'><SelectValue /></SelectTrigger><SelectContent><SelectItem value='draft'>生成草稿，审核后保存</SelectItem><SelectItem value='autoPublish'>生成后自动保存</SelectItem></SelectContent></Select></div></div>
     <div className='grid gap-4 sm:grid-cols-2'><div className='space-y-2'><Label>小时</Label><Input type='number' min={0} max={23} value={hour} onChange={(event) => setHour(Number(event.target.value))} /></div><div className='space-y-2'><Label>分钟</Label><Input type='number' min={0} max={59} value={minute} onChange={(event) => setMinute(Number(event.target.value))} /></div></div>
-    {cadence === 'daily' && <label className='flex items-center justify-between rounded-lg border p-3 text-sm'><span>日报包含周末调度</span><Switch checked={includeWeekends} onCheckedChange={setIncludeWeekends} /></label>}
+    {cadence === 'daily' && <label className='flex items-center justify-between rounded-lg border p-3 text-sm'><span>周末也生成日报</span><Switch checked={includeWeekends} onCheckedChange={setIncludeWeekends} /></label>}
     <label className='flex items-center justify-between rounded-lg border p-3 text-sm'><span>保存后推送飞书</span><Switch checked={publish} onCheckedChange={setPublish} /></label>
   </div><DialogFooter><Button variant='outline' onClick={() => onOpenChange(false)}>取消</Button><Button onClick={submit}>保存任务</Button></DialogFooter></DialogContent></Dialog>
 }

@@ -44,7 +44,7 @@ import {
 } from '@/lib/desktop-updates'
 import { ONBOARDING_DEFER_SESSION_KEY } from '@/lib/onboarding'
 import { selectSystemDirectory } from '@/lib/system-actions'
-import { showSuccessToast } from '@/lib/toast'
+import { showErrorToast, showSuccessToast } from '@/lib/toast'
 import { ReportGenerationPanel } from '@/features/reports/report-generation-panel'
 import { RepositoryForm } from '@/features/repositories/repository-form'
 import { RepositoryImportSheet } from '@/features/repositories/repository-import-sheet'
@@ -110,7 +110,7 @@ export function Setup() {
 
   const initialize = useMutation({
     mutationFn: async () => {
-      if (!draftConfig) throw new Error('推荐配置尚未读取。')
+      if (!draftConfig) throw new Error('尚未读取推荐设置，请稍后重试。')
       return window.electronAPI.config.initialize(ConfigSchema.parse(draftConfig))
     },
     onSuccess: async (next) => {
@@ -123,7 +123,7 @@ export function Setup() {
       showSuccessToast('本地工作区已创建')
       setSelectedStep(2)
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => showErrorToast(getErrorMessage(error)),
   })
   const complete = useMutation({
     mutationFn: (runId: string) => window.electronAPI.onboarding.complete(runId),
@@ -133,7 +133,7 @@ export function Setup() {
       setSelectedStep(5)
       showSuccessToast('首次设置已完成')
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => showErrorToast(getErrorMessage(error)),
   })
   const publishFirstReport = useMutation({
     mutationFn: (runId: string) => window.electronAPI.runs.publish(runId),
@@ -141,13 +141,13 @@ export function Setup() {
       await queryClient.invalidateQueries({ queryKey: desktopQueryKeys.onboarding })
       showSuccessToast('第一份报告已推送到飞书')
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => showErrorToast(getErrorMessage(error)),
   })
 
   const setupComplete = Boolean(onboarding.data?.completedAt)
   if (setupComplete && selectedStep === null) {
     return (
-      <SetupShell subtitle='初始化检查清单'>
+      <SetupShell subtitle='首次设置检查'>
         <CompletedChecklist readiness={readiness!} onEnter={() => void navigate({ to: '/' })} />
       </SetupShell>
     )
@@ -201,7 +201,7 @@ export function Setup() {
     <SetupShell subtitle='首次设置'>
       <div className='max-w-2xl space-y-2'>
         <div className='flex flex-wrap items-center gap-2'>
-          <Badge variant='secondary'>本地初始化</Badge>
+          <Badge variant='secondary'>本地设置</Badge>
           {configState.data?.config && !setupComplete ? (
             <Button type='button' size='sm' variant='ghost' onClick={enterWorkbenchTemporarily}>
               暂时进入工作台
@@ -210,13 +210,13 @@ export function Setup() {
         </div>
         <h1 className='text-3xl font-bold tracking-tight'>生成并保存你的第一份报告</h1>
         <p className='text-muted-foreground'>
-          所有必要设置都在这个页面完成；每一步都会读取真实状态，中断后再次打开可以继续。
+          按照以下步骤完成必要设置。中途退出不会丢失进度，下次打开可以继续。
         </p>
       </div>
 
       {onboarding.isError ? (
         <StepError
-          title='无法读取初始化状态'
+          title='无法读取首次设置状态'
           error={onboarding.error}
           onRetry={() => void onboarding.refetch()}
         />
@@ -273,7 +273,7 @@ export function Setup() {
                 selecting={selectingDirectory === 'cache'}
                 onChange={(value) => updateDraft({ repositoryCacheRoot: value })}
                 onSelect={() => void chooseDirectory('repositoryCacheRoot')}
-                description='这里只保存用于读取 Git 日志的 Bare 仓库；初始化后桌面端不再允许修改。'
+                description='用于保存本地仓库缓存。完成首次设置后不能在桌面端修改。'
               />
               <div className='flex justify-end'>
                 <Button
@@ -292,7 +292,7 @@ export function Setup() {
         <SetupStep
           index={1}
           title='Git 作者身份'
-          description='只采集与你身份匹配的提交，保存后创建共享工作区和四套报告模板。'
+          description='用于识别属于你的提交。保存后会创建本地工作区和四套报告模板。'
           active={activeStep === 1}
           completed={completion[1]}
           available={availability[1]}
@@ -321,10 +321,9 @@ export function Setup() {
                 onChange={(identities) => updateDraft({ identities })}
               />
               <Alert>
-                <AlertTitle>本地凭据说明</AlertTitle>
+                <AlertTitle>密钥保存说明</AlertTitle>
                 <AlertDescription>
-                  后续 AI 与飞书密钥会保存在当前用户可访问、受文件 ACL 保护的本地 JSON
-                  中，不会写入日志或界面回显。
+                  AI 与飞书密钥只保存在当前用户的本地配置中，界面默认以掩码显示，也不会写入日志。
                 </AlertDescription>
               </Alert>
               <div className='flex justify-end'>
@@ -333,7 +332,7 @@ export function Setup() {
                   disabled={initialize.isPending || draftConfig.identities.length === 0}
                 >
                   {initialize.isPending ? <Loader2 className='animate-spin' /> : <Settings2 />}
-                  保存并创建工作区
+                  保存并继续
                 </Button>
               </div>
             </div>
@@ -399,7 +398,7 @@ export function Setup() {
         <SetupStep
           index={3}
           title='配置并测试 AI'
-          description='保存密钥后立即进行一次真实连接测试。'
+          description='保存密钥后立即测试 AI 是否可以正常连接。'
           active={activeStep === 3}
           completed={completion[3]}
           available={availability[3]}
@@ -421,7 +420,7 @@ export function Setup() {
         <SetupStep
           index={4}
           title='生成、审核并保存第一份报告'
-          description='默认生成上一完整周的周报；草稿经过你确认后才写入 Summary。'
+          description='默认生成上一完整周的周报；草稿经过你确认后才会加入报告库。'
           active={activeStep === 4}
           completed={completion[4]}
           available={availability[4]}
@@ -433,13 +432,13 @@ export function Setup() {
             onRunChange={(runId) => void rememberRun(runId)}
             onSaved={(run) => complete.mutate(run.id)}
           />
-          {complete.isPending ? <Loading label='正在确认初始化完成状态…' /> : null}
+          {complete.isPending ? <Loading label='正在确认首次设置状态…' /> : null}
         </SetupStep>
 
         <SetupStep
           index={5}
           title='完成与扩展'
-          description='飞书推送和自动任务均为可选项，不影响初始化完成。'
+          description='飞书推送和报告任务均为可选项，不影响完成首次设置。'
           active={activeStep === 5}
           completed={completion[5]}
           available={availability[5]}
@@ -532,7 +531,7 @@ function SetupUpdateEntry() {
       if (status.phase === 'available') toast.info(`发现新版本 ${status.latestVersion}`)
       if (status.phase === 'up-to-date') showSuccessToast('当前已是最新版本')
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => showErrorToast(getErrorMessage(error)),
   })
   const status = update.data
   const available = status?.phase === 'available'
@@ -590,7 +589,7 @@ function CompletedChecklist({
     <div className='space-y-6'>
       <div>
         <Badge variant='secondary'>设置已完成</Badge>
-        <h1 className='mt-2 text-3xl font-bold tracking-tight'>初始化检查清单</h1>
+        <h1 className='mt-2 text-3xl font-bold tracking-tight'>首次设置检查</h1>
         <p className='mt-2 text-muted-foreground'>
           这里保留首次设置结果的只读状态；需要修改时前往对应功能页。
         </p>
@@ -647,7 +646,7 @@ function DirectoryField({
         </Button>
       </div>
       <p className='text-sm text-muted-foreground'>
-        {description ?? '支持绝对路径或以 ~/ 开头的用户目录路径。'}
+        {description ?? '可以选择文件夹，也可以直接输入完整路径。'}
       </p>
     </div>
   )

@@ -15,8 +15,8 @@ export function SettingsGeneral() {
 
   return (
     <ContentSection
-      title='常规设置'
-      desc='CLI 与 Electron 共同读取 ~/.weekly-git-report/config.json。'
+      title='本地配置'
+      desc='这些设置同时适用于桌面端和命令行工具。'
     >
       <div className='space-y-5'>
         {state.isLoading && <Loading />}

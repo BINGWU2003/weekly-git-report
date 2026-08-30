@@ -79,7 +79,7 @@ export function ConfigFormFields({
               选择
             </Button>
           </div>
-          <FormDescription>支持绝对路径或以 ~/ 开头的用户目录路径。</FormDescription>
+          <FormDescription>可以选择文件夹，也可以直接输入完整路径。</FormDescription>
           <FormMessage />
         </FormItem>
       )}
@@ -114,10 +114,8 @@ export function ConfigFormFields({
             ) : null}
           </div>
           <FormDescription>
-            应用在这里维护只用于读取 Git 日志的 Bare 仓库。
-            {cacheEditable
-              ? ' 初始化完成后不能在桌面端修改。'
-              : ' 初始化后 Electron 不允许修改该目录。'}
+            用于保存本地仓库缓存。
+            {cacheEditable ? ' 完成首次设置后不能在桌面端修改。' : ' 此目录不能在桌面端修改。'}
           </FormDescription>
           <FormMessage />
         </FormItem>

@@ -44,7 +44,9 @@ describe('GenerateReportDialog', () => {
       </QueryClientProvider>,
     )
 
-    const context = screen.getByPlaceholder('只填写模型无法从 Git 提交中得知的背景或结果。')
+    const context = screen.getByPlaceholder(
+      '填写无法从 Git 提交中得知的项目背景、工作结果或其他说明。'
+    )
     await userEvent.fill(context, '上次填写的补充事实')
     await userEvent.click(screen.getByRole('button', { name: '开始生成' }))
     await expect
