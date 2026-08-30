@@ -27,7 +27,10 @@ describe('system actions', () => {
     } as unknown as DesktopAPI)
 
     await expect(selectSystemDirectory()).resolves.toBeNull()
-    expect(toast.error).toHaveBeenCalledWith('选择目录失败：无权访问')
+    expect(toast.error).toHaveBeenCalledWith('无法选择目录：无权访问', {
+      closeButton: true,
+      duration: 8000,
+    })
   })
 
   it('识别 shell.openPath 返回的错误文本', async () => {
@@ -36,7 +39,10 @@ describe('system actions', () => {
     } as unknown as DesktopAPI)
 
     await openOutputRoot()
-    expect(toast.error).toHaveBeenCalledWith('打开报告目录失败：目录不存在')
+    expect(toast.error).toHaveBeenCalledWith('无法打开报告目录：目录不存在', {
+      closeButton: true,
+      duration: 8000,
+    })
   })
 
   it('定位报告的 IPC 失败时显示错误', async () => {
@@ -45,6 +51,9 @@ describe('system actions', () => {
     } as unknown as DesktopAPI)
 
     await showReportInFolder('report-id')
-    expect(toast.error).toHaveBeenCalledWith('定位报告失败：文件已被删除')
+    expect(toast.error).toHaveBeenCalledWith('无法定位报告文件：文件已被删除', {
+      closeButton: true,
+      duration: 8000,
+    })
   })
 })

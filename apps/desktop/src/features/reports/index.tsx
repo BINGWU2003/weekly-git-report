@@ -2,7 +2,6 @@ import { lazy, Suspense, useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { format as formatDate, parseISO } from 'date-fns'
 import type { DateRange } from 'react-day-picker'
-import { toast } from 'sonner'
 import {
   AlertTriangle,
   CalendarDays,
@@ -44,7 +43,7 @@ import { ThemeSwitch } from '@/components/theme-switch'
 import { getErrorMessage } from '@/lib/errors'
 import { desktopQueryKeys, onboardingQueryOptions } from '@/lib/desktop-queries'
 import { openOutputRoot, showReportInFolder } from '@/lib/system-actions'
-import { showSuccessToast } from '@/lib/toast'
+import { showErrorToast, showSuccessToast } from '@/lib/toast'
 import { cn } from '@/lib/utils'
 import {
   DEFAULT_REPORT_SEARCH,
@@ -63,8 +62,8 @@ import { GenerateReportDialog } from './generate-report-dialog'
 
 const TYPE_TABS: Array<{ value: ReportTypeFilter; label: string }> = [
   { value: 'all', label: '全部' },
-  { value: 'summary', label: 'Summary' },
-  { value: 'raw', label: 'Raw' },
+  { value: 'summary', label: '报告正文' },
+  { value: 'raw', label: '采集数据' },
 ]
 
 const RANGE_LABELS: Record<ReportRangePreset, string> = {
@@ -145,7 +144,7 @@ export function Reports({
             : '报告已永久删除',
       )
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => showErrorToast(getErrorMessage(error)),
   })
 
   const updateSearch = onSearchChange
@@ -239,8 +238,8 @@ export function Reports({
     <>
       <Header>
         <div className='me-auto'>
-          <p className='text-sm font-medium'>Markdown 报告库</p>
-          <p className='text-xs text-muted-foreground'>Summary 与 Raw 规范报告</p>
+          <p className='text-sm font-medium'>本地报告</p>
+          <p className='text-xs text-muted-foreground'>报告正文与采集数据</p>
         </div>
         <ThemeSwitch />
       </Header>
@@ -250,8 +249,8 @@ export function Reports({
             <h1 className='text-2xl font-bold tracking-tight md:text-3xl'>报告库</h1>
             <p className='text-muted-foreground'>
               {trashView
-                ? '恢复误删的 Summary，或永久清理回收站。'
-                : '按报告周期和类型快速定位 outputRoot 中的报告。'}
+                ? '恢复误删的报告，或永久清理回收站。'
+                : '按报告周期和类型查找报告正文与采集数据。'}
             </p>
           </div>
           <div className='flex gap-2'>
@@ -279,7 +278,7 @@ export function Reports({
             </Button>
             <Button variant='outline' onClick={() => void openOutputRoot()}>
               <FolderOpen />
-              打开目录
+              打开报告目录
             </Button>
             <Button
               variant='outline'
@@ -445,7 +444,7 @@ function ReportFilters({
           </TabsList>
         </Tabs>
         <span className='text-xs text-muted-foreground'>
-          显示 {shownCount} / 共 {totalCount}
+          共 {totalCount} 份，当前显示 {shownCount} 份
         </span>
       </div>
 
@@ -506,11 +505,11 @@ function ReportFilters({
 
         {search.type === 'raw' ? (
           <Select value={search.rawRole} onValueChange={onRawRoleChange}>
-            <SelectTrigger className='w-34' aria-label='Raw 报告类型'>
+            <SelectTrigger className='w-34' aria-label='采集数据类型'>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value='all'>全部 Raw</SelectItem>
+              <SelectItem value='all'>全部采集数据</SelectItem>
               <SelectItem value='index'>周期索引</SelectItem>
               <SelectItem value='project'>仓库明细</SelectItem>
               {search.includeHistory ? <SelectItem value='history'>历史版本</SelectItem> : null}
@@ -520,7 +519,7 @@ function ReportFilters({
 
         {search.type === 'summary' ? (
           <Select value={search.cadence} onValueChange={onCadenceChange}>
-            <SelectTrigger className='w-38' aria-label='Summary 报告类型'>
+            <SelectTrigger className='w-38' aria-label='报告正文类型'>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -563,8 +562,8 @@ function ReportGroup({
   onSelect(id: string): void
 }) {
   const summary = [
-    group.counts.summary ? `Summary ${group.counts.summary}` : null,
-    group.counts.raw ? `Raw ${group.counts.raw}` : null,
+    group.counts.summary ? `报告正文 ${group.counts.summary}` : null,
+    group.counts.raw ? `采集数据 ${group.counts.raw}` : null,
   ]
     .filter(Boolean)
     .join(' · ')
@@ -638,7 +637,7 @@ export function ReportListItem({
             <ReportKind kind={report.kind} />
             {report.summaryMetadataStatus === 'invalid' ? (
               <Badge variant='destructive' title={report.summaryMetadataMessage}>
-                元数据异常
+                报告信息异常
               </Badge>
             ) : null}
           </div>
@@ -689,7 +688,7 @@ function ReportPreview({
   const publish = useMutation({
     mutationFn: (id: string) => window.electronAPI.reports.publish(id),
     onSuccess: () => showSuccessToast('报告已推送到飞书'),
-    onError: (publishError) => toast.error(getErrorMessage(publishError)),
+    onError: (publishError) => showErrorToast(getErrorMessage(publishError)),
   })
   const metadata = report
     ? `${report.period ? formatPeriod(report.period) : `按修改时间 · ${formatModifiedAt(report.modifiedAt)}`} · ${report.relativePath}`
@@ -780,7 +779,7 @@ function ReportPreview({
                 onClick={() => void showReportInFolder(report.id)}
               >
                 <FolderOpen />
-                定位文件
+                在文件夹中显示
               </Button>
             </div>
           </div>
@@ -788,7 +787,7 @@ function ReportPreview({
             <div className='border-b px-4 py-2'>
               <TabsList>
                 <TabsTrigger value='preview'>预览</TabsTrigger>
-                <TabsTrigger value='source'>源码</TabsTrigger>
+                <TabsTrigger value='source'>Markdown 原文</TabsTrigger>
               </TabsList>
             </div>
             <TabsContent value='preview' className='min-h-0 flex-1 overflow-hidden'>
@@ -809,7 +808,7 @@ function ReportPreview({
         <div className='flex h-full items-center justify-center p-8'>
           <Alert variant='destructive' className='max-w-xl'>
             <AlertTriangle />
-            <AlertTitle>报告读取失败</AlertTitle>
+            <AlertTitle>无法读取报告</AlertTitle>
             <AlertDescription className='[overflow-wrap:anywhere]'>
               {getErrorMessage(error)}
             </AlertDescription>
@@ -838,10 +837,10 @@ function ReportListError({
       <div className='w-full max-w-2xl space-y-4'>
         <Alert variant='destructive'>
           <AlertTriangle />
-          <AlertTitle>报告索引失败</AlertTitle>
+          <AlertTitle>无法建立报告索引</AlertTitle>
           <AlertDescription className='[overflow-wrap:anywhere]'>
             <p>{getErrorMessage(error)}</p>
-            <p>请修复对应 Raw 周期的 manifest.json 后重新扫描。</p>
+            <p>请修复对应采集周期的索引文件（manifest.json）后重新扫描。</p>
           </AlertDescription>
         </Alert>
         <div className='flex justify-end gap-2'>
@@ -867,7 +866,7 @@ const ROLE_LABELS: Record<ReportFile['role'], string> = {
 }
 
 function ReportKind({ kind }: { kind: ReportFile['kind'] }) {
-  const labels = { raw: 'Raw', summary: 'Summary' }
+  const labels = { raw: '采集数据', summary: '报告正文' }
   return <Badge variant='outline'>{labels[kind]}</Badge>
 }
 

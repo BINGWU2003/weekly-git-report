@@ -3,7 +3,6 @@ import { useMutation } from '@tanstack/react-query'
 import { CalendarDays, Loader2, Save, Sparkles } from 'lucide-react'
 import type { DateRange } from 'react-day-picker'
 import type { ReportRun, ReportType } from '@weekly-git-report/shared'
-import { toast } from 'sonner'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
@@ -20,7 +19,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { getErrorMessage } from '@/lib/errors'
-import { showSuccessToast } from '@/lib/toast'
+import { showErrorToast, showSuccessToast, showWarningToast } from '@/lib/toast'
 import type { ReportFile } from '../../../shared/ipc'
 
 export function ReportGenerationPanel({
@@ -106,7 +105,7 @@ export function ReportGenerationPanel({
           onSavedRef.current(restoredRun)
         }
       } catch (error) {
-        toast.error(`无法恢复首次报告：${getErrorMessage(error)}`)
+        showErrorToast(`无法恢复首次报告：${getErrorMessage(error)}`)
       }
     })()
     return () => {
@@ -140,7 +139,7 @@ export function ReportGenerationPanel({
     },
     onError: async (error) => {
       await refreshFailedRun()
-      if (!isNoCommitsMessage(getErrorMessage(error))) toast.error(getErrorMessage(error))
+      if (!isNoCommitsMessage(getErrorMessage(error))) showErrorToast(getErrorMessage(error))
     },
   })
   const retry = useMutation({
@@ -149,7 +148,7 @@ export function ReportGenerationPanel({
     onSuccess: (nextRun) => setRun(nextRun),
     onError: async (error) => {
       await refreshFailedRun()
-      toast.error(getErrorMessage(error))
+      showErrorToast(getErrorMessage(error))
     },
   })
   const approve = useMutation({
@@ -164,20 +163,20 @@ export function ReportGenerationPanel({
       const message = getErrorMessage(error)
       if (isSummaryReplacementRequired(message)) {
         setForceSave(true)
-        toast.warning('目标周期已有无法校验的报告，请确认是否覆盖。')
+        showWarningToast('该周期已有无法校验的报告，请确认是否覆盖。')
         return
       }
-      toast.error(message)
+      showErrorToast(message)
     },
   })
   const cancel = useMutation({
     mutationFn: () => window.electronAPI.runs.cancel(runId!),
     onSuccess: (nextRun) => {
       setRun(nextRun)
-      showSuccessToast('运行已取消')
+      showSuccessToast('报告生成已取消')
       onClose?.()
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => showErrorToast(getErrorMessage(error)),
   })
   const busy = generate.isPending || retry.isPending || approve.isPending || cancel.isPending
   const generating = generate.isPending || retry.isPending
@@ -281,7 +280,7 @@ export function ReportGenerationPanel({
             </div>
           ) : (
             <div className='space-y-2'>
-              <Label>{onboarding ? '推荐完整周期' : '生成周期'}</Label>
+              <Label>{onboarding ? '推荐报告周期' : '报告周期'}</Label>
               <div className='flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm'>
                 {period?.start} ~ {period?.end}
               </div>
@@ -300,12 +299,12 @@ export function ReportGenerationPanel({
           </div>
         ) : null}
         <div className='space-y-2'>
-          <Label>本次补充事实（可选）</Label>
+          <Label>补充背景（可选）</Label>
           <Textarea
             value={context}
             onChange={(event) => setContext(event.target.value)}
             disabled={generating}
-            placeholder='只填写模型无法从 Git 提交中得知的背景或结果。'
+            placeholder='填写无法从 Git 提交中得知的项目背景、工作结果或其他说明。'
           />
         </div>
       </div>
@@ -336,7 +335,7 @@ export function ReportGenerationPanel({
           <Alert>
             <AlertTitle>这个周期没有匹配提交</AlertTitle>
             <AlertDescription>
-              AI 尚未被调用。你可以选择其他报告类型和周期重新采集，或基于空周期继续生成。
+              尚未调用 AI。可以更换报告类型或周期重新采集，也可以继续生成一份空周期报告。
             </AlertDescription>
           </Alert>
         ) : null}
@@ -348,17 +347,16 @@ export function ReportGenerationPanel({
         ) : null}
         {forceSave ? (
           <Alert variant='destructive'>
-            <AlertTitle>目标周期已有报告</AlertTitle>
+            <AlertTitle>该周期已有报告</AlertTitle>
             <AlertDescription>
-              现有报告的元数据缺失、无效或类型不同。再次确认会覆盖报告，并将原文件备份到同目录的
-              .history 中。
+              现有报告的关联信息缺失、无效或报告类型不同。再次确认会覆盖报告，并将原文件备份到同目录的历史文件夹（.history）中。
             </AlertDescription>
           </Alert>
         ) : null}
         <div className='flex flex-wrap justify-end gap-2 border-t pt-4'>
           {generating && runId ? (
             <Button variant='outline' onClick={() => cancel.mutate()} disabled={cancel.isPending}>
-              取消运行
+              取消生成
             </Button>
           ) : onClose ? (
             <Button variant='outline' onClick={onClose} disabled={busy}>

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertCircle, CheckCircle2, FolderSearch, Loader2, RefreshCw, XCircle } from 'lucide-react'
-import { toast } from 'sonner'
 import type { RepositoryFolderScanResult, RepositoryProject } from '@weekly-git-report/shared'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { OverflowTooltip } from '@/components/overflow-tooltip'
@@ -11,7 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { getErrorMessage } from '@/lib/errors'
-import { showSuccessToast } from '@/lib/toast'
+import { showErrorToast, showSuccessToast, showWarningToast } from '@/lib/toast'
 import type { ProjectsState } from '../../../shared/ipc'
 
 type CandidateStatus = 'validating' | 'ready' | 'invalid' | 'importing' | 'added' | 'error'
@@ -122,7 +121,7 @@ export function RepositoryImportSheet({
         if (active) {
           const message = getErrorMessage(error)
           setScanError(message)
-          toast.error(`扫描仓库目录失败：${message}`)
+          showErrorToast(`无法扫描仓库目录：${message}`)
         }
       } finally {
         if (active) setScanning(false)
@@ -223,7 +222,9 @@ export function RepositoryImportSheet({
       setRevision(result.state.revision)
       onImported(result.state)
       if (result.errors.length) {
-        toast.warning(`已添加 ${result.added.length} 个仓库，${result.errors.length} 个失败`)
+        showWarningToast(
+          `已添加 ${result.added.length} 个仓库，但有 ${result.errors.length} 个导入失败`,
+        )
       } else {
         showSuccessToast(`已添加 ${result.added.length} 个仓库`)
       }
@@ -240,7 +241,7 @@ export function RepositoryImportSheet({
             : candidate
         )
       )
-      toast.error(getErrorMessage(error))
+      showErrorToast(getErrorMessage(error))
     } finally {
       setImporting(false)
     }
@@ -270,7 +271,7 @@ export function RepositoryImportSheet({
         {scanError ? (
           <Alert variant='destructive' className='mx-4 w-auto'>
             <AlertCircle />
-            <AlertTitle>扫描失败</AlertTitle>
+            <AlertTitle>无法扫描文件夹</AlertTitle>
             <AlertDescription className='[overflow-wrap:anywhere]'>{scanError}</AlertDescription>
           </Alert>
         ) : null}

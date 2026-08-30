@@ -116,7 +116,7 @@ export function Dashboard() {
             <TriangleAlert />
             <AlertTitle>报告生成条件需要修复</AlertTitle>
             <AlertDescription>
-              仓库、AI 连接或报告模板已不再就绪。前往初始化检查清单查看并修复。
+              仓库、AI 连接或报告模板已不再就绪。前往首次设置检查并修复。
               <Button asChild size='sm' variant='outline' className='mt-2 ms-2'>
                 <Link to='/setup'>查看检查清单</Link>
               </Button>
@@ -132,9 +132,9 @@ export function Dashboard() {
             icon={FolderGit2}
           />
           <MetricCard
-            title='Markdown 报告'
+            title='报告文件'
             value={data?.reportCount.toString() ?? '—'}
-            description='outputRoot 下的报告文件'
+            description='报告目录中的全部文件'
             icon={FileText}
           />
           <MetricCard
@@ -152,11 +152,11 @@ export function Dashboard() {
           <MetricCard
             title='待审核草稿'
             value={data?.runCounts.awaiting_review?.toString() ?? '0'}
-            description='不会自动写入 Summary'
+            description='确认后才会保存到报告库'
             icon={FileText}
           />
           <MetricCard
-            title='失败运行'
+            title='失败执行'
             value={failedRuns?.toString() ?? '—'}
             description='含报告成功但推送失败'
             icon={AlertCircle}
@@ -173,7 +173,7 @@ export function Dashboard() {
           <Card>
             <CardHeader>
               <CardTitle>环境状态</CardTitle>
-              <CardDescription>桌面端直接读取 CLI 使用的同一套本地配置。</CardDescription>
+              <CardDescription>检查生成报告所需的本地环境和目录。</CardDescription>
             </CardHeader>
             <CardContent className='space-y-3'>
               {data?.diagnostics.map((check) => (
@@ -210,13 +210,13 @@ export function Dashboard() {
               <Button asChild variant='outline' className='justify-start'>
                 <Link to='/reports'>
                   <FileText />
-                  浏览 Markdown 报告
+                  浏览报告
                 </Link>
               </Button>
               <Button asChild variant='outline' className='justify-start'>
                 <Link to='/settings'>
                   <Settings2 />
-                  检查共享配置
+                  检查常规设置
                 </Link>
               </Button>
               {data?.config && (

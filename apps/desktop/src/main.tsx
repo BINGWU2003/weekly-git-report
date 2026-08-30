@@ -6,11 +6,11 @@ import {
   createHashHistory,
   createRouter,
 } from '@tanstack/react-router'
-import { toast } from 'sonner'
 import { DirectionProvider } from './context/direction-provider'
 import { FontProvider } from './context/font-provider'
 import { ThemeProvider } from './context/theme-provider'
 import { getErrorMessage } from './lib/errors'
+import { showErrorToast } from './lib/toast'
 import { routeTree } from './routeTree.gen'
 import './styles/index.css'
 
@@ -22,11 +22,11 @@ const queryClient = new QueryClient({
       staleTime: 10 * 1000,
     },
     mutations: {
-      onError: (error) => toast.error(getErrorMessage(error)),
+      onError: (error) => showErrorToast(getErrorMessage(error)),
     },
   },
   queryCache: new QueryCache({
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => showErrorToast(getErrorMessage(error)),
   }),
 })
 

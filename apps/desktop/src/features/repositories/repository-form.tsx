@@ -4,7 +4,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { z } from 'zod'
 import { ChevronDown, Loader2, Plus, Search, Trash2 } from 'lucide-react'
-import { toast } from 'sonner'
 import { RepositoryProjectSchema } from '@weekly-git-report/shared'
 import type { RepositoryProject } from '@weekly-git-report/shared'
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes'
@@ -24,7 +23,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { getErrorMessage } from '@/lib/errors'
 import { desktopQueryKeys } from '@/lib/desktop-queries'
-import { showSuccessToast } from '@/lib/toast'
+import { showErrorToast, showSuccessToast } from '@/lib/toast'
 import {
   Sheet,
   SheetContent,
@@ -77,7 +76,7 @@ export function RepositoryForm({ open, onOpenChange, project, state, onSaved }: 
         const value = await window.electronAPI.projects.inspect(url)
         if (active) setRemote(value)
       } catch (error) {
-        if (active) toast.error(`读取远程仓库失败：${getErrorMessage(error)}`)
+        if (active) showErrorToast(`无法读取远程仓库：${getErrorMessage(error)}`)
       } finally {
         if (active) setInspecting(false)
       }
@@ -91,7 +90,7 @@ export function RepositoryForm({ open, onOpenChange, project, state, onSaved }: 
 
   const save = useMutation({
     mutationFn: (value: RepositoryProject) => {
-      if (!state.revision) throw new Error('请先完成全局配置初始化。')
+      if (!state.revision) throw new Error('请先完成首次设置。')
       return window.electronAPI.projects.save({
         project: value,
         expectedRevision: state.revision,
@@ -109,11 +108,11 @@ export function RepositoryForm({ open, onOpenChange, project, state, onSaved }: 
     },
     onError: async (error) => {
       if (error instanceof Error && error.message.includes('changed since')) {
-        toast.error('仓库配置已被其他进程修改，请重新加载。')
+        showErrorToast('仓库配置已在其他位置修改，请重新加载后再保存。')
         await queryClient.invalidateQueries({ queryKey: desktopQueryKeys.projectsState })
         return
       }
-      toast.error(getErrorMessage(error))
+      showErrorToast(getErrorMessage(error))
     },
   })
 
@@ -140,7 +139,7 @@ export function RepositoryForm({ open, onOpenChange, project, state, onSaved }: 
       form.setValue('branch', branch, { shouldDirty: true, shouldValidate: true })
       showSuccessToast(`已读取 ${details.branches.length} 个远程分支`)
     } catch (error) {
-      toast.error(`读取远程仓库失败：${getErrorMessage(error)}`)
+      showErrorToast(`无法读取远程仓库：${getErrorMessage(error)}`)
     } finally {
       setInspecting(false)
     }
@@ -164,7 +163,7 @@ export function RepositoryForm({ open, onOpenChange, project, state, onSaved }: 
     if (!remote) {
       const message = '请先读取远程分支，确认仓库地址和本机 Git 凭据可用。'
       form.setError('url', { type: 'manual', message }, { shouldFocus: true })
-      toast.error(message)
+      showErrorToast(message)
       return
     }
 
@@ -191,7 +190,7 @@ export function RepositoryForm({ open, onOpenChange, project, state, onSaved }: 
       form.setError('url', { type: 'manual', message }, { shouldFocus: true })
     }
 
-    toast.error(label ? `请检查${label}后再保存。` : '请检查仓库配置后再保存。')
+    showErrorToast(label ? `请检查${label}后再保存。` : '请检查仓库配置后再保存。')
   }
 
   const branches = remote?.branches ?? (project ? [project.branch] : [])
@@ -202,7 +201,7 @@ export function RepositoryForm({ open, onOpenChange, project, state, onSaved }: 
         <SheetHeader>
           <SheetTitle>{project ? '编辑仓库' : '添加仓库'}</SheetTitle>
           <SheetDescription>
-            {project ? '远程地址不可修改；保存前会同步所选分支。' : '使用系统 Git 和本机凭据检查并缓存远程仓库。'}
+            {project ? '远程地址不可修改；保存前会同步所选分支。' : '读取远程分支后，将仓库同步到本地缓存。'}
           </SheetDescription>
         </SheetHeader>
         <ScrollArea className='min-h-0 flex-1'>
@@ -235,7 +234,7 @@ export function RepositoryForm({ open, onOpenChange, project, state, onSaved }: 
                         读取分支
                       </Button>
                     </div>
-                    <FormDescription>HTTPS、SSH 和本地 Git 地址均使用系统 Git 的认证能力。</FormDescription>
+                    <FormDescription>支持 HTTPS、SSH 和本地 Git 地址，并使用本机已有凭据。</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -332,7 +331,7 @@ export function RepositoryForm({ open, onOpenChange, project, state, onSaved }: 
                     name='localPath'
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Bare Git 缓存路径</FormLabel>
+                        <FormLabel>本地缓存路径</FormLabel>
                         <FormControl><Input {...field} /></FormControl>
                         <FormDescription>仅用于日志采集，不要指向日常开发工作区。</FormDescription>
                         <FormMessage />
@@ -360,7 +359,7 @@ const FIELD_LABELS: Record<keyof RepositoryFormInput, string> = {
   name: '仓库名称',
   url: '远程地址',
   branch: '采集分支',
-  localPath: 'Bare Git 缓存路径',
+  localPath: '本地缓存路径',
   authors: '仓库作者身份',
   enabled: '启用状态',
 }

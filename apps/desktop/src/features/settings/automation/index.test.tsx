@@ -43,18 +43,18 @@ describe('AutomationConfig', () => {
     const screen = await renderAutomation()
 
     await expect.element(screen.getByRole('combobox')).toHaveTextContent('DeepSeek')
-    await expect.element(screen.getByLabelText('API Key', { exact: true })).toHaveValue('sk-deep••••1234')
-    await expect.element(screen.getByLabelText('Webhook', { exact: true })).toHaveValue('open.feishu.cn/••••5678')
+    await expect.element(screen.getByLabelText('API 密钥', { exact: true })).toHaveValue('sk-deep••••1234')
+    await expect.element(screen.getByLabelText('机器人 Webhook', { exact: true })).toHaveValue('open.feishu.cn/••••5678')
     expect(api.ai.reveal).not.toHaveBeenCalled()
     expect(api.feishu.reveal).not.toHaveBeenCalled()
 
-    await userEvent.click(screen.getByRole('button', { name: '查看Webhook' }))
-    await expect.element(screen.getByLabelText('Webhook', { exact: true })).toHaveValue(webhookUrl)
+    await userEvent.click(screen.getByRole('button', { name: '查看机器人 Webhook' }))
+    await expect.element(screen.getByLabelText('机器人 Webhook', { exact: true })).toHaveValue(webhookUrl)
     expect(api.feishu.reveal).toHaveBeenCalledWith('webhookUrl')
     expect(api.feishu.reveal).not.toHaveBeenCalledWith('signingSecret')
 
-    await userEvent.click(screen.getByRole('button', { name: '查看API Key' }))
-    await expect.element(screen.getByLabelText('API Key', { exact: true })).toHaveValue(apiKey)
+    await userEvent.click(screen.getByRole('button', { name: '查看API 密钥' }))
+    await expect.element(screen.getByLabelText('API 密钥', { exact: true })).toHaveValue(apiKey)
     expect(api.ai.reveal).toHaveBeenCalledOnce()
   })
 
@@ -115,7 +115,7 @@ describe('AutomationConfig', () => {
 
     const screen = await renderAutomation()
     await userEvent.click(screen.getByRole('button', { name: '替换' }).first())
-    await userEvent.fill(screen.getByLabelText('API Key', { exact: true }), 'sk-new-example-5678')
+    await userEvent.fill(screen.getByLabelText('API 密钥', { exact: true }), 'sk-new-example-5678')
     await userEvent.click(screen.getByRole('button', { name: '保存并测试' }).first())
 
     await vi.waitFor(() => {
@@ -124,10 +124,13 @@ describe('AutomationConfig', () => {
         apiKey: 'sk-new-example-5678',
         dataSharingAccepted: true,
       })
-      expect(toast.error).toHaveBeenCalledWith('AI 配置已保存，但连接测试失败：认证失败')
+      expect(toast.error).toHaveBeenCalledWith('AI 配置已保存，但连接测试失败：认证失败', {
+        closeButton: true,
+        duration: 8000,
+      })
     })
     await expect.element(screen.getByText('测试失败', { exact: true })).toBeVisible()
-    await expect.element(screen.getByLabelText('API Key', { exact: true })).toHaveValue('sk-new-••••5678')
+    await expect.element(screen.getByLabelText('API 密钥', { exact: true })).toHaveValue('sk-new-••••5678')
   })
 })
 

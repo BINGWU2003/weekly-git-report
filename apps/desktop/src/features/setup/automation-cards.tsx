@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bot, CheckCircle2, Loader2, Send, Trash2 } from 'lucide-react'
 import type { AiProvider } from '@weekly-git-report/shared'
-import { toast } from 'sonner'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -19,7 +18,7 @@ import {
 } from '@/components/ui/select'
 import { desktopQueryKeys } from '@/lib/desktop-queries'
 import { getErrorMessage } from '@/lib/errors'
-import { showSuccessToast } from '@/lib/toast'
+import { showErrorToast, showSuccessToast } from '@/lib/toast'
 import type { SecretConfigurationStatus } from '../../../shared/ipc'
 
 export function AiConfigCard({
@@ -62,13 +61,13 @@ export function AiConfigCard({
       if (status.testedAt) onTested?.(status)
       showSuccessToast(
         nextAction === 'test' || nextAction === 'save-and-test'
-          ? 'AI 配置已保存，连接测试成功'
+          ? 'AI 配置已保存，连接正常'
           : nextAction === 'clear'
             ? 'AI 配置已清除'
             : 'AI 配置已保存',
       )
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => showErrorToast(getErrorMessage(error)),
   })
 
   const canSubmit = Boolean(apiKey.trim() && accepted && !action.isPending)
@@ -82,7 +81,7 @@ export function AiConfigCard({
               <Bot />
               AI 生成
             </CardTitle>
-            <CardDescription>选择供应商并填写密钥；模型和生成参数由应用版本管理。</CardDescription>
+            <CardDescription>选择供应商并填写 API 密钥，其他参数由应用自动管理。</CardDescription>
           </div>
           <Status configured={ai.data?.configured} tested={Boolean(ai.data?.testedAt)} />
         </div>
@@ -115,21 +114,19 @@ export function AiConfigCard({
           </div>
         </div>
         <div className='space-y-2'>
-          <Label htmlFor='ai-key'>API Key</Label>
+          <Label htmlFor='ai-key'>API 密钥</Label>
           <Input
             id='ai-key'
             type='password'
             value={apiKey}
             onChange={(event) => setApiKey(event.target.value)}
-            placeholder={ai.data?.configured ? '输入新密钥以替换现有配置' : '不会显示或写入日志'}
+            placeholder={ai.data?.configured ? '输入新密钥以替换当前配置' : '密钥只保存在本机，不会写入日志'}
           />
         </div>
         <Alert>
           <AlertTitle>发送给模型的数据</AlertTitle>
           <AlertDescription>
-            仓库名、分支、Commit
-            Hash、时间、标题、正文、作者姓名和你填写的任务背景。不会主动包含作者邮箱、仓库远程
-            URL、本地路径或代码 Diff；提交文本和任务背景中自行写入的内容会原样发送。
+            仓库名、分支、提交哈希、时间、标题、正文、作者姓名和你填写的补充背景。不会主动包含作者邮箱、仓库地址、本地路径或代码差异；提交文本和补充背景中的内容会原样发送。
           </AlertDescription>
         </Alert>
         <label className='flex items-start gap-2 text-sm'>
@@ -144,7 +141,7 @@ export function AiConfigCard({
               disabled={action.isPending}
             >
               <Trash2 />
-              清除
+              清除配置
             </Button>
           ) : null}
           {ai.data?.configured && !apiKey.trim() ? (
@@ -206,13 +203,13 @@ export function FeishuConfigCard({
       if (status.testedAt) onTested?.(status)
       showSuccessToast(
         nextAction === 'test' || nextAction === 'save-and-test'
-          ? '飞书配置已保存，连接测试成功'
+          ? '飞书配置已保存，连接正常'
           : nextAction === 'clear'
             ? '飞书配置已清除'
             : '飞书配置已保存',
       )
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => showErrorToast(getErrorMessage(error)),
   })
 
   return (
@@ -224,14 +221,14 @@ export function FeishuConfigCard({
               <Send />
               飞书推送
             </CardTitle>
-            <CardDescription>支持一个全局群自定义机器人 Webhook，可选签名密钥。</CardDescription>
+            <CardDescription>配置一个飞书群自定义机器人，签名密钥为可选项。</CardDescription>
           </div>
           <Status configured={feishu.data?.configured} tested={Boolean(feishu.data?.testedAt)} />
         </div>
       </CardHeader>
       <CardContent className='space-y-4'>
         <div className='space-y-2'>
-          <Label htmlFor='feishu-webhook'>Webhook</Label>
+          <Label htmlFor='feishu-webhook'>机器人 Webhook</Label>
           <Input
             id='feishu-webhook'
             type='password'
@@ -239,7 +236,7 @@ export function FeishuConfigCard({
             onChange={(event) => setWebhookUrl(event.target.value)}
             placeholder={
               feishu.data?.configured
-                ? '输入新 Webhook 以替换现有配置'
+                ? '输入新 Webhook 以替换当前配置'
                 : 'https://open.feishu.cn/open-apis/bot/v2/hook/...'
             }
           />
@@ -261,7 +258,7 @@ export function FeishuConfigCard({
               disabled={action.isPending}
             >
               <Trash2 />
-              清除
+              清除配置
             </Button>
           ) : null}
           {feishu.data?.configured && !webhookUrl.trim() ? (
@@ -290,8 +287,8 @@ export function FeishuConfigCard({
 function Status({ configured, tested }: { configured?: boolean; tested: boolean }) {
   if (!configured) return <Badge variant='outline'>未配置</Badge>
   return tested ? (
-    <Badge variant='secondary'>已测试</Badge>
+    <Badge variant='secondary'>连接正常</Badge>
   ) : (
-    <Badge variant='outline'>待测试</Badge>
+    <Badge variant='outline'>尚未测试</Badge>
   )
 }

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { AlertCircle, Loader2, RefreshCw, RotateCcw, Save } from 'lucide-react'
-import { toast } from 'sonner'
 import type { Period, ReportType, SummaryTemplateResult } from '@weekly-git-report/shared'
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes'
 import { MarkdownViewer } from '@/components/markdown-viewer'
@@ -23,7 +22,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { getErrorMessage } from '@/lib/errors'
-import { showSuccessToast } from '@/lib/toast'
+import { showErrorToast, showSuccessToast } from '@/lib/toast'
 import { ContentSection } from '../components/content-section'
 
 export function SettingsTemplate() {
@@ -45,8 +44,8 @@ export function SettingsTemplate() {
 
   return (
     <ContentSection
-      title='生成模板'
-      desc='CLI、Agent 与 Electron 共同读取日报、周报和月报生成提示词。'
+      title='报告模板'
+      desc='桌面端和命令行工具使用同一套报告生成规则。'
       contentClassName='lg:max-w-none'
     >
       <Tabs value={cadence} onValueChange={selectCadence} className='space-y-4'>
@@ -60,7 +59,7 @@ export function SettingsTemplate() {
           {template.isError && (
             <Alert variant='destructive'>
               <AlertCircle />
-              <AlertTitle>无法读取生成模板</AlertTitle>
+              <AlertTitle>无法读取报告模板</AlertTitle>
               <AlertDescription>{getErrorMessage(template.error)}</AlertDescription>
             </Alert>
           )}
@@ -147,7 +146,7 @@ export function SummaryTemplateEditor({
       setTemplateQueryData(queryClient, cadence, period, next)
       setContent(next.template.content)
       setPreview(next.template.renderedContent)
-      showSuccessToast('生成模板已保存')
+      showSuccessToast('报告模板已保存')
     },
     onError: (error) => showTemplateError(error),
   })
@@ -164,7 +163,7 @@ export function SummaryTemplateEditor({
       setContent(next.template.content)
       setPreview(next.template.renderedContent)
       setResetDialogOpen(false)
-      showSuccessToast('已恢复默认生成模板')
+      showSuccessToast('已恢复默认报告模板')
     },
     onError: (error) => showTemplateError(error),
   })
@@ -178,9 +177,9 @@ export function SummaryTemplateEditor({
       setContent(next.template.content)
       setPreview(next.template.renderedContent)
       setPreviewError(undefined)
-      showSuccessToast('生成模板已重新读取')
+      showSuccessToast('报告模板已重新读取')
     } catch (error) {
-      toast.error(getErrorMessage(error))
+      showErrorToast(getErrorMessage(error))
     } finally {
       setReloading(false)
     }
@@ -200,10 +199,9 @@ export function SummaryTemplateEditor({
   return (
     <div className='space-y-5'>
       <Alert>
-        <AlertTitle>模板由 CLI 和桌面端共享</AlertTitle>
+        <AlertTitle>模板在桌面端和命令行工具间共享</AlertTitle>
         <AlertDescription>
-          Agent 通过 <code>weekly templates read</code>{' '}
-          获取提示词。Raw 提交记录不会写入模板，而是作为独立数据交给模型。
+          生成报告时，AI 会同时读取当前模板和本次采集的数据。采集数据不会写入模板文件。
         </AlertDescription>
       </Alert>
 
@@ -211,7 +209,7 @@ export function SummaryTemplateEditor({
         <CardHeader className='gap-3 sm:flex-row sm:items-start sm:justify-between'>
           <div className='space-y-1.5'>
             <div className='flex flex-wrap items-center gap-2'>
-              <CardTitle>{getCadenceLabel(cadence)}生成提示词</CardTitle>
+              <CardTitle>{getCadenceLabel(cadence)}模板</CardTitle>
               <Badge variant={initial.template.isDefault ? 'secondary' : 'outline'}>
                 {dirty ? '未保存修改' : initial.template.isDefault ? '默认模板' : '自定义模板'}
               </Badge>
@@ -251,7 +249,7 @@ export function SummaryTemplateEditor({
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>恢复默认生成模板？</AlertDialogTitle>
+                  <AlertDialogTitle>恢复默认报告模板？</AlertDialogTitle>
                   <AlertDialogDescription>
                     当前自定义内容会被内置默认模板替换，此操作不会自动创建备份。
                   </AlertDialogDescription>
@@ -294,7 +292,7 @@ export function SummaryTemplateEditor({
             </TabsList>
             <TabsContent value='edit' className='mt-3'>
               <Textarea
-                aria-label={`${getCadenceLabel(cadence)}生成提示词`}
+                aria-label={`${getCadenceLabel(cadence)}模板内容`}
                 value={content}
                 onChange={(event) => setContent(event.target.value)}
                 spellCheck={false}
@@ -335,10 +333,10 @@ function setTemplateQueryData(
 
 function showTemplateError(error: unknown) {
   if (error instanceof Error && error.message.includes('changed since')) {
-    toast.error('模板已被 CLI 或其他窗口修改，请重新读取后再保存。')
+    showErrorToast('模板已在其他位置修改，请重新读取后再保存。')
     return
   }
-  toast.error(getErrorMessage(error))
+  showErrorToast(getErrorMessage(error))
 }
 
 function getExamplePeriod(cadence: ReportType): Period {
@@ -379,7 +377,7 @@ function Loading() {
   return (
     <div className='flex items-center gap-2 rounded-lg border p-6 text-sm text-muted-foreground'>
       <Loader2 className='animate-spin' />
-      正在读取生成模板…
+      正在读取报告模板…
     </div>
   )
 }

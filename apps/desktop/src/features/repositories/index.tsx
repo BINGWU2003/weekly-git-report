@@ -10,7 +10,6 @@ import {
   RefreshCw,
   Trash2,
 } from 'lucide-react'
-import { toast } from 'sonner'
 import type { RepositoryProject, RepositoryRuntimeState } from '@weekly-git-report/shared'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
@@ -41,7 +40,7 @@ import { ThemeSwitch } from '@/components/theme-switch'
 import { getErrorMessage } from '@/lib/errors'
 import { desktopQueryKeys, projectsStateQueryOptions } from '@/lib/desktop-queries'
 import { selectSystemDirectory } from '@/lib/system-actions'
-import { showSuccessToast } from '@/lib/toast'
+import { showErrorToast, showSuccessToast, showWarningToast } from '@/lib/toast'
 import { Switch } from '@/components/ui/switch'
 import {
   Table,
@@ -74,11 +73,11 @@ export function Repositories() {
 
   async function handleConflict(error: unknown) {
     if (error instanceof Error && error.message.includes('changed since')) {
-      toast.error('仓库配置已被 CLI 或其他窗口修改，已重新加载。')
+      showErrorToast('仓库配置已在其他位置修改，已为你重新加载。')
       await queryClient.invalidateQueries({ queryKey: desktopQueryKeys.projectsState })
       return
     }
-    toast.error(getErrorMessage(error))
+    showErrorToast(getErrorMessage(error))
   }
 
   const toggle = useMutation({
@@ -96,7 +95,7 @@ export function Repositories() {
       setLastSync(result)
       void queryClient.invalidateQueries({ queryKey: desktopQueryKeys.projectsRuntime })
       if (result.errors.length) {
-        toast.warning(`同步完成，${result.errors.length} 个仓库失败`)
+        showWarningToast(`同步已完成，但有 ${result.errors.length} 个仓库失败`)
       } else {
         showSuccessToast(`已同步 ${result.synced.length} 个仓库`)
       }
@@ -142,8 +141,8 @@ export function Repositories() {
     <>
       <Header>
         <div className='me-auto'>
-          <p className='text-sm font-medium'>共享仓库配置</p>
-          <p className='text-xs text-muted-foreground'>来源：~/.weekly-git-report/projects.json</p>
+          <p className='text-sm font-medium'>仓库配置</p>
+          <p className='text-xs text-muted-foreground'>配置文件：~/.weekly-git-report/projects.json</p>
         </div>
         <ThemeSwitch />
       </Header>
@@ -151,7 +150,7 @@ export function Repositories() {
         <div className='flex flex-wrap items-end justify-between gap-3'>
           <div>
             <h1 className='text-2xl font-bold tracking-tight md:text-3xl'>仓库</h1>
-            <p className='text-muted-foreground'>管理 CLI 与桌面端共同使用的 Git 仓库。</p>
+            <p className='text-muted-foreground'>管理参与同步和报告采集的 Git 仓库。</p>
           </div>
           <div className='flex gap-2'>
             <Button
@@ -182,8 +181,8 @@ export function Repositories() {
         {!state.revision && !projects.isLoading && (
           <Alert>
             <AlertCircle />
-            <AlertTitle>请先完成全局配置</AlertTitle>
-            <AlertDescription>在“设置 → 常规”完成初始化后即可添加仓库。</AlertDescription>
+            <AlertTitle>请先完成首次设置</AlertTitle>
+            <AlertDescription>在“常规设置”中保存本地配置后即可添加仓库。</AlertDescription>
           </Alert>
         )}
 
@@ -470,12 +469,12 @@ function DeleteRepositoryDialog({
     },
     onError: async (error) => {
       if (error instanceof Error && error.message.includes('changed since')) {
-        toast.error('仓库配置已被 CLI 或其他窗口修改，已重新加载。')
+        showErrorToast('仓库配置已在其他位置修改，已为你重新加载。')
         await queryClient.invalidateQueries({ queryKey: desktopQueryKeys.projectsState })
         close()
         return
       }
-      toast.error(getErrorMessage(error))
+      showErrorToast(getErrorMessage(error))
     },
   })
 
@@ -498,21 +497,21 @@ function DeleteRepositoryDialog({
     <AlertDialog open={Boolean(project)} onOpenChange={(open) => !open && close()}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{confirmCache ? '再次确认删除缓存' : `移除 ${project?.name ?? '仓库'}`}</AlertDialogTitle>
+          <AlertDialogTitle>{confirmCache ? '确认永久删除缓存' : `删除 ${project?.name ?? '仓库'}`}</AlertDialogTitle>
           <AlertDialogDescription asChild>
             <div className='space-y-4'>
               {confirmCache ? (
                 <>
-                  <p>将永久删除以下 Bare Git 缓存目录，此操作无法撤销：</p>
+                  <p>将永久删除以下本地缓存目录，此操作无法撤销：</p>
                   <code className='block break-all rounded-md bg-muted p-3 text-foreground'>{project?.localPath}</code>
                 </>
               ) : (
                 <>
-                  <p>默认只从 projects.json 移除配置，本地缓存会保留。</p>
+                  <p>默认只删除应用中的仓库配置，本地缓存会保留。</p>
                   <label className='flex items-start gap-3 rounded-md border p-3 text-foreground'>
                     <Checkbox checked={deleteCache} onCheckedChange={(value) => setDeleteCache(value === true)} />
                     <span>
-                      <span className='block text-sm font-medium'>同时删除 Bare Git 缓存</span>
+                      <span className='block text-sm font-medium'>同时删除本地缓存</span>
                       <span className='block break-all text-xs text-muted-foreground'>{project?.localPath}</span>
                     </span>
                   </label>
@@ -525,7 +524,7 @@ function DeleteRepositoryDialog({
           <AlertDialogCancel disabled={mutation.isPending}>取消</AlertDialogCancel>
           <AlertDialogAction onClick={submit} disabled={mutation.isPending}>
             {mutation.isPending && <Loader2 className='animate-spin' />}
-            {deleteCache ? (confirmCache ? '确认永久删除' : '下一步') : '移除配置'}
+            {deleteCache ? (confirmCache ? '永久删除缓存' : '下一步') : '删除配置'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

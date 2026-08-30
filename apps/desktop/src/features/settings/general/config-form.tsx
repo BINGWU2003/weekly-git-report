@@ -2,7 +2,6 @@ import { useForm } from 'react-hook-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { AlertCircle, Loader2, Save } from 'lucide-react'
-import { toast } from 'sonner'
 import { ConfigSchema } from '@weekly-git-report/shared'
 import type { Config } from '@weekly-git-report/shared'
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes'
@@ -11,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Form } from '@/components/ui/form'
 import { desktopQueryKeys } from '@/lib/desktop-queries'
 import { getErrorMessage } from '@/lib/errors'
-import { showSuccessToast } from '@/lib/toast'
+import { showErrorToast, showSuccessToast } from '@/lib/toast'
 import type { ConfigState } from '../../../../shared/ipc'
 import { ConfigFormFields, type ConfigFormInput } from './config-form-fields'
 
@@ -55,15 +54,15 @@ export function ConfigForm({
         queryClient.invalidateQueries({ queryKey: desktopQueryKeys.onboarding }),
       ])
       onSaved?.(next)
-      showSuccessToast(isInitializing ? '初始化完成' : '配置已保存')
+      showSuccessToast(isInitializing ? '首次设置完成' : '配置已保存')
     },
     onError: async (error) => {
       if (error instanceof Error && error.message.includes('changed since')) {
-        toast.error('配置已被 CLI 或其他窗口修改，请重新加载后再保存。')
+        showErrorToast('配置已在其他位置修改，请重新加载后再保存。')
         await queryClient.invalidateQueries({ queryKey: desktopQueryKeys.configState })
         return
       }
-      toast.error(getErrorMessage(error))
+      showErrorToast(getErrorMessage(error))
     },
   })
 
@@ -72,9 +71,9 @@ export function ConfigForm({
       <form onSubmit={form.handleSubmit((value) => mutation.mutate(value))} className='space-y-5'>
         {isInitializing && !compact && (
           <Alert>
-            <AlertTitle>首次初始化</AlertTitle>
+            <AlertTitle>首次设置</AlertTitle>
             <AlertDescription>
-              保存后将创建共享配置、仓库索引和报告目录，CLI 可直接读取同一份配置。
+              保存后会创建本地配置、仓库索引和报告目录。
             </AlertDescription>
           </Alert>
         )}
@@ -94,7 +93,7 @@ export function ConfigForm({
         {mutation.isError && (
           <Alert variant='destructive'>
             <AlertCircle />
-            <AlertTitle>{isInitializing ? '初始化失败' : '保存配置失败'}</AlertTitle>
+            <AlertTitle>{isInitializing ? '首次设置失败' : '无法保存配置'}</AlertTitle>
             <AlertDescription className='[overflow-wrap:anywhere]'>
               {getErrorMessage(mutation.error)}
             </AlertDescription>
