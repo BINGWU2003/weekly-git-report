@@ -4,7 +4,11 @@ import { autoUpdater, type ProgressInfo, type UpdateInfo } from "electron-update
 
 import type { DesktopUpdateStatus } from "../../../shared/ipc.js";
 import { normalizeReleaseNotes } from "./release-notes.js";
-import { getActiveRunInstallBlockReason, isDesktopUpdaterSupported } from "./update-policy.js";
+import {
+  getActiveRunInstallBlockReason,
+  isDesktopUpdaterSupported,
+  shouldInstallDesktopUpdateOnQuit,
+} from "./update-policy.js";
 
 const RELEASE_URL = "https://github.com/BINGWU2003/weekly-git-report/releases/latest";
 const FIRST_CHECK_DELAY_MS = 15_000;
@@ -17,6 +21,7 @@ let action: UpdateAction;
 let firstCheckTimer: NodeJS.Timeout | undefined;
 let intervalTimer: NodeJS.Timeout | undefined;
 let hasActiveRuns = () => false;
+let installRequested = false;
 let publishStatus: (status: DesktopUpdateStatus) => void = () => undefined;
 let status: DesktopUpdateStatus = {
   phase: "disabled",
@@ -158,18 +163,31 @@ export function installDesktopUpdate(): void {
 
   log.info("Installing desktop update", { version: status.latestVersion });
   autoUpdater.autoInstallOnAppQuit = false;
+  installRequested = true;
   autoUpdater.quitAndInstall(false, true);
 }
 
 export function prepareDesktopUpdaterForQuit(): void {
   if (!initialized || status.phase === "disabled") return;
-  const blockedReason = getActiveRunInstallBlockReason(hasActiveRuns());
-  autoUpdater.autoInstallOnAppQuit = status.phase === "downloaded" && !blockedReason;
+  const activeRuns = hasActiveRuns();
+  const installOnQuit = shouldInstallDesktopUpdateOnQuit({
+    phase: status.phase,
+    hasActiveRuns: activeRuns,
+    installRequested,
+  });
+  // Trigger the installer explicitly while Electron is still alive. Toggling
+  // autoInstallOnAppQuit here is too late when electron-updater skipped
+  // registering its quit handler at download completion.
+  autoUpdater.autoInstallOnAppQuit = false;
   log.info("Desktop updater prepared for app quit", {
-    installOnQuit: autoUpdater.autoInstallOnAppQuit,
-    blocked: Boolean(blockedReason),
+    installOnQuit,
+    blocked: activeRuns,
     version: status.latestVersion,
   });
+  if (!installOnQuit) return;
+
+  installRequested = true;
+  autoUpdater.quitAndInstall(true, false);
 }
 
 export function openDesktopReleasePage(): Promise<void> {

@@ -1,4 +1,5 @@
 import type { ReportRun } from "@weekly-git-report/shared";
+import type { DesktopUpdateStatus } from "../../../shared/ipc.js";
 
 const ACTIVE_RUN_STATUSES = new Set<ReportRun["status"]>([
   "queued",
@@ -21,4 +22,12 @@ export function isDesktopUpdaterSupported(input: {
   platform: NodeJS.Platform;
 }): boolean {
   return input.isPackaged && input.platform === "win32";
+}
+
+export function shouldInstallDesktopUpdateOnQuit(input: {
+  phase: DesktopUpdateStatus["phase"];
+  hasActiveRuns: boolean;
+  installRequested: boolean;
+}): boolean {
+  return input.phase === "downloaded" && !input.hasActiveRuns && !input.installRequested;
 }
