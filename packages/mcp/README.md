@@ -6,7 +6,7 @@ MCP 不初始化或修改全局配置，不管理仓库、内置 AI 和定时任
 
 ## 环境要求
 
-- Node.js 22.12+
+- Node.js 22.13+
 - Git
 - 支持 stdio MCP server 的客户端
 - 已通过 Weekly Git Report Desktop 或 CLI 完成初始化并添加仓库

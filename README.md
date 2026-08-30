@@ -18,9 +18,9 @@
 | 方式        | 适合场景                                         | 运行要求                          | 文档                                            |
 | ----------- | ------------------------------------------------ | --------------------------------- | ----------------------------------------------- |
 | Desktop     | 首次设置、日常生成、草稿审核、报告浏览和定时任务 | Windows x64、Git                  | [桌面端说明](apps/desktop/README.md)            |
-| CLI         | 终端配置、脚本和 CI 自动化                       | Node.js 22.12+、Git               | [CLI 说明](packages/cli/README.md)              |
-| MCP         | 在支持 MCP 的宿主中由 Agent 生成报告             | Node.js 22.12+、Git、已完成初始化 | [MCP 说明](packages/mcp/README.md)              |
-| Agent Skill | 在支持本地 Skill 的 Agent 中直接发起报告请求     | Node.js 22.12+、Git、已完成初始化 | [Skill 规约](skills/weekly-git-report/SKILL.md) |
+| CLI         | 终端配置、脚本和 CI 自动化                       | Node.js 22.13+、Git               | [CLI 说明](packages/cli/README.md)              |
+| MCP         | 在支持 MCP 的宿主中由 Agent 生成报告             | Node.js 22.13+、Git、已完成初始化 | [MCP 说明](packages/mcp/README.md)              |
+| Agent Skill | 在支持本地 Skill 的 Agent 中直接发起报告请求     | Node.js 22.13+、Git、已完成初始化 | [Skill 规约](skills/weekly-git-report/SKILL.md) |
 
 Desktop 是默认的用户入口。CLI、MCP 和 Skill 使用相同的本地配置、仓库缓存、报告模板和 ReportRun，不会各自维护一套业务规则。
 

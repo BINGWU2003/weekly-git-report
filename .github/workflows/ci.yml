@@ -19,7 +19,7 @@ jobs:
           run_install: false
       - uses: actions/setup-node@v6
         with:
-          node-version: 22.12
+          node-version: 22.13
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
@@ -33,7 +33,7 @@ jobs:
 
     strategy:
       matrix:
-        node: [22.12, 24]
+        node: [22.13, 24]
         os: [ubuntu-latest, windows-latest, macos-latest]
       fail-fast: false
 

@@ -90,6 +90,6 @@
     "vitest-browser-react": "catalog:desktop"
   },
   "engines": {
-    "node": ">=22.12"
+    "node": ">=22.13"
   }
 }

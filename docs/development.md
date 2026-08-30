@@ -4,7 +4,7 @@
 
 ## 环境
 
-- Node.js 22.12+
+- Node.js 22.13+
 - pnpm 10.25.0（以根 `package.json` 的 `packageManager` 为准）
 - Git
 - 构建 Desktop Windows 安装包时需要 Windows 环境
@@ -112,7 +112,7 @@ CLI 和 MCP 的发布构建会把私有 workspace 包打进最终产物。Core�
 
 ## CI
 
-CI 使用 Node.js 22.12 和 Node.js 24：
+CI 使用 Node.js 22.13 和 Node.js 24：
 
 - Ubuntu 上运行格式、测试、Lint 和类型检查。
 - Ubuntu、Windows、macOS 分别执行全仓构建。

@@ -7,9 +7,9 @@ Weekly Git Report 可以通过 Desktop、CLI、MCP 或 Agent Skill 使用。第�
 | 入口        | 推荐对象                               | 前置条件                              |
 | ----------- | -------------------------------------- | ------------------------------------- |
 | Desktop     | 希望通过图形界面完成全部日常操作的用户 | Windows x64、Git                      |
-| CLI         | 终端用户、脚本和 CI                    | Node.js 22.12+、Git                   |
-| MCP         | 使用支持 stdio MCP 的 Agent            | Node.js 22.12+、Git、已初始化的工作区 |
-| Agent Skill | 使用支持本地 Skill 的 Agent            | Node.js 22.12+、Git、已初始化的工作区 |
+| CLI         | 终端用户、脚本和 CI                    | Node.js 22.13+、Git                   |
+| MCP         | 使用支持 stdio MCP 的 Agent            | Node.js 22.13+、Git、已初始化的工作区 |
+| Agent Skill | 使用支持本地 Skill 的 Agent            | Node.js 22.13+、Git、已初始化的工作区 |
 
 无论选择哪种入口，仓库同步都使用本机 Git 与已有凭据。私有仓库应先确保 `git clone` 或 `git fetch` 能在终端中正常工作。
 
