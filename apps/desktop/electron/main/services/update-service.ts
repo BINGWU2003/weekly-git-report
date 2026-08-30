@@ -3,6 +3,7 @@ import log from "electron-log/main";
 import { autoUpdater, type ProgressInfo, type UpdateInfo } from "electron-updater";
 
 import type { DesktopUpdateStatus } from "../../../shared/ipc.js";
+import { normalizeReleaseNotes } from "./release-notes.js";
 import { getActiveRunInstallBlockReason, isDesktopUpdaterSupported } from "./update-policy.js";
 
 const RELEASE_URL = "https://github.com/BINGWU2003/weekly-git-report/releases/latest";
@@ -238,16 +239,6 @@ function statusFromInfo(
     releaseUrl: RELEASE_URL,
     checkedAt: new Date().toISOString(),
   };
-}
-
-function normalizeReleaseNotes(notes: UpdateInfo["releaseNotes"]): string | undefined {
-  if (typeof notes === "string") return notes.trim() || undefined;
-  if (!Array.isArray(notes)) return undefined;
-  const content = notes
-    .map((note) => `## ${note.version}\n\n${note.note ?? ""}`.trim())
-    .filter(Boolean)
-    .join("\n\n");
-  return content || undefined;
 }
 
 function configureUpdateLogging(): void {
