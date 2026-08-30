@@ -17,6 +17,7 @@ import { Route as AuthenticatedReportsIndexRouteImport } from './routes/_authent
 import { Route as AuthenticatedRepositoriesIndexRouteImport } from './routes/_authenticated/repositories/index'
 import { Route as AuthenticatedRunsIndexRouteImport } from './routes/_authenticated/runs/index'
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
+import { Route as AuthenticatedSettingsAboutRouteImport } from './routes/_authenticated/settings/about'
 import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_authenticated/settings/appearance'
 import { Route as AuthenticatedSettingsAutomationRouteImport } from './routes/_authenticated/settings/automation'
 import { Route as AuthenticatedSettingsTemplateRouteImport } from './routes/_authenticated/settings/template'
@@ -65,6 +66,12 @@ const AuthenticatedSettingsIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedSettingsRouteRoute,
   } as any)
+const AuthenticatedSettingsAboutRoute =
+  AuthenticatedSettingsAboutRouteImport.update({
+    id: '/about',
+    path: '/about',
+    getParentRoute: () => AuthenticatedSettingsRouteRoute,
+  } as any)
 const AuthenticatedSettingsAppearanceRoute =
   AuthenticatedSettingsAppearanceRouteImport.update({
     id: '/appearance',
@@ -93,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/setup': typeof SetupRoute
   '/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
+  '/settings/about': typeof AuthenticatedSettingsAboutRoute
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
   '/settings/automation': typeof AuthenticatedSettingsAutomationRoute
   '/settings/template': typeof AuthenticatedSettingsTemplateRoute
@@ -105,6 +113,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/setup': typeof SetupRoute
   '/': typeof AuthenticatedIndexRoute
+  '/settings/about': typeof AuthenticatedSettingsAboutRoute
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
   '/settings/automation': typeof AuthenticatedSettingsAutomationRoute
   '/settings/template': typeof AuthenticatedSettingsTemplateRoute
@@ -120,6 +129,7 @@ export interface FileRoutesById {
   '/setup': typeof SetupRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/settings/about': typeof AuthenticatedSettingsAboutRoute
   '/_authenticated/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
   '/_authenticated/settings/automation': typeof AuthenticatedSettingsAutomationRoute
   '/_authenticated/settings/template': typeof AuthenticatedSettingsTemplateRoute
@@ -135,6 +145,7 @@ export interface FileRouteTypes {
     | '/'
     | '/setup'
     | '/settings'
+    | '/settings/about'
     | '/settings/appearance'
     | '/settings/automation'
     | '/settings/template'
@@ -147,6 +158,7 @@ export interface FileRouteTypes {
   to:
     | '/setup'
     | '/'
+    | '/settings/about'
     | '/settings/appearance'
     | '/settings/automation'
     | '/settings/template'
@@ -161,6 +173,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/_authenticated/settings'
     | '/_authenticated/'
+    | '/_authenticated/settings/about'
     | '/_authenticated/settings/appearance'
     | '/_authenticated/settings/automation'
     | '/_authenticated/settings/template'
@@ -234,6 +247,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsIndexRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
     }
+    '/_authenticated/settings/about': {
+      id: '/_authenticated/settings/about'
+      path: '/about'
+      fullPath: '/settings/about'
+      preLoaderRoute: typeof AuthenticatedSettingsAboutRouteImport
+      parentRoute: typeof AuthenticatedSettingsRouteRoute
+    }
     '/_authenticated/settings/appearance': {
       id: '/_authenticated/settings/appearance'
       path: '/appearance'
@@ -266,6 +286,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedSettingsRouteRouteChildren {
+  AuthenticatedSettingsAboutRoute: typeof AuthenticatedSettingsAboutRoute
   AuthenticatedSettingsAppearanceRoute: typeof AuthenticatedSettingsAppearanceRoute
   AuthenticatedSettingsAutomationRoute: typeof AuthenticatedSettingsAutomationRoute
   AuthenticatedSettingsTemplateRoute: typeof AuthenticatedSettingsTemplateRoute
@@ -274,6 +295,7 @@ interface AuthenticatedSettingsRouteRouteChildren {
 
 const AuthenticatedSettingsRouteRouteChildren: AuthenticatedSettingsRouteRouteChildren =
   {
+    AuthenticatedSettingsAboutRoute: AuthenticatedSettingsAboutRoute,
     AuthenticatedSettingsAppearanceRoute: AuthenticatedSettingsAppearanceRoute,
     AuthenticatedSettingsAutomationRoute: AuthenticatedSettingsAutomationRoute,
     AuthenticatedSettingsTemplateRoute: AuthenticatedSettingsTemplateRoute,

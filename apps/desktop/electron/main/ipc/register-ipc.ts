@@ -11,6 +11,14 @@ import {
 
 import { IPC_CHANNELS } from "../../../shared/ipc.js";
 import {
+  checkDesktopUpdate,
+  downloadDesktopUpdate,
+  getDesktopUpdateStatus,
+  installDesktopUpdate,
+  openDesktopReleasePage,
+  openDesktopUpdateLogs,
+} from "../services/update-service.js";
+import {
   getDesktopOverview,
   completeDesktopOnboarding,
   approveDesktopRun,
@@ -305,6 +313,12 @@ export function registerIpcHandlers(): void {
     if (typeof id !== "string") throw new Error("Run id is required.");
     return publishDesktopRun(id);
   });
+  ipcMain.handle(IPC_CHANNELS.updatesStatus, () => getDesktopUpdateStatus());
+  ipcMain.handle(IPC_CHANNELS.updatesCheck, () => checkDesktopUpdate(true));
+  ipcMain.handle(IPC_CHANNELS.updatesDownload, () => downloadDesktopUpdate());
+  ipcMain.handle(IPC_CHANNELS.updatesInstall, () => installDesktopUpdate());
+  ipcMain.handle(IPC_CHANNELS.updatesOpenRelease, () => openDesktopReleasePage());
+  ipcMain.handle(IPC_CHANNELS.updatesOpenLogs, () => openDesktopUpdateLogs());
   ipcMain.handle(IPC_CHANNELS.systemDiagnostics, () => getDiagnostics());
   ipcMain.handle(IPC_CHANNELS.systemOpenOutputRoot, async () => {
     const config = await loadOptionalConfig();

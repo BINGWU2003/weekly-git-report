@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "Weekly Git Report desktop application.",
+  "author": "BINGWU2003",
   "type": "module",
   "main": "./out/main/index.cjs",
   "scripts": {
@@ -51,6 +52,8 @@
     "clsx": "catalog:desktop",
     "cmdk": "catalog:desktop",
     "date-fns": "catalog:desktop",
+    "electron-log": "catalog:desktop",
+    "electron-updater": "^6.8.9",
     "input-otp": "catalog:desktop",
     "lucide-react": "catalog:desktop",
     "react": "catalog:desktop",

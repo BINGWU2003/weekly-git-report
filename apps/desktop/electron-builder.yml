@@ -3,6 +3,7 @@ productName: Weekly Git Report
 asar: true
 directories:
   output: release
+artifactName: Weekly-Git-Report-Setup-${version}-${arch}.${ext}
 files:
   - out/**/*
   - resources/**/*
@@ -15,6 +16,14 @@ win:
         - x64
 nsis:
   oneClick: false
+  perMachine: false
+  allowElevation: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
+  createStartMenuShortcut: true
+publish:
+  provider: github
+  owner: BINGWU2003
+  repo: weekly-git-report
+  releaseType: draft
 npmRebuild: false

@@ -1,5 +1,5 @@
 import { Outlet } from '@tanstack/react-router'
-import { Bot, FilePenLine, Palette, Settings2 } from 'lucide-react'
+import { Bot, FilePenLine, Info, Palette, Settings2 } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -10,6 +10,7 @@ const sidebarNavItems = [
   { title: '常规', href: '/settings', icon: <Settings2 size={18} /> },
   { title: '生成模板', href: '/settings/template', icon: <FilePenLine size={18} /> },
   { title: 'AI 与推送', href: '/settings/automation', icon: <Bot size={18} /> },
+  { title: '关于与更新', href: '/settings/about', icon: <Info size={18} /> },
   { title: '外观', href: '/settings/appearance', icon: <Palette size={18} /> },
 ]
 

@@ -25,6 +25,7 @@ coverage
 .next/
 out/
 release/
+.release/
 build
 dist
 

@@ -28,6 +28,8 @@ Markdown 报告。
 - 配置并测试 OpenAI 或 DeepSeek，流式生成可编辑草稿，审核后保存 Summary。
 - 配置一个全局飞书群机器人，对有效 Summary 手动推送或随自动任务推送。
 - 创建日报、周报和月报任务，通过系统原生调度运行；日报生成当天，周一生成上一完整周，每月 1 日生成上一完整月。自定义报告不进入任务。
+- Windows x64 正式安装包通过 GitHub Releases 检查、下载并安装可选更新；开发模式和 unpacked 构建默认禁用。
+- “关于与更新”展示当前/最新版本、下载进度、Release Notes 和更新日志入口；报告生成、保存或推送期间不会立即安装。
 
 ## 配置说明
 
@@ -62,6 +64,9 @@ pnpm --filter @weekly-git-report/desktop test
 pnpm --filter @weekly-git-report/desktop build
 pnpm --filter @weekly-git-report/desktop build:win
 ```
+
+Desktop 使用 Changesets 管理版本，正式发布与真实升级演练见
+[`docs/desktop-release.md`](../../docs/desktop-release.md)。
 
 ## 目录
 

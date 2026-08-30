@@ -62,6 +62,7 @@ catalogs:
     date-fns: ^4.1.0
     electron: ^44.0.0
     electron-builder: ^26.15.3
+    electron-log: ^5.4.4
     electron-vite: ^5.0.0
     input-otp: ^1.4.2
     lucide-react: ^1.8.0

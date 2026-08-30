@@ -8,6 +8,7 @@ import {
   Circle,
   FolderSearch,
   GitBranch,
+  ExternalLink,
   Loader2,
   Plus,
   RefreshCw,
@@ -37,6 +38,10 @@ import {
   projectsStateQueryOptions,
 } from '@/lib/desktop-queries'
 import { getErrorMessage } from '@/lib/errors'
+import {
+  desktopUpdateQueryKey,
+  useDesktopUpdateStatus,
+} from '@/lib/desktop-updates'
 import { ONBOARDING_DEFER_SESSION_KEY } from '@/lib/onboarding'
 import { selectSystemDirectory } from '@/lib/system-actions'
 import { showSuccessToast } from '@/lib/toast'
@@ -508,10 +513,59 @@ function SetupShell({ subtitle, children }: { subtitle: string; children: ReactN
             <p className='truncate font-semibold'>Weekly Git Report</p>
             <p className='truncate text-xs text-muted-foreground'>{subtitle}</p>
           </div>
+          <SetupUpdateEntry />
           <ThemeSwitch />
         </div>
       </header>
       <main className='mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6'>{children}</main>
+    </div>
+  )
+}
+
+function SetupUpdateEntry() {
+  const queryClient = useQueryClient()
+  const update = useDesktopUpdateStatus()
+  const check = useMutation({
+    mutationFn: () => window.electronAPI.updates.check(),
+    onSuccess: (status) => {
+      queryClient.setQueryData(desktopUpdateQueryKey, status)
+      if (status.phase === 'available') toast.info(`发现新版本 ${status.latestVersion}`)
+      if (status.phase === 'up-to-date') showSuccessToast('当前已是最新版本')
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  })
+  const status = update.data
+  const available = status?.phase === 'available'
+
+  return (
+    <div className='hidden items-center gap-2 sm:flex'>
+      <span className='text-xs text-muted-foreground'>v{status?.currentVersion ?? '—'}</span>
+      {available ? (
+        <Button
+          type='button'
+          size='sm'
+          variant='outline'
+          onClick={() => void window.electronAPI.updates.openRelease()}
+        >
+          <ExternalLink />查看 {status.latestVersion}
+        </Button>
+      ) : (
+        <Button
+          type='button'
+          size='sm'
+          variant='ghost'
+          disabled={check.isPending || status?.phase === 'checking' || status?.phase === 'disabled'}
+          title={status?.disabledReason}
+          onClick={() => check.mutate()}
+        >
+          {check.isPending || status?.phase === 'checking' ? (
+            <Loader2 className='animate-spin' />
+          ) : (
+            <RefreshCw />
+          )}
+          检查更新
+        </Button>
+      )}
     </div>
   )
 }

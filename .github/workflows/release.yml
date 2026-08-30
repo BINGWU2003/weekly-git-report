@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      desktop_tag:
+        description: 要重跑的 Desktop Tag（例如 @weekly-git-report/desktop@1.0.0）
+        required: false
+        type: string
 
 concurrency:
   group: release-${{ github.ref }}
@@ -15,7 +21,8 @@ permissions:
   pull-requests: write
 
 jobs:
-  release:
+  release-packages:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -35,7 +42,7 @@ jobs:
       - run: pnpm run lint
       - run: pnpm run check-types
       - run: pnpm run build
-      - name: Create release pull request or publish
+      - name: 创建发布 Pull Request 或发布 npm 包
         uses: changesets/action@v1
         with:
           commit: "chore: 发布新版本"
@@ -47,3 +54,119 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: "true"
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  desktop-release-plan:
+    needs: release-packages
+    if: always() && (github.event_name == 'workflow_dispatch' || needs.release-packages.result == 'success')
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.plan.outputs.should_release }}
+      tag: ${{ steps.plan.outputs.tag }}
+      version: ${{ steps.plan.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - id: plan
+        name: 解析 Desktop Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_TAG: ${{ inputs.desktop_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${INPUT_TAG:-}" ]]; then
+            tag="$INPUT_TAG"
+          else
+            version="$(node -p "require('./apps/desktop/package.json').version")"
+            tag="@weekly-git-report/desktop@$version"
+          fi
+          if [[ ! "$tag" =~ ^@weekly-git-report/desktop@([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            echo "Desktop Tag 格式无效：$tag" >&2
+            exit 1
+          fi
+          version="${BASH_REMATCH[1]}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if ! git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+            echo "Tag 尚未发布，跳过 Desktop Release：$tag"
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if is_draft="$(gh release view "$tag" --json isDraft --jq .isDraft 2>/dev/null)"; then
+            if [[ "$is_draft" != "true" ]]; then
+              echo "Desktop Release 已发布，跳过：$tag"
+              echo "should_release=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          echo "should_release=true" >> "$GITHUB_OUTPUT"
+
+  desktop-release:
+    needs: desktop-release-plan
+    if: needs.desktop-release-plan.outputs.should_release == 'true'
+    runs-on: windows-latest
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.desktop-release-plan.outputs.tag }}
+      - uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: 校验 Tag 与 Desktop 版本
+        shell: pwsh
+        run: |
+          $expected = '${{ needs.desktop-release-plan.outputs.version }}'
+          $actual = node -p "require('./apps/desktop/package.json').version"
+          if ($actual -ne $expected) { throw "Tag 中的 Desktop 版本 $actual 与预期 $expected 不一致。" }
+      - name: 构建全仓产物
+        run: pnpm run build
+      - name: 构建 Windows x64 安装包
+        run: pnpm --filter @weekly-git-report/desktop exec electron-builder --win --x64 --publish never
+      - name: 校验 Release 资产并生成校验和
+        run: node scripts/prepare-desktop-release.mjs apps/desktop/release
+      - name: 保存 Desktop 构建资产
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ needs.desktop-release-plan.outputs.version }}-windows-x64
+          if-no-files-found: error
+          path: |
+            apps/desktop/release/Weekly-Git-Report-Setup-${{ needs.desktop-release-plan.outputs.version }}-x64.exe
+            apps/desktop/release/Weekly-Git-Report-Setup-${{ needs.desktop-release-plan.outputs.version }}-x64.exe.blockmap
+            apps/desktop/release/latest.yml
+            .release/SHA256SUMS.txt
+            .release/desktop-release-notes.md
+      - name: 创建 Draft、上传并发布 GitHub Release
+        shell: pwsh
+        run: |
+          $tag = '${{ needs.desktop-release-plan.outputs.tag }}'
+          $version = '${{ needs.desktop-release-plan.outputs.version }}'
+          gh release view $tag --json isDraft 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --draft --verify-tag --title "Weekly Git Report Desktop $version" --notes-file .release/desktop-release-notes.md
+          }
+          $isDraft = gh release view $tag --json isDraft --jq .isDraft
+          if ($isDraft -ne 'true') { throw "同一 Tag 的 Release 已发布，拒绝覆盖。" }
+          $assets = @(
+            "apps/desktop/release/Weekly-Git-Report-Setup-$version-x64.exe",
+            "apps/desktop/release/Weekly-Git-Report-Setup-$version-x64.exe.blockmap",
+            "apps/desktop/release/latest.yml",
+            ".release/SHA256SUMS.txt"
+          )
+          gh release upload $tag $assets --clobber
+          $release = gh release view $tag --json isDraft,assets | ConvertFrom-Json
+          $expectedNames = $assets | ForEach-Object { Split-Path $_ -Leaf }
+          foreach ($name in $expectedNames) {
+            $asset = $release.assets | Where-Object { $_.name -eq $name }
+            if (-not $asset -or $asset.size -le 0) { throw "远端 Release 资产无效：$name" }
+          }
+          gh release edit $tag --draft=false --latest

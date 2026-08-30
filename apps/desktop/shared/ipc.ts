@@ -127,6 +127,32 @@ export interface SecretRevealResult {
   value: string;
 }
 
+export type DesktopUpdatePhase =
+  | "disabled"
+  | "idle"
+  | "checking"
+  | "up-to-date"
+  | "available"
+  | "downloading"
+  | "downloaded"
+  | "error";
+
+export interface DesktopUpdateStatus {
+  phase: DesktopUpdatePhase;
+  currentVersion: string;
+  latestVersion?: string;
+  releaseName?: string;
+  releaseDate?: string;
+  releaseNotes?: string;
+  releaseUrl: string;
+  progress?: number;
+  checkedAt?: string;
+  error?: string;
+  failedAction?: "check" | "download";
+  disabledReason?: string;
+  installBlockedReason?: string;
+}
+
 export interface DesktopReadiness {
   gitReady: boolean;
   configReady: boolean;
@@ -251,6 +277,15 @@ export interface DesktopAPI {
     publish(id: string): Promise<ReportRun>;
     onGenerationDelta(listener: (runId: string, delta: string) => void): () => void;
   };
+  updates: {
+    status(): Promise<DesktopUpdateStatus>;
+    check(): Promise<DesktopUpdateStatus>;
+    download(): Promise<DesktopUpdateStatus>;
+    install(): Promise<void>;
+    openRelease(): Promise<void>;
+    openLogs(): Promise<string>;
+    onStatusChange(listener: (status: DesktopUpdateStatus) => void): () => void;
+  };
   system: {
     diagnostics(): Promise<DiagnosticCheck[]>;
     openOutputRoot(): Promise<string>;
@@ -311,6 +346,13 @@ export const IPC_CHANNELS = {
   runsRetry: "runs:retry",
   runsPublish: "runs:publish",
   runsGenerationDelta: "runs:generation-delta",
+  updatesStatus: "updates:status",
+  updatesCheck: "updates:check",
+  updatesDownload: "updates:download",
+  updatesInstall: "updates:install",
+  updatesOpenRelease: "updates:open-release",
+  updatesOpenLogs: "updates:open-logs",
+  updatesStatusChanged: "updates:status-changed",
   systemDiagnostics: "system:diagnostics",
   systemOpenOutputRoot: "system:open-output-root",
   systemSelectDirectory: "system:select-directory",

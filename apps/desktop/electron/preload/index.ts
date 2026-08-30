@@ -4,6 +4,7 @@ import type { Config, Period, ReportType, TasksDocument } from "@weekly-git-repo
 import type {
   DesktopAPI,
   AiConfigurationUpdate,
+  DesktopUpdateStatus,
   FeishuConfigurationUpdate,
   GenerateReportRequest,
   ImportRepositoriesRequest,
@@ -114,6 +115,20 @@ const electronAPI: DesktopAPI = Object.freeze({
         listener(runId, delta);
       ipcRenderer.on(IPC_CHANNELS.runsGenerationDelta, handler);
       return () => ipcRenderer.removeListener(IPC_CHANNELS.runsGenerationDelta, handler);
+    },
+  }),
+  updates: Object.freeze({
+    status: () => ipcRenderer.invoke(IPC_CHANNELS.updatesStatus),
+    check: () => ipcRenderer.invoke(IPC_CHANNELS.updatesCheck),
+    download: () => ipcRenderer.invoke(IPC_CHANNELS.updatesDownload),
+    install: () => ipcRenderer.invoke(IPC_CHANNELS.updatesInstall),
+    openRelease: () => ipcRenderer.invoke(IPC_CHANNELS.updatesOpenRelease),
+    openLogs: () => ipcRenderer.invoke(IPC_CHANNELS.updatesOpenLogs),
+    onStatusChange: (listener: (status: DesktopUpdateStatus) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, status: DesktopUpdateStatus) =>
+        listener(status);
+      ipcRenderer.on(IPC_CHANNELS.updatesStatusChanged, handler);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.updatesStatusChanged, handler);
     },
   }),
   system: Object.freeze({

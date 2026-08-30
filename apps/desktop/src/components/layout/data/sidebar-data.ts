@@ -4,6 +4,7 @@ import {
   CalendarClock,
   FileText,
   FolderGit2,
+  Info,
   LayoutDashboard,
   Palette,
   Settings2,
@@ -27,6 +28,7 @@ export const sidebarData: SidebarData = {
       items: [
         { title: '设置', url: '/settings', icon: Settings2 },
         { title: 'AI 与推送', url: '/settings/automation', icon: Bot },
+        { title: '关于与更新', url: '/settings/about', icon: Info },
         { title: '外观', url: '/settings/appearance', icon: Palette },
       ],
     },

@@ -2,8 +2,17 @@ import { electronApp, is, optimizer } from "@electron-toolkit/utils";
 import { BrowserWindow, app, shell } from "electron";
 import { join } from "node:path";
 
+import { IPC_CHANNELS } from "../../shared/ipc.js";
 import { registerIpcHandlers } from "./ipc/register-ipc.js";
-import { cancelActiveManualRuns, runDesktopTask } from "./services/desktop-service.js";
+import {
+  cancelActiveManualRuns,
+  hasActiveDesktopRuns,
+  runDesktopTask,
+} from "./services/desktop-service.js";
+import {
+  initializeDesktopUpdater,
+  prepareDesktopUpdaterForQuit,
+} from "./services/update-service.js";
 
 function isExternalUrl(url: string): boolean {
   try {
@@ -84,6 +93,16 @@ app.whenReady().then(async () => {
     return;
   }
   registerIpcHandlers();
+  initializeDesktopUpdater({
+    hasActiveRuns: hasActiveDesktopRuns,
+    onStatusChange: (status) => {
+      for (const window of BrowserWindow.getAllWindows()) {
+        if (!window.webContents.isDestroyed()) {
+          window.webContents.send(IPC_CHANNELS.updatesStatusChanged, status);
+        }
+      }
+    },
+  });
 
   app.on("browser-window-created", (_event, window) => {
     optimizer.watchWindowShortcuts(window);
@@ -96,7 +115,10 @@ app.whenReady().then(async () => {
   });
 });
 
-app.on("before-quit", () => cancelActiveManualRuns());
+app.on("before-quit", () => {
+  prepareDesktopUpdaterForQuit();
+  cancelActiveManualRuns();
+});
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();

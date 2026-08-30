@@ -12,5 +12,9 @@
     "@weekly-git-report/typescript-config"
   ],
   "linked": [],
+  "privatePackages": {
+    "version": true,
+    "tag": true
+  },
   "updateInternalDependencies": "patch"
 }

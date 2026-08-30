@@ -466,6 +466,13 @@ export function listDesktopRuns(limit?: number): ReportRun[] {
   return listReportRuns(limit);
 }
 
+export function hasActiveDesktopRuns(): boolean {
+  const counts = getReportRunCounts();
+  return ["queued", "collecting", "generating", "saving", "publishing"].some((status) =>
+    Boolean(counts[status as keyof typeof counts]),
+  );
+}
+
 export function getDesktopRun(id: string): ReportRun {
   return getReportRun(id);
 }

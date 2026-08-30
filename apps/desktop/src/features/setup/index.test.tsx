@@ -141,6 +141,17 @@ function stubApi(onboarding: OnboardingState, initialized = false) {
         },
       ]),
     },
+    updates: {
+      status: vi.fn().mockResolvedValue({
+        phase: 'disabled',
+        currentVersion: '0.0.0',
+        releaseUrl: 'https://github.com/example/releases/latest',
+        disabledReason: '测试环境不启用自动更新。',
+      }),
+      check: vi.fn(),
+      openRelease: vi.fn(),
+      onStatusChange: vi.fn().mockReturnValue(vi.fn()),
+    },
   } as unknown as DesktopAPI)
 }
 
