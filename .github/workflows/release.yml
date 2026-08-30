@@ -42,10 +42,12 @@ jobs:
       - run: pnpm run lint
       - run: pnpm run check-types
       - run: pnpm run build
-      - name: 创建发布 Pull Request 或发布 npm 包
+      - id: changesets
+        name: 创建发布 Pull Request 或发布 npm 包
         uses: changesets/action@v1
         with:
           commit: "chore: 发布新版本"
+          createGithubReleases: false
           publish: pnpm release
           title: "chore: 发布新版本"
           version: pnpm version-packages
@@ -54,6 +56,9 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: "true"
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: 推送发布标签
+        if: steps.changesets.outputs.published == 'true'
+        run: git push origin --tags
 
   desktop-release-plan:
     needs: release-packages
