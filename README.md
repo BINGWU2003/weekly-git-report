@@ -154,3 +154,7 @@ pnpm build
 ```
 
 项目使用 pnpm workspace、Turborepo、TypeScript、Oxfmt、Oxlint 和 Vitest。详细说明见[开发指南](docs/development.md)。
+
+## 友情链接
+
+- [linux.do](https://linux.do/u/80yan9/)
