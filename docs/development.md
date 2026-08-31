@@ -1,6 +1,6 @@
 # 开发指南
 
-本页说明 Monorepo 的本地开发、验证和构建方式。业务分层见[系统架构](architecture.md)，Windows 安装包发布见[Desktop 发布与更新演练](desktop-release.md)。
+本页说明 Monorepo 的本地开发、验证和构建方式。业务分层见[系统架构](architecture.md)，Windows 安装包发布见[Desktop 发布流程](desktop-release.md)。
 
 ## 环境
 
@@ -135,7 +135,7 @@ pnpm release
 - Core、Workflow、Shared 和 TypeScript Config 是私有内部包。
 - Desktop 是当前唯一创建 GitHub Release 的产品，避免 electron-updater 把 CLI/MCP Release 识别为桌面更新。
 
-涉及 Desktop 用户可见行为的变化应添加 Desktop Changeset，即使实现位于 Core 或 Workflow。完整发布和升级演练见 [Desktop 发布与更新演练](desktop-release.md)。
+涉及 Desktop 用户可见行为的变化应添加 Desktop Changeset，即使实现位于 Core 或 Workflow。完整发布步骤见 [Desktop 发布流程](desktop-release.md)。
 
 ## 文档维护
 

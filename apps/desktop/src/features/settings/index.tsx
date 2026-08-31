@@ -8,7 +8,7 @@ import { SidebarNav } from './components/sidebar-nav'
 
 const sidebarNavItems = [
   { title: '常规设置', href: '/settings', icon: <Settings2 size={18} /> },
-  { title: '生成模板', href: '/settings/template', icon: <FilePenLine size={18} /> },
+  { title: '报告模板', href: '/settings/template', icon: <FilePenLine size={18} /> },
   { title: 'AI 与推送', href: '/settings/automation', icon: <Bot size={18} /> },
   { title: '关于与更新', href: '/settings/about', icon: <Info size={18} /> },
   { title: '外观', href: '/settings/appearance', icon: <Palette size={18} /> },
@@ -46,7 +46,7 @@ export function Settings() {
 function settingsPageCopy(pathname: string) {
   if (pathname === '/settings/template') {
     return {
-      title: '生成模板',
+      title: '报告模板',
       description: '设置日报、周报、月报和自定义报告的生成规则。',
     }
   }

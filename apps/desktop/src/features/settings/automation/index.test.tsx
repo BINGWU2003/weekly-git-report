@@ -24,7 +24,9 @@ describe('AutomationConfig', () => {
       aiStatus: {
         configured: true,
         provider: 'deepseek',
+        baseUrl: 'https://api.deepseek.com',
         model: 'deepseek-chat',
+        dataSharingAccepted: true,
         apiKeyMasked: 'sk-deep••••1234',
         testedAt: '2026-08-30T01:00:00.000Z',
       },
@@ -42,7 +44,7 @@ describe('AutomationConfig', () => {
 
     const screen = await renderAutomation()
 
-    await expect.element(screen.getByRole('combobox')).toHaveTextContent('DeepSeek')
+    await expect.element(screen.getByLabelText('AI 服务', { exact: true })).toHaveTextContent('DeepSeek')
     await expect.element(screen.getByLabelText('API 密钥', { exact: true })).toHaveValue('sk-deep••••1234')
     await expect.element(screen.getByLabelText('机器人 Webhook', { exact: true })).toHaveValue('open.feishu.cn/••••5678')
     expect(api.ai.reveal).not.toHaveBeenCalled()
@@ -100,12 +102,18 @@ describe('AutomationConfig', () => {
       aiStatus: {
         configured: true,
         provider: 'openai',
+        baseUrl: 'https://api.openai.com/v1',
+        model: 'gpt-5.4-mini',
+        dataSharingAccepted: true,
         apiKeyMasked: 'sk-old-••••1234',
         testedAt: '2026-08-30T01:00:00.000Z',
       },
       aiConfigureResult: {
         configured: true,
         provider: 'openai',
+        baseUrl: 'https://api.openai.com/v1',
+        model: 'gpt-5.4-mini',
+        dataSharingAccepted: true,
         apiKeyMasked: 'sk-new-••••5678',
       },
       aiTestError: new Error('认证失败'),
@@ -121,6 +129,8 @@ describe('AutomationConfig', () => {
     await vi.waitFor(() => {
       expect(api.ai.configure).toHaveBeenCalledWith({
         provider: 'openai',
+        baseUrl: 'https://api.openai.com/v1',
+        model: 'gpt-5.4-mini',
         apiKey: 'sk-new-example-5678',
         dataSharingAccepted: true,
       })
@@ -131,6 +141,47 @@ describe('AutomationConfig', () => {
     })
     await expect.element(screen.getByText('测试失败', { exact: true })).toBeVisible()
     await expect.element(screen.getByLabelText('API 密钥', { exact: true })).toHaveValue('sk-new-••••5678')
+  })
+
+  it('可以保存必填 Key、Base URL 和模型的自定义服务', async () => {
+    const saved: SecretConfigurationStatus = {
+      configured: true,
+      provider: 'custom',
+      baseUrl: 'http://localhost:11434/v1',
+      model: 'qwen3:8b',
+      dataSharingAccepted: true,
+      apiKeyMasked: 'local-••••-key',
+    }
+    const api = createApi({
+      aiStatus: { configured: false },
+      aiConfigureResult: saved,
+      feishuStatus: { configured: false },
+    })
+    vi.stubGlobal('electronAPI', api)
+    const screen = await renderAutomation()
+
+    await userEvent.click(screen.getByLabelText('AI 服务', { exact: true }))
+    await userEvent.click(screen.getByRole('option', { name: '自定义服务（OpenAI 兼容）' }))
+    await userEvent.fill(screen.getByLabelText('API Base URL'), 'http://localhost:11434/v1/')
+    await userEvent.click(screen.getByLabelText('模型'))
+    await userEvent.fill(screen.getByPlaceholder('搜索或输入模型 ID…'), 'qwen3:8b')
+    await userEvent.click(screen.getByText('使用“qwen3:8b”'))
+    await userEvent.fill(screen.getByLabelText('API 密钥', { exact: true }), 'local-test-key')
+    await userEvent.click(
+      screen.getByText('我已了解并同意在生成报告时将上述数据发送到我配置的 AI 服务。')
+    )
+    await userEvent.click(screen.getByRole('button', { name: '保存配置' }))
+
+    await vi.waitFor(() =>
+      expect(api.ai.configure).toHaveBeenCalledWith({
+        provider: 'custom',
+        baseUrl: 'http://localhost:11434/v1/',
+        model: 'qwen3:8b',
+        apiKey: 'local-test-key',
+        dataSharingAccepted: true,
+      })
+    )
+    expect(api.ai.test).not.toHaveBeenCalled()
   })
 })
 

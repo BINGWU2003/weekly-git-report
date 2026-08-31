@@ -33,7 +33,7 @@ export const PeriodSchema = z.object({
 export const ReportCadenceSchema = z.enum(REPORT_CADENCES);
 export const ReportTypeSchema = z.enum(REPORT_TYPES);
 
-export const AiProviderSchema = z.enum(["openai", "deepseek"]);
+export const AiProviderSchema = z.enum(["openai", "deepseek", "custom"]);
 export const ReportGeneratorSchema = z.enum(["external-agent", "builtin-ai"]);
 
 export const SummaryProvenanceSchema = z
@@ -106,8 +106,17 @@ export const SummaryMetadataSchema = z
 
 export const AiConfigSchema = z
   .object({
-    version: z.literal(1),
+    version: z.literal(2),
     provider: AiProviderSchema,
+    baseUrl: z
+      .string()
+      .trim()
+      .url()
+      .refine((value) => ["http:", "https:"].includes(new URL(value).protocol), {
+        message: "AI Base URL must use HTTP or HTTPS.",
+      })
+      .transform((value) => value.replace(/\/+$/, "")),
+    model: z.string().trim().min(1),
     apiKey: z.string().min(1),
     dataSharingAcceptedAt: z.string().datetime(),
     testedAt: z.string().datetime().optional(),

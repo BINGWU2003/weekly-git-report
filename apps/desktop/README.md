@@ -20,7 +20,7 @@ Weekly Git Report 的 Electron 桌面客户端，是普通用户的默认入口�
 - 检查 Git、报告目录和仓库缓存目录。
 - 读取或填写用于筛选提交的 Git 作者身份。
 - 添加并同步至少一个仓库。
-- 配置并测试 OpenAI 或 DeepSeek。
+- 配置 OpenAI、DeepSeek 或自定义 OpenAI-compatible 服务；也可以暂时跳过。
 - 生成、审核并保存第一份报告。
 - 中断后恢复已完成步骤和待审核草稿。
 - 将飞书机器人和报告任务作为可选扩展。
@@ -36,7 +36,7 @@ Weekly Git Report 的 Electron 桌面客户端，是普通用户的默认入口�
 ### 报告
 
 - 生成日报、周报、月报和最长 366 天的自定义报告。
-- 使用 OpenAI 或 DeepSeek 流式生成可编辑草稿。
+- 使用明确选择的 AI 模型流式生成可编辑草稿。
 - 在保存前审核草稿；报告任务可选择自动保存。
 - 浏览报告正文（Summary）与采集数据（Raw），按类型、周期、角色和搜索词筛选。
 - 预览 Markdown、查看原文、定位文件、恢复回收站报告。
@@ -45,7 +45,7 @@ Weekly Git Report 的 Electron 桌面客户端，是普通用户的默认入口�
 
 ### 自动化与集成
 
-- 配置一个 OpenAI 或 DeepSeek 供应商，模型和生成参数由应用管理。
+- 配置 AI 服务、API Base URL、API Key 和模型；连接测试与保存相互独立。
 - 配置全局飞书群自定义机器人，可选签名密钥。
 - 创建日报、周报和月报任务，使用操作系统原生计划任务触发。
 - 查看 ReportRun 执行记录、步骤状态、错误、Token 用量和待审核草稿。
@@ -57,7 +57,7 @@ Weekly Git Report 的 Electron 桌面客户端，是普通用户的默认入口�
 - 不自动下载，下载和安装都由用户确认。
 - 报告正在生成、保存或推送时阻止安装。
 
-更新发布和真实升级演练见[Desktop 发布文档](../../docs/desktop-release.md)。
+更新发布规则见[Desktop 发布流程](../../docs/desktop-release.md)。
 
 ## 关键行为
 

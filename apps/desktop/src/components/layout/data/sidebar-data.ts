@@ -28,7 +28,7 @@ export const sidebarData: SidebarData = {
       title: '系统',
       items: [
         { title: '常规设置', url: '/settings', icon: Settings2 },
-        { title: '生成模板', url: '/settings/template', icon: FilePenLine },
+        { title: '报告模板', url: '/settings/template', icon: FilePenLine },
         { title: 'AI 与推送', url: '/settings/automation', icon: Bot },
         { title: '关于与更新', url: '/settings/about', icon: Info },
         { title: '外观', url: '/settings/appearance', icon: Palette },

@@ -2,6 +2,15 @@ export const WORK_DIR = "~/.weekly-git-report";
 export const CONFIG_FILE_NAME = "config.json";
 export const PROJECTS_FILE_NAME = "projects.json";
 export const AI_CONFIG_FILE_NAME = "ai.json";
+export const AI_PROVIDER_BASE_URLS = {
+  openai: "https://api.openai.com/v1",
+  deepseek: "https://api.deepseek.com",
+} as const;
+export const AI_MODEL_SUGGESTIONS = {
+  openai: ["gpt-5.4-mini", "gpt-5.4"],
+  deepseek: ["deepseek-v4-pro", "deepseek-v4-flash"],
+  custom: [],
+} as const;
 export const FEISHU_CONFIG_FILE_NAME = "feishu.json";
 export const TASKS_FILE_NAME = "tasks.json";
 export const RUNS_DATABASE_FILE_NAME = "runs.db";

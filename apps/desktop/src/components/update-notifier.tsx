@@ -1,9 +1,11 @@
 import { useEffect } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { toast } from 'sonner'
-import { useDesktopUpdateStatus } from '@/lib/desktop-updates'
+import {
+  desktopUpdateAvailableToastId,
+  useDesktopUpdateStatus,
+} from '@/lib/desktop-updates'
 
-const UPDATE_TOAST_ID = 'desktop-update-available'
 let dismissedVersion: string | undefined
 
 export function UpdateNotifier() {
@@ -19,12 +21,12 @@ export function UpdateNotifier() {
       dismissedVersion === status.latestVersion ||
       window.location.hash.includes('/setup')
     ) {
-      if (status?.phase !== 'available') toast.dismiss(UPDATE_TOAST_ID)
+      if (status?.phase !== 'available') toast.dismiss(desktopUpdateAvailableToastId)
       return
     }
 
     toast.info(`发现新版本 ${status.latestVersion}`, {
-      id: UPDATE_TOAST_ID,
+      id: desktopUpdateAvailableToastId,
       description: '可前往“关于与更新”查看版本说明并确认下载。',
       duration: Infinity,
       closeButton: true,

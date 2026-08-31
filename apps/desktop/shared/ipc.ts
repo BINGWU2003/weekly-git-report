@@ -104,7 +104,9 @@ export interface DesktopOverview {
 export interface SecretConfigurationStatus {
   configured: boolean;
   provider?: AiProvider;
+  baseUrl?: string;
   model?: string;
+  dataSharingAccepted?: boolean;
   signingEnabled?: boolean;
   testedAt?: string;
   apiKeyMasked?: string;
@@ -114,6 +116,8 @@ export interface SecretConfigurationStatus {
 
 export interface AiConfigurationUpdate {
   provider: AiProvider;
+  baseUrl: string;
+  model: string;
   apiKey?: string;
   dataSharingAccepted: boolean;
 }
@@ -160,6 +164,8 @@ export interface DesktopReadiness {
   repositoryReady: boolean;
   enabledRepositoryCount: number;
   aiReady: boolean;
+  aiTested: boolean;
+  aiSkipped: boolean;
   templatesReady: boolean;
   templateTypesReady: ReportType[];
   feishuReady: boolean;
@@ -170,6 +176,7 @@ export interface OnboardingState {
   version: 1;
   completedAt?: string;
   firstRunId?: string;
+  aiSkippedAt?: string;
   firstRun?: ReportRun;
   readiness: DesktopReadiness;
 }
@@ -208,6 +215,7 @@ export interface DesktopAPI {
     state(): Promise<OnboardingState>;
     rememberRun(runId: string | null): Promise<OnboardingState>;
     complete(runId: string): Promise<OnboardingState>;
+    skipAi(): Promise<OnboardingState>;
   };
   config: {
     get(): Promise<Config | null>;
@@ -298,6 +306,7 @@ export const IPC_CHANNELS = {
   onboardingState: "onboarding:state",
   onboardingRememberRun: "onboarding:remember-run",
   onboardingComplete: "onboarding:complete",
+  onboardingSkipAi: "onboarding:skip-ai",
   configGet: "config:get",
   configState: "config:state",
   configDefaults: "config:defaults",

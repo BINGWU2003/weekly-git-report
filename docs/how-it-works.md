@@ -64,9 +64,9 @@ flowchart TD
 
 ### 内置 AI
 
-Desktop 或 CLI 使用已经测试成功的 OpenAI/DeepSeek 配置。应用校验 generation input 哈希、模板 revision 和 Raw manifest 哈希后流式生成 `draft.md`。
+Desktop 或 CLI 使用已保存的 OpenAI、DeepSeek 或 OpenAI-compatible 配置。应用校验 generation input 哈希、模板 revision 和 Raw manifest 哈希后流式生成 `draft.md`；连接测试是独立的可选验证，不阻止使用有效配置发起生成。
 
-模型与生成参数由应用管理，不提供自动供应商切换；连接和生成失败会直接返回错误。
+Base URL 与模型由用户明确配置，生成参数由应用管理，不提供自动服务切换；连接和生成失败会直接返回错误。
 
 ### 外部 Agent
 

@@ -17,7 +17,7 @@
 ## 开发与发布
 
 - [开发指南](development.md)：环境、常用命令、测试、构建和文档维护约定。
-- [Desktop 发布与更新演练](desktop-release.md)：GitHub Release、Windows 安装包和自动更新验证。
+- [Desktop 发布流程](desktop-release.md)：GitHub Release、Windows 安装包和自动更新发布。
 
 ## 按入口查找
 

@@ -31,6 +31,9 @@ if (feedPath !== installerName) {
 
 const changelog = await readFile(resolve(repositoryRoot, "apps/desktop/CHANGELOG.md"), "utf8");
 const releaseNotes = extractReleaseNotes(changelog, version);
+const releaseName = `Weekly Git Report Desktop ${version}`;
+const updateFeed = appendReleaseMetadata(latestYaml, { releaseName, releaseNotes });
+await writeFile(join(releaseDirectory, "latest.yml"), updateFeed, "utf8");
 await mkdir(outputDirectory, { recursive: true });
 await writeFile(
   join(outputDirectory, "desktop-release-notes.md"),
@@ -63,4 +66,19 @@ function extractReleaseNotes(content, targetVersion) {
   const notes = (nextHeading < 0 ? remaining : remaining.slice(0, nextHeading)).trim();
   if (!notes) throw new Error(`${targetVersion} 的版本说明不能为空。`);
   return notes;
+}
+
+function appendReleaseMetadata(content, metadata) {
+  for (const key of ["releaseName", "releaseNotes"]) {
+    if (new RegExp(`^${key}:`, "m").test(content)) {
+      throw new Error(`latest.yml 已包含 ${key}，请检查 electron-builder 的更新元数据配置。`);
+    }
+  }
+
+  return [
+    content.trimEnd(),
+    `releaseName: ${JSON.stringify(metadata.releaseName)}`,
+    `releaseNotes: ${JSON.stringify(metadata.releaseNotes.trim())}`,
+    "",
+  ].join("\n");
 }

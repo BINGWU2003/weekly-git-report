@@ -51,6 +51,7 @@ import {
   writeJsonAtomic,
 } from "@weekly-git-report/core";
 import {
+  AI_PROVIDER_BASE_URLS,
   AiConfigSchema,
   ConfigSchema,
   FeishuConfigSchema,
@@ -72,7 +73,6 @@ import type {
   RepositoryRuntimeState,
 } from "@weekly-git-report/shared";
 import {
-  DEFAULT_AI_MODELS,
   approveReportRun,
   cancelReportRun,
   generateBuiltInRun,
@@ -125,6 +125,7 @@ interface OnboardingProgress {
   version: typeof ONBOARDING_VERSION;
   completedAt?: string;
   firstRunId?: string;
+  aiSkippedAt?: string;
 }
 
 export async function getDesktopOverview(): Promise<DesktopOverview> {
@@ -200,7 +201,9 @@ export async function getDesktopOnboardingState(): Promise<OnboardingState> {
       workspaceReady: Boolean(configState.config && !configState.workspaceError),
       repositoryReady: enabledRepositoryCount > 0,
       enabledRepositoryCount,
-      aiReady: Boolean(ai?.testedAt),
+      aiReady: Boolean(ai),
+      aiTested: Boolean(ai?.testedAt),
+      aiSkipped: Boolean(progress.aiSkippedAt),
       templatesReady: templateTypesReady.length === REPORT_TYPES.length,
       templateTypesReady,
       feishuReady: Boolean(feishu?.testedAt),
@@ -242,13 +245,37 @@ export async function completeDesktopOnboarding(runId: string): Promise<Onboardi
   return getDesktopOnboardingState();
 }
 
+export async function skipDesktopOnboardingAi(): Promise<OnboardingState> {
+  const state = await getDesktopOnboardingState();
+  const readiness = state.readiness;
+  if (
+    !readiness.gitReady ||
+    !readiness.configReady ||
+    !readiness.workspaceReady ||
+    !readiness.repositoryReady ||
+    !readiness.templatesReady
+  ) {
+    throw new Error("请先完成基础配置、仓库和报告模板初始化。 ");
+  }
+  const current = await loadOnboardingProgress();
+  const now = new Date().toISOString();
+  await saveOnboardingProgress({
+    ...current,
+    aiSkippedAt: now,
+    completedAt: current.completedAt ?? now,
+  });
+  return getDesktopOnboardingState();
+}
+
 export async function getDesktopAiStatus(): Promise<SecretConfigurationStatus> {
   const config = await loadOptionalAiConfig();
   return config
     ? {
         configured: true,
         provider: config.provider,
-        model: DEFAULT_AI_MODELS[config.provider],
+        baseUrl: config.baseUrl,
+        model: config.model,
+        dataSharingAccepted: true,
         apiKeyMasked: maskApiKey(config.apiKey),
         ...(config.testedAt ? { testedAt: config.testedAt } : {}),
       }
@@ -264,6 +291,14 @@ export async function revealDesktopAi(): Promise<SecretRevealResult> {
 export async function configureDesktopAi(input: AiConfigurationUpdate) {
   const current = await loadOptionalAiConfig();
   const providerChanged = current?.provider !== input.provider;
+  const baseUrl =
+    input.provider === "custom"
+      ? input.baseUrl
+      : AI_PROVIDER_BASE_URLS[input.provider as keyof typeof AI_PROVIDER_BASE_URLS];
+  const parsedConnection = AiConfigSchema.pick({ baseUrl: true, model: true }).parse({
+    baseUrl,
+    model: input.model,
+  });
   const apiKey = input.apiKey === undefined ? undefined : input.apiKey.trim();
   if (!current && !apiKey) throw new Error("API Key 不能为空。 ");
   if (providerChanged && !apiKey) throw new Error("切换供应商后必须填写新的 API Key。 ");
@@ -271,17 +306,29 @@ export async function configureDesktopAi(input: AiConfigurationUpdate) {
   if (!input.dataSharingAccepted) throw new Error("请先确认 AI 数据共享说明。 ");
   const nextApiKey = apiKey ?? current?.apiKey;
   if (!nextApiKey) throw new Error("API Key 不能为空。 ");
-  const changed = !current || providerChanged || nextApiKey !== current.apiKey;
+  const changed =
+    !current ||
+    providerChanged ||
+    parsedConnection.baseUrl !== current.baseUrl ||
+    parsedConnection.model !== current.model ||
+    nextApiKey !== current.apiKey;
   await saveAiConfig(
     AiConfigSchema.parse({
-      version: 1,
+      version: 2,
       provider: input.provider,
+      baseUrl: parsedConnection.baseUrl,
+      model: parsedConnection.model,
       apiKey: nextApiKey,
       dataSharingAcceptedAt:
         !current || providerChanged ? new Date().toISOString() : current.dataSharingAcceptedAt,
       ...(!changed && current?.testedAt ? { testedAt: current.testedAt } : {}),
     }),
   );
+  const progress = await loadOnboardingProgress();
+  if (progress.aiSkippedAt) {
+    const { aiSkippedAt: _aiSkippedAt, ...nextProgress } = progress;
+    await saveOnboardingProgress(nextProgress);
+  }
   return getDesktopAiStatus();
 }
 
@@ -488,7 +535,7 @@ export async function generateDesktopReport(
   onTextDelta: (runId: string, delta: string) => void,
 ): Promise<ReportRun> {
   const ai = await loadOptionalAiConfig();
-  if (!ai?.testedAt) throw new Error("请先配置并测试 AI，再生成报告。");
+  if (!ai) throw new Error("请先配置 AI 服务，再生成报告。");
   const enabledProjects = (await loadProjectsIndex()).projects.filter((project) => project.enabled);
   if (enabledProjects.length === 0) throw new Error("请先添加并启用至少一个仓库。");
   const prepared = await prepareReportRun({
@@ -544,7 +591,7 @@ export async function publishDesktopReport(id: string): Promise<void> {
 
 async function assertTaskAutomationReady(task: ReportTask): Promise<void> {
   const ai = await loadOptionalAiConfig();
-  if (!ai?.testedAt) throw new Error("AI 配置必须先测试成功。 ");
+  if (!ai) throw new Error("请先配置 AI 服务。 ");
   if (task.mode === "autoPublish" && task.publishToFeishu) {
     const feishu = await loadOptionalFeishuConfig();
     if (!feishu?.testedAt) throw new Error("飞书配置必须先测试成功。 ");
@@ -1066,10 +1113,14 @@ async function loadOnboardingProgress(): Promise<OnboardingProgress> {
     if (record.firstRunId !== undefined && typeof record.firstRunId !== "string") {
       throw new Error("桌面初始化运行记录无效。");
     }
+    if (record.aiSkippedAt !== undefined && typeof record.aiSkippedAt !== "string") {
+      throw new Error("AI 跳过状态无效。");
+    }
     return {
       version: ONBOARDING_VERSION,
       ...(typeof record.completedAt === "string" ? { completedAt: record.completedAt } : {}),
       ...(typeof record.firstRunId === "string" ? { firstRunId: record.firstRunId } : {}),
+      ...(typeof record.aiSkippedAt === "string" ? { aiSkippedAt: record.aiSkippedAt } : {}),
     };
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "ENOENT") {

@@ -26,11 +26,18 @@ export interface TasksSnapshot {
 }
 
 export async function loadAiConfig(): Promise<AiConfig> {
-  return readValidatedJson(getAiConfigFilePath(), AiConfigSchema);
+  const value = await readJson(getAiConfigFilePath());
+  if (isLegacyAiConfig(value)) {
+    throw new Error("AI configuration is outdated. Configure the AI service again.");
+  }
+  return AiConfigSchema.parse(value);
 }
 
 export async function loadOptionalAiConfig(): Promise<AiConfig | null> {
-  return readOptionalValidatedJson(getAiConfigFilePath(), AiConfigSchema);
+  const file = getAiConfigFilePath();
+  if ((await getFileRevision(file)) === null) return null;
+  const value = await readJson(file);
+  return isLegacyAiConfig(value) ? null : AiConfigSchema.parse(value);
 }
 
 export async function saveAiConfig(config: AiConfig): Promise<void> {
@@ -117,6 +124,11 @@ async function readValidatedJson<T>(
   return schema.parse(JSON.parse(document.content));
 }
 
+async function readJson(file: string): Promise<unknown> {
+  const document = await readVersionedText(file);
+  return JSON.parse(document.content);
+}
+
 async function readOptionalValidatedJson<T>(
   file: string,
   schema: { parse(value: unknown): T },
@@ -144,4 +156,8 @@ function validateTasks(value: unknown): TasksDocument {
 
 function isNodeError(error: unknown): error is NodeJS.ErrnoException {
   return error instanceof Error && "code" in error;
+}
+
+function isLegacyAiConfig(value: unknown): boolean {
+  return Boolean(value && typeof value === "object" && "version" in value && value.version === 1);
 }

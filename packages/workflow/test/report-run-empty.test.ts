@@ -20,8 +20,10 @@ vi.mock("@weekly-git-report/core", async (importOriginal) => {
     getRunsDatabaseFilePath: () => path.join(mocks.directory, "runs.db"),
     getRunDir: (runId: string) => path.join(mocks.directory, "runs", runId),
     loadOptionalAiConfig: async () => ({
-      version: 1,
+      version: 2,
       provider: "openai",
+      baseUrl: "https://api.openai.com/v1",
+      model: "gpt-5.4-mini",
       apiKey: "test-key",
       dataSharingAcceptedAt: "2026-08-29T00:00:00.000Z",
       testedAt: "2026-08-29T00:00:00.000Z",

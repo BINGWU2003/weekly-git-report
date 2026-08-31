@@ -83,7 +83,7 @@ export function Tasks() {
           ))}
         </div>
         {state.isLoading && <p className='flex items-center gap-2 text-muted-foreground'><Loader2 className='animate-spin' />正在读取任务…</p>}
-        {state.data?.document.tasks.length === 0 && <Card className='border-dashed'><CardHeader className='items-center py-14 text-center'><CalendarClock className='size-8 text-muted-foreground' /><CardTitle>还没有报告任务</CardTitle><CardDescription>先配置并测试 AI，然后创建日报、周报或月报任务。</CardDescription></CardHeader></Card>}
+        {state.data?.document.tasks.length === 0 && <Card className='border-dashed'><CardHeader className='items-center py-14 text-center'><CalendarClock className='size-8 text-muted-foreground' /><CardTitle>还没有报告任务</CardTitle><CardDescription>先配置 AI 服务，然后创建日报、周报或月报任务。</CardDescription></CardHeader></Card>}
       </Main>
       {editing !== undefined && <TaskDialog task={editing} open onOpenChange={(open) => !open && setEditing(undefined)} onSave={updateTask} />}
     </>

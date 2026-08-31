@@ -165,7 +165,8 @@ Usage:
   weekly templates write [--type daily|weekly|monthly|custom] [--file <path>] (--revision <revision>|--force)
   weekly templates reset [--type daily|weekly|monthly|custom] --force
   weekly doctor
-  weekly ai configure|status|test|clear
+  weekly ai configure [--provider openai|deepseek|custom] [--base-url <url>] --model <id> [--accept-data-sharing]
+  weekly ai status|test|clear
   weekly feishu configure|status|test|clear
   weekly tasks list|add|edit|remove|enable|disable|run|execute|schedule
   weekly runs prepare [--type daily|weekly|monthly|custom] [--start <YYYY-MM-DD> --end <YYYY-MM-DD>] [--title <title>] [--report-id <id>]
