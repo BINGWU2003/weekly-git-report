@@ -1,5 +1,15 @@
 # @weekly-git-report/desktop
 
+## 1.1.0
+
+### Minor Changes
+
+- 5d4a697: 支持配置 OpenAI、DeepSeek 和自定义 OpenAI-compatible AI 服务的 API Key、Base URL 与模型；连接测试可选，首次设置可以保存后稍后测试或暂时跳过。
+
+### Patch Changes
+
+- c6beb24: 修复检查更新时可能错误显示内部 workspace 包名称和版本说明的问题，在更新 feed 中显式写入 Desktop Release 元数据，并为检查、下载和安装操作增加 Toast 状态反馈。将设置导航中的“生成模板”统一调整为语义更准确的“报告模板”。
+
 ## 1.0.0
 
 ### Major Changes
