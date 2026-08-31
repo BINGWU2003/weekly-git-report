@@ -262,7 +262,7 @@ export function Reports({
                 }
                 title={
                   !onboarding.data?.readiness.aiReady
-                    ? '请先配置并测试 AI'
+                    ? '请先配置 AI 服务'
                     : !onboarding.data?.readiness.repositoryReady
                       ? '请先添加并启用仓库'
                       : undefined

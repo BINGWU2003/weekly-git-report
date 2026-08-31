@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { userEvent } from 'vitest/browser'
 import { render } from 'vitest-browser-react'
 import type { Config } from '@weekly-git-report/shared'
 import type { DesktopAPI, DesktopReadiness, OnboardingState } from '../../../shared/ipc'
@@ -90,6 +91,34 @@ describe('Setup', () => {
       .element(screen.getByRole('link', { name: '修改设置' }))
       .toHaveAttribute('href', '/settings')
   })
+
+  it('允许暂时跳过 AI 并直接完成首次设置', async () => {
+    const initial = onboardingState({
+      gitReady: true,
+      configReady: true,
+      workspaceReady: true,
+      repositoryReady: true,
+      enabledRepositoryCount: 1,
+      templatesReady: true,
+      templateTypesReady: ['daily', 'weekly', 'monthly', 'custom'],
+    })
+    const skipped: OnboardingState = {
+      ...initial,
+      completedAt: '2026-08-31T00:00:00.000Z',
+      aiSkippedAt: '2026-08-31T00:00:00.000Z',
+      readiness: { ...initial.readiness, aiSkipped: true },
+    }
+    const api = stubApi(initial, true)
+    vi.mocked(api.onboarding.skipAi).mockResolvedValueOnce(skipped)
+    const screen = await renderSetup()
+
+    await userEvent.click(screen.getByRole('button', { name: '暂时跳过', exact: true }))
+
+    await vi.waitFor(() => {
+      expect(api.onboarding.skipAi).toHaveBeenCalledOnce()
+      expect(mocks.navigate).toHaveBeenCalledWith({ to: '/' })
+    })
+  })
 })
 
 function readiness(patch: Partial<DesktopReadiness> = {}): DesktopReadiness {
@@ -100,6 +129,8 @@ function readiness(patch: Partial<DesktopReadiness> = {}): DesktopReadiness {
     repositoryReady: false,
     enabledRepositoryCount: 0,
     aiReady: false,
+    aiTested: false,
+    aiSkipped: false,
     templatesReady: false,
     templateTypesReady: [],
     feishuReady: false,
@@ -113,11 +144,12 @@ function onboardingState(patch: Partial<DesktopReadiness>): OnboardingState {
 }
 
 function stubApi(onboarding: OnboardingState, initialized = false) {
-  vi.stubGlobal('electronAPI', {
+  const api = {
     onboarding: {
       state: vi.fn().mockResolvedValue(onboarding),
       rememberRun: vi.fn(),
       complete: vi.fn(),
+      skipAi: vi.fn(),
     },
     config: {
       state: vi
@@ -130,6 +162,12 @@ function stubApi(onboarding: OnboardingState, initialized = false) {
     },
     projects: {
       state: vi.fn().mockResolvedValue({ projects: [], revision: 'projects-revision' }),
+    },
+    ai: {
+      status: vi.fn().mockResolvedValue({ configured: false }),
+      configure: vi.fn(),
+      test: vi.fn(),
+      clear: vi.fn(),
     },
     system: {
       diagnostics: vi.fn().mockResolvedValue([
@@ -152,7 +190,9 @@ function stubApi(onboarding: OnboardingState, initialized = false) {
       openRelease: vi.fn(),
       onStatusChange: vi.fn().mockReturnValue(vi.fn()),
     },
-  } as unknown as DesktopAPI)
+  } as unknown as DesktopAPI
+  vi.stubGlobal('electronAPI', api)
+  return api
 }
 
 async function renderSetup() {

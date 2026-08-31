@@ -30,6 +30,7 @@ const electronAPI: DesktopAPI = Object.freeze({
     rememberRun: (runId: string | null) =>
       ipcRenderer.invoke(IPC_CHANNELS.onboardingRememberRun, runId),
     complete: (runId: string) => ipcRenderer.invoke(IPC_CHANNELS.onboardingComplete, runId),
+    skipAi: () => ipcRenderer.invoke(IPC_CHANNELS.onboardingSkipAi),
   }),
   config: Object.freeze({
     get: () => ipcRenderer.invoke(IPC_CHANNELS.configGet),

@@ -46,6 +46,8 @@ describe('Dashboard', () => {
             repositoryReady: false,
             enabledRepositoryCount: 0,
             aiReady: false,
+            aiTested: false,
+            aiSkipped: false,
             templatesReady: true,
             templateTypesReady: ['daily', 'weekly', 'monthly', 'custom'],
             feishuReady: false,

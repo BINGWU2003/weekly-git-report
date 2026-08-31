@@ -3,6 +3,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bot, CheckCircle2, Eye, EyeOff, Loader2, RotateCcw, Send, Trash2 } from 'lucide-react'
 import type { AiProvider } from '@weekly-git-report/shared'
 import type { SecretConfigurationStatus } from '../../../../shared/ipc'
+import {
+  AiConnectionFields,
+  initialAiBaseUrl,
+} from '@/components/ai-connection-fields'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -11,7 +15,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes'
 import { getErrorMessage } from '@/lib/errors'
 import { showErrorToast, showSuccessToast, showWarningToast } from '@/lib/toast'
@@ -76,7 +79,11 @@ function AutomationForm({
 }) {
   const queryClient = useQueryClient()
   const [provider, setProvider] = useState<AiProvider>(aiStatus.provider ?? 'openai')
-  const [accepted, setAccepted] = useState(aiStatus.configured)
+  const [baseUrl, setBaseUrl] = useState(
+    aiStatus.baseUrl ?? initialAiBaseUrl(aiStatus.provider ?? 'openai')
+  )
+  const [model, setModel] = useState(aiStatus.model ?? '')
+  const [accepted, setAccepted] = useState(aiStatus.dataSharingAccepted ?? false)
   const [apiKey, setApiKey] = useState<SecretEditorState>(() => secretFromMask(aiStatus.apiKeyMasked))
   const [webhookUrl, setWebhookUrl] = useState<SecretEditorState>(() => secretFromMask(feishuStatus.webhookUrlMasked))
   const [signingSecret, setSigningSecret] = useState<SecretEditorState>(() => secretFromMask(feishuStatus.signingSecretMasked))
@@ -90,9 +97,11 @@ function AutomationForm({
   const aiDirty = useMemo(
     () =>
       provider !== (aiStatus.provider ?? 'openai') ||
-      accepted !== aiStatus.configured ||
+      baseUrl !== (aiStatus.baseUrl ?? initialAiBaseUrl(aiStatus.provider ?? 'openai')) ||
+      model !== (aiStatus.model ?? '') ||
+      accepted !== (aiStatus.dataSharingAccepted ?? false) ||
       secretIsDirty(apiKey, aiStatus.configured),
-    [accepted, aiStatus, apiKey, provider]
+    [accepted, aiStatus, apiKey, baseUrl, model, provider]
   )
   const feishuDirty = useMemo(
     () =>
@@ -104,27 +113,34 @@ function AutomationForm({
   useUnsavedChanges(aiDirty || feishuDirty)
 
   const aiSave = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (testAfterSave: boolean) => {
       const apiKeyUpdate = secretUpdate(apiKey)
       const saved = await window.electronAPI.ai.configure({
         provider,
+        baseUrl,
+        model,
         dataSharingAccepted: accepted,
         ...(apiKeyUpdate !== undefined ? { apiKey: apiKeyUpdate } : {}),
       })
+      if (!testAfterSave) return { status: saved, tested: false }
       try {
-        return { status: await window.electronAPI.ai.test() }
+        return { status: await window.electronAPI.ai.test(), tested: true }
       } catch (error) {
-        return { status: saved, testError: getErrorMessage(error) }
+        return { status: saved, tested: true, testError: getErrorMessage(error) }
       }
     },
-    onSuccess: ({ status, testError }) => {
+    onSuccess: ({ status, tested, testError }) => {
       queryClient.setQueryData(['ai-status'], status)
       setProvider(status.provider ?? 'openai')
-      setAccepted(status.configured)
+      setBaseUrl(status.baseUrl ?? initialAiBaseUrl(status.provider ?? 'openai'))
+      setModel(status.model ?? '')
+      setAccepted(status.dataSharingAccepted ?? false)
       setApiKey(secretFromMask(status.apiKeyMasked))
       setAiTestError(testError)
       if (testError) {
         showErrorToast(`AI 配置已保存，但连接测试失败：${testError}`)
+      } else if (!tested) {
+        showSuccessToast('AI 配置已保存，尚未测试')
       } else {
         showSuccessToast('AI 配置已保存，连接正常')
       }
@@ -196,6 +212,8 @@ function AutomationForm({
       queryClient.setQueryData([`${target}-status`], status)
       if (target === 'ai') {
         setProvider('openai')
+        setBaseUrl(initialAiBaseUrl('openai'))
+        setModel('')
         setAccepted(false)
         setApiKey(emptySecret())
         setAiTestError(undefined)
@@ -266,18 +284,23 @@ function AutomationForm({
 
   const changeProvider = (next: AiProvider) => {
     setProvider(next)
+    setModel('')
     setAiTestError(undefined)
     if (next === aiStatus.provider) {
-      setAccepted(aiStatus.configured)
+      setBaseUrl(aiStatus.baseUrl ?? initialAiBaseUrl(next))
+      setAccepted(aiStatus.dataSharingAccepted ?? false)
       setApiKey(secretFromMask(aiStatus.apiKeyMasked))
       return
     }
+    setBaseUrl(initialAiBaseUrl(next))
     setAccepted(false)
     setApiKey(emptySecret())
   }
   const resetAi = () => {
     setProvider(aiStatus.provider ?? 'openai')
-    setAccepted(aiStatus.configured)
+    setBaseUrl(aiStatus.baseUrl ?? initialAiBaseUrl(aiStatus.provider ?? 'openai'))
+    setModel(aiStatus.model ?? '')
+    setAccepted(aiStatus.dataSharingAccepted ?? false)
     setApiKey(secretFromMask(aiStatus.apiKeyMasked))
     setAiTestError(undefined)
   }
@@ -312,22 +335,22 @@ function AutomationForm({
           <CardHeading
             icon={<Bot />}
             title='AI 生成'
-            desc='选择供应商并填写 API 密钥，其他参数由应用自动管理。'
+            desc='配置 AI 服务、API 地址、模型和密钥。'
             status={<Status status={aiStatus} dirty={aiDirty} failed={Boolean(aiTestError)} />}
           />
         </CardHeader>
         <CardContent className='space-y-4'>
+          <AiConnectionFields
+            idPrefix='settings-ai'
+            provider={provider}
+            baseUrl={baseUrl}
+            model={model}
+            disabled={aiBusy}
+            onProviderChange={changeProvider}
+            onBaseUrlChange={setBaseUrl}
+            onModelChange={setModel}
+          />
           <div className='grid gap-4 sm:grid-cols-2'>
-            <div className='space-y-2'>
-              <Label>供应商</Label>
-              <Select value={provider} onValueChange={(value) => changeProvider(value as AiProvider)} disabled={aiBusy}>
-                <SelectTrigger className='w-full'><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value='openai'>OpenAI</SelectItem>
-                  <SelectItem value='deepseek'>DeepSeek</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
             <SecretField
               id='ai-key'
               label='API 密钥'
@@ -347,14 +370,15 @@ function AutomationForm({
           </Alert>
           <label className='flex items-start gap-2 text-sm'>
             <Checkbox checked={accepted} onCheckedChange={(value) => setAccepted(value === true)} disabled={aiBusy} />
-            <span>我已了解并同意在生成报告时将上述数据发送给所选供应商。</span>
+            <span>我已了解并同意在生成报告时将上述数据发送到我配置的 AI 服务。</span>
           </label>
           {aiTestError && <TestError message={aiTestError} />}
           <div className='flex flex-wrap justify-end gap-2'>
             {aiStatus.configured && <Button variant='ghost' onClick={() => requestClear('ai')} disabled={aiBusy}><Trash2 />清除配置</Button>}
             {aiDirty && <Button variant='outline' onClick={resetAi} disabled={aiBusy}><RotateCcw />取消修改</Button>}
             {aiStatus.configured && !aiDirty && <Button variant='outline' onClick={() => aiTest.mutate()} disabled={aiBusy}>{aiTest.isPending ? <Loader2 className='animate-spin' /> : <CheckCircle2 />}重新测试</Button>}
-            <Button onClick={() => aiSave.mutate()} disabled={!aiDirty || !accepted || (aiNeedsKey && !aiKeyValue) || (aiSecretDirty && !aiKeyValue) || aiBusy}>{aiSave.isPending && <Loader2 className='animate-spin' />}保存并测试</Button>
+            <Button variant='outline' onClick={() => aiSave.mutate(false)} disabled={!aiDirty || !accepted || !baseUrl.trim() || !model.trim() || (aiNeedsKey && !aiKeyValue) || (aiSecretDirty && !aiKeyValue) || aiBusy}>{aiSave.isPending && <Loader2 className='animate-spin' />}保存配置</Button>
+            <Button onClick={() => aiSave.mutate(true)} disabled={!aiDirty || !accepted || !baseUrl.trim() || !model.trim() || (aiNeedsKey && !aiKeyValue) || (aiSecretDirty && !aiKeyValue) || aiBusy}>{aiSave.isPending && <Loader2 className='animate-spin' />}保存并测试</Button>
           </div>
         </CardContent>
       </Card>
@@ -420,7 +444,7 @@ function AutomationForm({
         open={Boolean(clearTarget)}
         onOpenChange={(open) => !open && setClearTarget(undefined)}
         title={clearTarget === 'ai' ? '清除 AI 配置？' : '清除飞书配置？'}
-        desc={clearTarget === 'ai' ? '清除后，现有报告任务不会被修改，但后续报告生成会失败，直到重新配置并测试 AI。' : '清除后，现有报告任务不会被修改，但启用了飞书推送的任务会在推送阶段失败。'}
+        desc={clearTarget === 'ai' ? '清除后，现有报告任务不会被修改，但后续报告生成会失败，直到重新配置 AI 服务。' : '清除后，现有报告任务不会被修改，但启用了飞书推送的任务会在推送阶段失败。'}
         cancelBtnText='取消'
         confirmText='确认清除'
         destructive

@@ -110,15 +110,25 @@ export function Dashboard() {
           </Alert>
         ) : onboarding.data?.completedAt &&
           (!onboarding.data.readiness.repositoryReady ||
-            !onboarding.data.readiness.aiReady ||
             !onboarding.data.readiness.templatesReady) ? (
           <Alert variant='destructive'>
             <TriangleAlert />
             <AlertTitle>报告生成条件需要修复</AlertTitle>
             <AlertDescription>
-              仓库、AI 连接或报告模板已不再就绪。前往首次设置检查并修复。
+              仓库或报告模板已不再就绪。前往首次设置检查并修复。
               <Button asChild size='sm' variant='outline' className='mt-2 ms-2'>
                 <Link to='/setup'>查看检查清单</Link>
+              </Button>
+            </AlertDescription>
+          </Alert>
+        ) : onboarding.data?.completedAt && !onboarding.data.readiness.aiReady ? (
+          <Alert>
+            <TriangleAlert />
+            <AlertTitle>AI 服务尚未配置</AlertTitle>
+            <AlertDescription>
+              配置 API Key、Base URL 和模型后即可生成报告。
+              <Button asChild size='sm' variant='outline' className='mt-2 ms-2'>
+                <Link to='/settings/automation'>配置 AI</Link>
               </Button>
             </AlertDescription>
           </Alert>

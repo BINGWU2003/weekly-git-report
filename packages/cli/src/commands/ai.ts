@@ -1,6 +1,6 @@
-import { AiConfigSchema, AiProviderSchema } from "@weekly-git-report/shared";
+import { AI_PROVIDER_BASE_URLS, AiConfigSchema, AiProviderSchema } from "@weekly-git-report/shared";
 import { clearAiConfig, loadOptionalAiConfig, saveAiConfig } from "@weekly-git-report/core";
-import { DEFAULT_AI_MODELS, testAiConfiguration } from "@weekly-git-report/workflow";
+import { testAiConfiguration } from "@weekly-git-report/workflow";
 
 import { printJson, readStdin } from "../utils/output.js";
 import { promptOptions, prompts } from "../utils/prompt.js";
@@ -22,9 +22,13 @@ export async function runAiCommand(subcommand: string | undefined, args: string[
 
 async function configure(args: string[]): Promise<void> {
   const providerOption = option(args, "--provider");
+  const baseUrlOption = option(args, "--base-url");
+  const modelOption = option(args, "--model");
   const accepted = args.includes("--accept-data-sharing");
-  rejectUnknown(args, ["--provider", "--accept-data-sharing"]);
+  rejectUnknown(args, ["--provider", "--base-url", "--model", "--accept-data-sharing"]);
   let provider = providerOption ? AiProviderSchema.parse(providerOption) : undefined;
+  let baseUrl = baseUrlOption?.trim();
+  let model = modelOption?.trim();
   let apiKey: string;
   if (process.stdin.isTTY && process.stdout.isTTY) {
     if (!provider) {
@@ -36,19 +40,43 @@ async function configure(args: string[]): Promise<void> {
           choices: [
             { title: "OpenAI", value: "openai" },
             { title: "DeepSeek", value: "deepseek" },
+            { title: "Custom OpenAI-compatible service", value: "custom" },
           ],
         },
         promptOptions(),
       );
       provider = AiProviderSchema.parse(selected.provider);
     }
+    if (provider === "custom" && !baseUrl) {
+      const answer = await prompts(
+        {
+          type: "text",
+          name: "baseUrl",
+          message: "AI API Base URL",
+          validate: (value: string) => Boolean(value.trim()) || "Base URL is required",
+        },
+        promptOptions(),
+      );
+      baseUrl = String(answer.baseUrl).trim();
+    }
+    if (!model) {
+      const answer = await prompts(
+        {
+          type: "text",
+          name: "model",
+          message: "AI model ID",
+          validate: (value: string) => Boolean(value.trim()) || "Model is required",
+        },
+        promptOptions(),
+      );
+      model = String(answer.model).trim();
+    }
     if (!accepted) {
       const consent = await prompts(
         {
           type: "confirm",
           name: "accepted",
-          message:
-            "生成时将仓库名、分支、提交 Hash/时间/标题/正文和作者姓名发送给供应商；确认继续？",
+          message: "生成时会将报告数据发送到你配置的 AI 服务；确认继续？",
           initial: false,
         },
         promptOptions(),
@@ -66,22 +94,35 @@ async function configure(args: string[]): Promise<void> {
     );
     apiKey = String(answer.apiKey).trim();
   } else {
-    if (!provider || !accepted) {
+    if (!provider || !model || !accepted || (provider === "custom" && !baseUrl)) {
       throw new Error(
-        "Non-interactive configure requires --provider and --accept-data-sharing; pipe the API Key to stdin.",
+        "Non-interactive configure requires --provider, --model and --accept-data-sharing; custom also requires --base-url. Pipe the API Key to stdin.",
       );
     }
     apiKey = (await readStdin(process.stdin, "Pipe the API Key to stdin.")).trim();
   }
-  await saveAiConfig(
-    AiConfigSchema.parse({
-      version: 1,
-      provider,
-      apiKey,
-      dataSharingAcceptedAt: new Date().toISOString(),
-    }),
-  );
-  printJson({ configured: true, provider, model: DEFAULT_AI_MODELS[provider] });
+  if (provider !== "custom" && baseUrlOption) {
+    throw new Error("--base-url is only supported with --provider custom.");
+  }
+  baseUrl =
+    provider === "custom"
+      ? baseUrl
+      : AI_PROVIDER_BASE_URLS[provider as keyof typeof AI_PROVIDER_BASE_URLS];
+  const config = AiConfigSchema.parse({
+    version: 2,
+    provider,
+    baseUrl,
+    model,
+    apiKey,
+    dataSharingAcceptedAt: new Date().toISOString(),
+  });
+  await saveAiConfig(config);
+  printJson({
+    configured: true,
+    provider: config.provider,
+    baseUrl: config.baseUrl,
+    model: config.model,
+  });
 }
 
 async function status(args: string[]): Promise<void> {
@@ -92,7 +133,8 @@ async function status(args: string[]): Promise<void> {
       ? {
           configured: true,
           provider: config.provider,
-          model: DEFAULT_AI_MODELS[config.provider],
+          baseUrl: config.baseUrl,
+          model: config.model,
           testedAt: config.testedAt ?? null,
         }
       : { configured: false },
@@ -103,9 +145,11 @@ async function test(args: string[]): Promise<void> {
   assertNoArgs(args);
   const config = await loadOptionalAiConfig();
   if (!config) throw new Error("AI is not configured.");
-  const result = await testAiConfiguration(config);
+  const { testedAt: _testedAt, ...untested } = config;
+  if (config.testedAt) await saveAiConfig(untested);
+  const result = await testAiConfiguration(untested);
   const testedAt = new Date().toISOString();
-  await saveAiConfig({ ...config, testedAt });
+  await saveAiConfig({ ...untested, testedAt });
   printJson({ ...result, testedAt });
 }
 
@@ -127,7 +171,7 @@ function rejectUnknown(args: string[], supported: string[]): void {
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index]!;
     if (!supported.includes(arg)) throw new Error(`Unknown option: ${arg}`);
-    if (arg === "--provider") index += 1;
+    if (arg !== "--accept-data-sharing") index += 1;
   }
 }
 

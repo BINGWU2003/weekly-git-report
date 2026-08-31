@@ -189,7 +189,7 @@ async function run(args: string[], trigger: "manual" | "scheduled"): Promise<voi
 
 async function assertAutomationReady(task: ReportTask): Promise<void> {
   const ai = await loadOptionalAiConfig();
-  if (!ai?.testedAt) throw new Error("AI configuration must pass a connection test first.");
+  if (!ai) throw new Error("AI must be configured first.");
   if (task.mode === "autoPublish" && task.publishToFeishu) {
     const feishu = await loadOptionalFeishuConfig();
     if (!feishu?.testedAt)

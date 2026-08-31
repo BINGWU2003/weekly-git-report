@@ -197,8 +197,8 @@ export async function generateBuiltInRun(
   try {
     run = store.replace({ ...run, ...startStep(run, "generate"), updatedAt: now() });
     const aiConfig = await loadOptionalAiConfig();
-    if (!aiConfig?.testedAt)
-      throw new RunOperationError("AI_NOT_TESTED", "AI 配置尚未测试成功。", "generate");
+    if (!aiConfig)
+      throw new RunOperationError("AI_NOT_CONFIGURED", "请先配置 AI 服务。", "generate");
     const generationInput = GenerationInputSchema.parse(
       JSON.parse(await readFile(required(run.generationInputPath), "utf8")),
     );

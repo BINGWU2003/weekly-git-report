@@ -67,6 +67,7 @@ import {
   saveDesktopTasks,
   scanDesktopRepositoryFolder,
   setDesktopRepositoryEnabled,
+  skipDesktopOnboardingAi,
   syncDesktopRepositories,
   testDesktopAi,
   testDesktopFeishu,
@@ -84,6 +85,7 @@ export function registerIpcHandlers(): void {
     if (typeof runId !== "string") throw new Error("Run id 不能为空。");
     return completeDesktopOnboarding(runId);
   });
+  ipcMain.handle(IPC_CHANNELS.onboardingSkipAi, () => skipDesktopOnboardingAi());
   ipcMain.handle(IPC_CHANNELS.configGet, () => loadOptionalConfig());
   ipcMain.handle(IPC_CHANNELS.configState, () => getConfigState());
   ipcMain.handle(IPC_CHANNELS.configDefaults, () => getConfigInitializationDefaults());
@@ -212,8 +214,13 @@ export function registerIpcHandlers(): void {
     if (input.apiKey !== undefined && typeof input.apiKey !== "string") {
       throw new Error("API Key 无效。");
     }
+    if (typeof input.baseUrl !== "string" || typeof input.model !== "string") {
+      throw new Error("AI Base URL 和模型不能为空。");
+    }
     return configureDesktopAi({
       provider: AiProviderSchema.parse(input.provider),
+      baseUrl: input.baseUrl,
+      model: input.model,
       dataSharingAccepted: input.dataSharingAccepted,
       ...(typeof input.apiKey === "string" ? { apiKey: input.apiKey } : {}),
     });

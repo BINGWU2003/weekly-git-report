@@ -65,7 +65,7 @@ weekly doctor
 | `weekly templates write [options]`                     | 否   | 从文件或 stdin 更新模板               |
 | `weekly templates reset --force`                       | 否   | 恢复内置默认模板                      |
 | `weekly doctor`                                        | 否   | 检查 Git、配置、模板、仓库和报告      |
-| `weekly ai configure\|status\|test\|clear`             | 可选 | 管理 OpenAI 或 DeepSeek               |
+| `weekly ai configure\|status\|test\|clear`             | 可选 | 管理 AI 服务、Base URL、模型和密钥    |
 | `weekly feishu configure\|status\|test\|clear`         | 可选 | 管理飞书群机器人                      |
 | `weekly tasks list\|add\|edit\|remove`                 | 否   | 管理报告任务                          |
 | `weekly tasks enable\|disable\|run\|execute\|schedule` | 否   | 启停、立即执行或同步系统调度          |
@@ -177,7 +177,14 @@ weekly templates reset --type monthly --force
 
 ## AI 与飞书
 
-AI 支持 OpenAI 与 DeepSeek。配置时需要接受数据发送说明并完成连接测试；模型和生成参数由应用管理。
+AI 支持 OpenAI、DeepSeek 与自定义 OpenAI Chat Completions 兼容服务。模型必须明确提供；自定义服务还必须提供完整 API Base URL。保存后可以单独执行连接测试，未测试的有效配置也可以尝试生成报告。
+
+非交互配置示例：
+
+```sh
+printf '%s' "$AI_API_KEY" | weekly ai configure --provider openai --model gpt-5.4-mini --accept-data-sharing
+printf '%s' "$AI_API_KEY" | weekly ai configure --provider custom --base-url https://example.com/v1 --model custom-model --accept-data-sharing
+```
 
 飞书支持一个全局群自定义机器人 Webhook 和可选签名密钥。非交互配置从 stdin 读取敏感值：AI 读取 API 密钥文本，飞书读取包含 `webhookUrl` 和可选 `signingSecret` 的 JSON，避免密钥出现在 shell 历史和进程参数中。
 

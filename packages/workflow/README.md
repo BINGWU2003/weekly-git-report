@@ -11,7 +11,7 @@ CLI / MCP / Desktop Main → Workflow → Core → Shared
 - 编排 ReportRun 的排队、同步、采集、生成、审核、保存、发布、取消和重试。
 - 使用 Node.js 内置 SQLite 持久化 Run 与步骤状态，并协调跨进程活动槽位。
 - 生成和验证脱敏 `generationInput`、模板 revision 与 Raw manifest 哈希。
-- 通过 AI SDK 连接 OpenAI 和 DeepSeek，流式写入草稿。
+- 通过 AI SDK 连接 OpenAI、DeepSeek 和 OpenAI-compatible 服务，流式写入草稿。
 - 保存报告正文与关联信息文件，处理历史备份和强制覆盖确认。
 - 校验报告内容后构建飞书卡片、签名并执行有限网络重试。
 - 将报告任务同步到 Windows Task Scheduler、macOS `launchd` 和 Linux 用户级 `systemd timer`。
@@ -38,7 +38,7 @@ CLI / MCP / Desktop Main → Workflow → Core → Shared
 
 ## 外部集成
 
-- **AI**：仅 OpenAI 与 DeepSeek，不自动重试或切换供应商；模型和参数由应用版本管理。
+- **AI**：支持 OpenAI、DeepSeek 和 OpenAI Chat Completions 兼容服务；Base URL 与模型由用户配置，生成不自动重试或切换服务。
 - **飞书**：只发送有效的已保存报告；临时网络/限流最多重试 3 次，即最多 4 次请求。
 - **调度**：注册系统原生一次性触发命令，不运行常驻轮询服务。
 

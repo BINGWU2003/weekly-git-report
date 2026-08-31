@@ -2,6 +2,10 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bot, CheckCircle2, Loader2, Send, Trash2 } from 'lucide-react'
 import type { AiProvider } from '@weekly-git-report/shared'
+import {
+  AiConnectionFields,
+  initialAiBaseUrl,
+} from '@/components/ai-connection-fields'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -9,13 +13,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { desktopQueryKeys } from '@/lib/desktop-queries'
 import { getErrorMessage } from '@/lib/errors'
 import { showErrorToast, showSuccessToast } from '@/lib/toast'
@@ -23,42 +20,74 @@ import type { SecretConfigurationStatus } from '../../../shared/ipc'
 
 export function AiConfigCard({
   setup = false,
-  onTested,
+  onSaved,
+  onSkip,
+  skipping = false,
 }: {
   setup?: boolean
-  onTested?(status: SecretConfigurationStatus): void
+  onSaved?(status: SecretConfigurationStatus): void
+  onSkip?(): void
+  skipping?: boolean
 }) {
   const queryClient = useQueryClient()
   const [providerOverride, setProviderOverride] = useState<AiProvider>()
+  const [baseUrlOverride, setBaseUrlOverride] = useState<string>()
+  const [modelOverride, setModelOverride] = useState<string>()
   const [apiKey, setApiKey] = useState('')
-  const [accepted, setAccepted] = useState(false)
+  const [acceptedOverride, setAcceptedOverride] = useState<boolean>()
   const ai = useQuery({
     queryKey: desktopQueryKeys.aiStatus,
     queryFn: () => window.electronAPI.ai.status(),
   })
 
   const provider = providerOverride ?? ai.data?.provider ?? 'openai'
+  const baseUrl =
+    baseUrlOverride ?? ai.data?.baseUrl ?? initialAiBaseUrl(ai.data?.provider ?? 'openai')
+  const model = modelOverride ?? ai.data?.model ?? ''
+  const accepted = acceptedOverride ?? ai.data?.dataSharingAccepted ?? false
+
+  function changeProvider(next: AiProvider) {
+    setProviderOverride(next)
+    setBaseUrlOverride(
+      next === ai.data?.provider
+        ? (ai.data.baseUrl ?? initialAiBaseUrl(next))
+        : initialAiBaseUrl(next)
+    )
+    setModelOverride(next === ai.data?.provider ? (ai.data.model ?? '') : '')
+    setApiKey('')
+  }
 
   const action = useMutation({
     mutationFn: async (nextAction: 'save' | 'test' | 'save-and-test' | 'clear') => {
       if (nextAction === 'clear') return window.electronAPI.ai.clear()
       if (nextAction === 'test') return window.electronAPI.ai.test()
-      await window.electronAPI.ai.configure({
+      const saved = await window.electronAPI.ai.configure({
         provider,
-        apiKey,
+        baseUrl,
+        model,
+        ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
         dataSharingAccepted: accepted,
       })
-      return nextAction === 'save-and-test'
-        ? window.electronAPI.ai.test()
-        : window.electronAPI.ai.status()
+      if (nextAction === 'save') return { status: saved, testError: undefined }
+      try {
+        return { status: await window.electronAPI.ai.test(), testError: undefined }
+      } catch (error) {
+        return { status: saved, testError: getErrorMessage(error) }
+      }
     },
-    onSuccess: async (status, nextAction) => {
+    onSuccess: async (result, nextAction) => {
+      const status = 'status' in result ? result.status : result
+      const testError = 'testError' in result ? result.testError : undefined
       setApiKey('')
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: desktopQueryKeys.aiStatus }),
         queryClient.invalidateQueries({ queryKey: desktopQueryKeys.onboarding }),
       ])
-      if (status.testedAt) onTested?.(status)
+      if ((nextAction === 'save' || nextAction === 'save-and-test') && !testError) onSaved?.(status)
+      if (testError) {
+        showErrorToast(`AI 配置已保存，但连接测试失败：${testError}`)
+        return
+      }
       showSuccessToast(
         nextAction === 'test' || nextAction === 'save-and-test'
           ? 'AI 配置已保存，连接正常'
@@ -70,7 +99,14 @@ export function AiConfigCard({
     onError: (error) => showErrorToast(getErrorMessage(error)),
   })
 
-  const canSubmit = Boolean(apiKey.trim() && accepted && !action.isPending)
+  const needsKey = !ai.data?.configured || provider !== ai.data.provider
+  const canSubmit = Boolean(
+    baseUrl.trim() &&
+      model.trim() &&
+      accepted &&
+      (!needsKey || apiKey.trim()) &&
+      !action.isPending
+  )
 
   return (
     <Card>
@@ -81,38 +117,22 @@ export function AiConfigCard({
               <Bot />
               AI 生成
             </CardTitle>
-            <CardDescription>选择供应商并填写 API 密钥，其他参数由应用自动管理。</CardDescription>
+            <CardDescription>配置 AI 服务、API 地址、模型和密钥。</CardDescription>
           </div>
           <Status configured={ai.data?.configured} tested={Boolean(ai.data?.testedAt)} />
         </div>
       </CardHeader>
       <CardContent className='space-y-4'>
-        <div className='grid gap-4 sm:grid-cols-2'>
-          <div className='space-y-2'>
-            <Label>供应商</Label>
-            <Select
-              value={provider}
-              onValueChange={(value) => setProviderOverride(value as AiProvider)}
-              disabled={action.isPending}
-            >
-              <SelectTrigger className='w-full'>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value='openai'>OpenAI</SelectItem>
-                <SelectItem value='deepseek'>DeepSeek</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className='space-y-2'>
-            <Label>模型</Label>
-            <Input
-              value={ai.data?.model ?? '保存配置后由应用确定'}
-              readOnly
-              className='bg-muted/50'
-            />
-          </div>
-        </div>
+        <AiConnectionFields
+          idPrefix={setup ? 'setup-ai' : 'ai'}
+          provider={provider}
+          baseUrl={baseUrl}
+          model={model}
+          disabled={action.isPending}
+          onProviderChange={changeProvider}
+          onBaseUrlChange={setBaseUrlOverride}
+          onModelChange={setModelOverride}
+        />
         <div className='space-y-2'>
           <Label htmlFor='ai-key'>API 密钥</Label>
           <Input
@@ -130,8 +150,11 @@ export function AiConfigCard({
           </AlertDescription>
         </Alert>
         <label className='flex items-start gap-2 text-sm'>
-          <Checkbox checked={accepted} onCheckedChange={(value) => setAccepted(value === true)} />
-          <span>我已了解并同意在生成报告时将上述数据发送给所选供应商。</span>
+          <Checkbox
+            checked={accepted}
+            onCheckedChange={(value) => setAcceptedOverride(value === true)}
+          />
+          <span>我已了解并同意在生成报告时将上述数据发送到我配置的 AI 服务。</span>
         </label>
         <div className='flex flex-wrap justify-end gap-2'>
           {ai.data?.configured ? (
@@ -144,6 +167,12 @@ export function AiConfigCard({
               清除配置
             </Button>
           ) : null}
+          {setup && onSkip ? (
+            <Button variant='ghost' onClick={onSkip} disabled={action.isPending || skipping}>
+              {skipping ? <Loader2 className='animate-spin' /> : null}
+              暂时跳过
+            </Button>
+          ) : null}
           {ai.data?.configured && !apiKey.trim() ? (
             <Button
               variant='outline'
@@ -154,12 +183,19 @@ export function AiConfigCard({
               测试连接
             </Button>
           ) : null}
-          <Button
-            onClick={() => action.mutate(setup ? 'save-and-test' : 'save')}
-            disabled={!canSubmit}
-          >
+          {setup ? (
+            <Button
+              variant='outline'
+              onClick={() => action.mutate('save')}
+              disabled={!canSubmit}
+            >
+              {action.isPending ? <Loader2 className='animate-spin' /> : <CheckCircle2 />}
+              保存，稍后测试
+            </Button>
+          ) : null}
+          <Button onClick={() => action.mutate('save-and-test')} disabled={!canSubmit}>
             {action.isPending ? <Loader2 className='animate-spin' /> : <CheckCircle2 />}
-            {setup ? '保存并测试' : '保存 AI 配置'}
+            保存并测试
           </Button>
         </div>
       </CardContent>

@@ -81,7 +81,7 @@ export function Setup() {
     Boolean(readiness?.gitReady && readiness.configReady && readiness.workspaceReady),
     Boolean(readiness?.configReady),
     Boolean(readiness?.repositoryReady),
-    Boolean(readiness?.aiReady),
+    Boolean(readiness?.aiReady || readiness?.aiSkipped),
     Boolean(readiness?.firstReportReady),
     Boolean(onboarding.data?.completedAt),
   ]
@@ -132,6 +132,16 @@ export function Setup() {
       await queryClient.invalidateQueries({ queryKey: desktopQueryKeys.overview })
       setSelectedStep(5)
       showSuccessToast('首次设置已完成')
+    },
+    onError: (error) => showErrorToast(getErrorMessage(error)),
+  })
+  const skipAi = useMutation({
+    mutationFn: () => window.electronAPI.onboarding.skipAi(),
+    onSuccess: async (next) => {
+      queryClient.setQueryData(desktopQueryKeys.onboarding, next)
+      await queryClient.invalidateQueries({ queryKey: desktopQueryKeys.overview })
+      showSuccessToast('已跳过 AI 配置，可以稍后在设置中完成')
+      await navigate({ to: '/' })
     },
     onError: (error) => showErrorToast(getErrorMessage(error)),
   })
@@ -397,15 +407,20 @@ export function Setup() {
 
         <SetupStep
           index={3}
-          title='配置并测试 AI'
-          description='保存密钥后立即测试 AI 是否可以正常连接。'
+          title='配置 AI 服务'
+          description='选择服务地址和模型；可以保存后稍后测试，也可以暂时跳过。'
           active={activeStep === 3}
           completed={completion[3]}
           available={availability[3]}
           onOpen={() => setSelectedStep(3)}
         >
           <div className='space-y-4'>
-            <AiConfigCard setup onTested={() => setSelectedStep(4)} />
+            <AiConfigCard
+              setup
+              onSaved={() => setSelectedStep(4)}
+              onSkip={() => skipAi.mutate()}
+              skipping={skipAi.isPending}
+            />
             {readiness?.aiReady ? (
               <div className='flex justify-end'>
                 <Button onClick={() => setSelectedStep(4)}>
@@ -580,7 +595,7 @@ function CompletedChecklist({
     ['环境与目录', readiness.gitReady && readiness.configReady && readiness.workspaceReady],
     ['Git 作者身份', readiness.configReady],
     ['启用仓库', readiness.repositoryReady],
-    ['AI 连接', readiness.aiReady],
+    ['AI 配置（可选）', readiness.aiReady || readiness.aiSkipped],
     ['四套报告模板', readiness.templatesReady],
     ['首份报告', readiness.firstReportReady],
     ['飞书推送（可选）', readiness.feishuReady],
