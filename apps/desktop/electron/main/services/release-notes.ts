@@ -1,5 +1,23 @@
 import type { UpdateInfo } from "electron-updater";
 
+interface DesktopReleaseMetadata {
+  releaseName?: string;
+  releaseNotes?: string;
+}
+
+export function normalizeDesktopReleaseMetadata(
+  info: Pick<UpdateInfo, "releaseName" | "releaseNotes">,
+): DesktopReleaseMetadata {
+  const releaseName = info.releaseName?.trim() || undefined;
+  const releaseNotes = normalizeReleaseNotes(info.releaseNotes);
+
+  if (isForeignWorkspaceRelease(releaseName) || isForeignWorkspaceRelease(releaseNotes)) {
+    return {};
+  }
+
+  return { releaseName, releaseNotes };
+}
+
 export function normalizeReleaseNotes(notes: UpdateInfo["releaseNotes"]): string | undefined {
   if (typeof notes === "string") return normalizeReleaseNoteBody(notes);
   if (!Array.isArray(notes)) return undefined;
@@ -36,6 +54,11 @@ function normalizeReleaseNoteBody(content: string): string | undefined {
     .trim();
 
   return markdown || undefined;
+}
+
+function isForeignWorkspaceRelease(value: string | undefined): boolean {
+  if (!value) return false;
+  return /^@weekly-git-report\/(?!desktop@)[^\s@]+@\d+\.\d+\.\d+(?:-[^\s]+)?$/.test(value.trim());
 }
 
 function decodeHtmlEntity(entity: string, value: string): string {

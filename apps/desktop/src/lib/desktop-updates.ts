@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query'
 
 export const desktopUpdateQueryKey = ['desktop-update-status'] as const
+export const desktopUpdateAvailableToastId = 'desktop-update-available'
 
 export const desktopUpdateQueryOptions = queryOptions({
   queryKey: desktopUpdateQueryKey,

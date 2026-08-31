@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@tanstack/react-router', () => ({ useNavigate: () => mocks.navigate }))
 vi.mock('sonner', () => ({ toast: mocks.toast }))
 vi.mock('@/lib/desktop-updates', () => ({
+  desktopUpdateAvailableToastId: 'desktop-update-available',
   useDesktopUpdateStatus: () => ({ data: mocks.status }),
 }))
 

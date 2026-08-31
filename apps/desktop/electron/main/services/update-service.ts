@@ -3,7 +3,7 @@ import log from "electron-log/main";
 import { autoUpdater, type ProgressInfo, type UpdateInfo } from "electron-updater";
 
 import type { DesktopUpdateStatus } from "../../../shared/ipc.js";
-import { normalizeReleaseNotes } from "./release-notes.js";
+import { normalizeDesktopReleaseMetadata } from "./release-notes.js";
 import {
   getActiveRunInstallBlockReason,
   isDesktopUpdaterSupported,
@@ -247,13 +247,14 @@ function statusFromInfo(
   phase: Extract<DesktopUpdateStatus["phase"], "available" | "up-to-date" | "downloaded">,
   info: UpdateInfo,
 ): DesktopUpdateStatus {
+  const release = normalizeDesktopReleaseMetadata(info);
   return {
     phase,
     currentVersion: app.getVersion(),
     latestVersion: info.version,
-    releaseName: info.releaseName ?? undefined,
+    releaseName: release.releaseName,
     releaseDate: info.releaseDate,
-    releaseNotes: normalizeReleaseNotes(info.releaseNotes),
+    releaseNotes: release.releaseNotes,
     releaseUrl: RELEASE_URL,
     checkedAt: new Date().toISOString(),
   };

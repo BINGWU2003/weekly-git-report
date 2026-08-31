@@ -5,6 +5,16 @@ import { render } from 'vitest-browser-react'
 import type { DesktopAPI, DesktopUpdateStatus } from '../../../../shared/ipc'
 import { DesktopUpdatePanel } from './index'
 
+const toast = vi.hoisted(() => ({
+  dismiss: vi.fn(),
+  error: vi.fn(),
+  info: vi.fn(),
+  loading: vi.fn(),
+  success: vi.fn(),
+}))
+
+vi.mock('sonner', () => ({ toast }))
+
 afterEach(() => {
   vi.clearAllMocks()
   vi.unstubAllGlobals()
@@ -37,7 +47,93 @@ describe('DesktopUpdatePanel', () => {
 
     await expect.element(screen.getByRole('heading', { name: '新功能' })).toBeVisible()
     await userEvent.click(screen.getByRole('button', { name: '下载更新' }))
-    await vi.waitFor(() => expect(api.updates.download).toHaveBeenCalledOnce())
+    await vi.waitFor(() => {
+      expect(api.updates.download).toHaveBeenCalledOnce()
+      expect(toast.loading).toHaveBeenCalledWith('正在下载更新…', {
+        id: 'desktop-update-download',
+      })
+      expect(toast.success).toHaveBeenCalledWith('更新已下载，可以重启安装', {
+        id: 'desktop-update-download',
+        duration: 5000,
+      })
+    })
+  })
+
+  it('手动检查时显示加载提示和最新版本提示', async () => {
+    stubUpdater(
+      {
+        phase: 'idle',
+        currentVersion: '1.0.0',
+        releaseUrl: 'https://github.com/example/releases/latest',
+      },
+      {
+        phase: 'up-to-date',
+        currentVersion: '1.0.0',
+        latestVersion: '1.0.0',
+        releaseUrl: 'https://github.com/example/releases/latest',
+      }
+    )
+    const screen = await renderPanel()
+
+    await userEvent.click(screen.getByRole('button', { name: '检查更新' }))
+
+    await vi.waitFor(() => {
+      expect(toast.loading).toHaveBeenCalledWith('正在检查更新…', {
+        id: 'desktop-update-check',
+      })
+      expect(toast.success).toHaveBeenCalledWith('当前已是最新版本 v1.0.0', {
+        id: 'desktop-update-check',
+        duration: 3000,
+      })
+    })
+  })
+
+  it('发现新版本时复用全局更新提醒', async () => {
+    stubUpdater(
+      {
+        phase: 'idle',
+        currentVersion: '1.0.0',
+        releaseUrl: 'https://github.com/example/releases/latest',
+      },
+      {
+        phase: 'available',
+        currentVersion: '1.0.0',
+        latestVersion: '1.1.0',
+        releaseUrl: 'https://github.com/example/releases/latest',
+      }
+    )
+    const screen = await renderPanel()
+
+    await userEvent.click(screen.getByRole('button', { name: '检查更新' }))
+
+    await vi.waitFor(() =>
+      expect(toast.info).toHaveBeenCalledWith('发现新版本 1.1.0', {
+        id: 'desktop-update-available',
+        description: '更新说明已加载，可以确认下载。',
+        duration: 5000,
+        closeButton: true,
+      })
+    )
+  })
+
+  it('检查失败时显示可关闭的错误提示', async () => {
+    const api = stubUpdater({
+      phase: 'idle',
+      currentVersion: '1.0.0',
+      releaseUrl: 'https://github.com/example/releases/latest',
+    })
+    vi.mocked(api.updates.check).mockRejectedValueOnce(new Error('网络连接失败'))
+    const screen = await renderPanel()
+
+    await userEvent.click(screen.getByRole('button', { name: '检查更新' }))
+
+    await vi.waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith('检查更新失败：网络连接失败', {
+        id: 'desktop-update-check',
+        closeButton: true,
+        duration: 8000,
+      })
+    )
   })
 
   it('报告活跃时禁用立即安装', async () => {
@@ -64,19 +160,27 @@ describe('DesktopUpdatePanel', () => {
       error: '网络连接失败',
       failedAction: 'download',
     })
+    vi.mocked(api.updates.download).mockRejectedValueOnce(new Error('下载连接中断'))
     const screen = await renderPanel()
 
     await userEvent.click(screen.getByRole('button', { name: '下载更新' }))
-    await vi.waitFor(() => expect(api.updates.download).toHaveBeenCalledOnce())
+    await vi.waitFor(() => {
+      expect(api.updates.download).toHaveBeenCalledOnce()
+      expect(toast.error).toHaveBeenCalledWith('下载更新失败：下载连接中断', {
+        id: 'desktop-update-download',
+        closeButton: true,
+        duration: 8000,
+      })
+    })
   })
 })
 
-function stubUpdater(status: DesktopUpdateStatus) {
+function stubUpdater(status: DesktopUpdateStatus, checkedStatus = status) {
   const api = {
     updates: {
       status: vi.fn().mockResolvedValue(status),
-      check: vi.fn().mockResolvedValue(status),
-      download: vi.fn().mockResolvedValue({ ...status, phase: 'downloading', progress: 0 }),
+      check: vi.fn().mockResolvedValue(checkedStatus),
+      download: vi.fn().mockResolvedValue({ ...status, phase: 'downloaded', progress: 100 }),
       install: vi.fn().mockResolvedValue(undefined),
       openRelease: vi.fn().mockResolvedValue(undefined),
       openLogs: vi.fn().mockResolvedValue(''),

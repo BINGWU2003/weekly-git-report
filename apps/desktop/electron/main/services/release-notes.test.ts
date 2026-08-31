@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizeReleaseNotes } from "./release-notes.js";
+import { normalizeDesktopReleaseMetadata, normalizeReleaseNotes } from "./release-notes.js";
 
 describe("normalizeReleaseNotes", () => {
   it("将 GitHub HTML 发布说明转换为 Markdown 文本", () => {
@@ -23,5 +23,26 @@ describe("normalizeReleaseNotes", () => {
   it("忽略空发布说明", () => {
     expect(normalizeReleaseNotes("  ")).toBeUndefined();
     expect(normalizeReleaseNotes(null)).toBeUndefined();
+  });
+
+  it("保留 Desktop Release 元数据", () => {
+    expect(
+      normalizeDesktopReleaseMetadata({
+        releaseName: "Weekly Git Report Desktop 1.1.0",
+        releaseNotes: "<p>新增自动更新保护。</p>",
+      }),
+    ).toEqual({
+      releaseName: "Weekly Git Report Desktop 1.1.0",
+      releaseNotes: "新增自动更新保护。",
+    });
+  });
+
+  it("丢弃被 GitHub Atom feed 串入的其他 workspace 包元数据", () => {
+    expect(
+      normalizeDesktopReleaseMetadata({
+        releaseName: "@weekly-git-report/workflow@0.0.0",
+        releaseNotes: "@weekly-git-report/workflow@0.0.0",
+      }),
+    ).toEqual({});
   });
 });

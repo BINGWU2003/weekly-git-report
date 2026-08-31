@@ -8,15 +8,24 @@ import {
   RefreshCw,
   RotateCcw,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import type { DesktopUpdateStatus } from '../../../../shared/ipc'
 import { MarkdownViewer } from '@/components/markdown-viewer'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { desktopUpdateQueryKey, useDesktopUpdateStatus } from '@/lib/desktop-updates'
+import {
+  desktopUpdateAvailableToastId,
+  desktopUpdateQueryKey,
+  useDesktopUpdateStatus,
+} from '@/lib/desktop-updates'
 import { getErrorMessage } from '@/lib/errors'
 import { ContentSection } from '../components/content-section'
+
+const CHECK_UPDATE_TOAST_ID = 'desktop-update-check'
+const DOWNLOAD_UPDATE_TOAST_ID = 'desktop-update-download'
+const INSTALL_UPDATE_TOAST_ID = 'desktop-update-install'
 
 export function SettingsAbout() {
   return (
@@ -37,13 +46,56 @@ export function DesktopUpdatePanel() {
     queryClient.setQueryData(desktopUpdateQueryKey, next)
   const check = useMutation({
     mutationFn: () => window.electronAPI.updates.check(),
-    onSuccess: setStatus,
+    onMutate: () => {
+      toast.loading('正在检查更新…', { id: CHECK_UPDATE_TOAST_ID })
+    },
+    onSuccess: (next) => {
+      setStatus(next)
+      if (next.phase === 'available') {
+        toast.dismiss(CHECK_UPDATE_TOAST_ID)
+        toast.info(`发现新版本 ${next.latestVersion}`, {
+          id: desktopUpdateAvailableToastId,
+          description: '更新说明已加载，可以确认下载。',
+          duration: 5000,
+          closeButton: true,
+        })
+        return
+      }
+      if (next.phase === 'up-to-date') {
+        toast.success(`当前已是最新版本 v${next.latestVersion ?? next.currentVersion}`, {
+          id: CHECK_UPDATE_TOAST_ID,
+          duration: 3000,
+        })
+        return
+      }
+      toast.info('更新状态已刷新', { id: CHECK_UPDATE_TOAST_ID, duration: 3000 })
+    },
+    onError: (error) => showUpdateErrorToast(CHECK_UPDATE_TOAST_ID, '检查更新失败', error),
   })
   const download = useMutation({
     mutationFn: () => window.electronAPI.updates.download(),
-    onSuccess: setStatus,
+    onMutate: () => {
+      toast.loading('正在下载更新…', { id: DOWNLOAD_UPDATE_TOAST_ID })
+    },
+    onSuccess: (next) => {
+      setStatus(next)
+      toast.success('更新已下载，可以重启安装', {
+        id: DOWNLOAD_UPDATE_TOAST_ID,
+        duration: 5000,
+      })
+    },
+    onError: (error) => showUpdateErrorToast(DOWNLOAD_UPDATE_TOAST_ID, '下载更新失败', error),
   })
-  const install = useMutation({ mutationFn: () => window.electronAPI.updates.install() })
+  const install = useMutation({
+    mutationFn: () => window.electronAPI.updates.install(),
+    onMutate: () => {
+      toast.loading('正在准备安装更新…', { id: INSTALL_UPDATE_TOAST_ID })
+    },
+    onSuccess: () => {
+      toast.success('即将重启并安装更新…', { id: INSTALL_UPDATE_TOAST_ID, duration: 3000 })
+    },
+    onError: (error) => showUpdateErrorToast(INSTALL_UPDATE_TOAST_ID, '安装更新失败', error),
+  })
   const busy = check.isPending || download.isPending || install.isPending
 
   if (update.isLoading || !update.data) {
@@ -191,4 +243,12 @@ function DownloadProgress({ value }: { value: number }) {
 function formatDate(value: string): string {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('zh-CN', { dateStyle: 'long' }).format(date)
+}
+
+function showUpdateErrorToast(id: string, title: string, error: unknown) {
+  toast.error(`${title}：${getErrorMessage(error)}`, {
+    id,
+    closeButton: true,
+    duration: 8000,
+  })
 }
