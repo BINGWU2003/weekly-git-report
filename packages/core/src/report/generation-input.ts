@@ -11,6 +11,7 @@ export interface CreateGenerationInputOptions {
   runId: string;
   reportId: string;
   reportType: ReportType;
+  templateType?: ReportType;
   reportTitle?: string;
   period: Period;
   templateRevision: string;
@@ -26,6 +27,7 @@ export function createGenerationInput(options: CreateGenerationInputOptions): Ge
     runId: options.runId,
     reportId: options.reportId,
     reportType: options.reportType,
+    ...(options.templateType ? { templateType: options.templateType } : {}),
     ...(options.reportTitle ? { reportTitle: options.reportTitle } : {}),
     period: options.period,
     createdAt: options.createdAt ?? new Date().toISOString(),

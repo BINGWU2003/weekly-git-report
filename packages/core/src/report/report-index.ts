@@ -66,6 +66,7 @@ export async function indexTrashedReportFiles(outputRoot: string): Promise<Index
       generatedAt: metadata.metadata?.savedAt ?? null,
       ...(metadata.reportId ? { reportId: metadata.reportId } : {}),
       ...(metadata.reportType ? { reportType: metadata.reportType } : {}),
+      ...(metadata.metadata?.templateType ? { templateType: metadata.metadata.templateType } : {}),
       ...(metadata.title ? { reportTitle: metadata.title } : {}),
       summaryMetadataStatus: metadata.status,
       ...(metadata.message ? { summaryMetadataMessage: metadata.message } : {}),
@@ -191,6 +192,9 @@ async function indexSummaryReports(
           generatedAt: metadata.metadata?.savedAt ?? null,
           ...(metadata.reportId ? { reportId: metadata.reportId } : {}),
           ...(metadata.reportType ? { reportType: metadata.reportType } : {}),
+          ...(metadata.metadata?.templateType
+            ? { templateType: metadata.metadata.templateType }
+            : {}),
           ...(metadata.title ? { reportTitle: metadata.title } : {}),
           summaryMetadataStatus: metadata.status,
           ...(metadata.message ? { summaryMetadataMessage: metadata.message } : {}),
@@ -212,6 +216,7 @@ async function appendReport(
         | "projectName"
         | "reportId"
         | "reportType"
+        | "templateType"
         | "reportTitle"
         | "summaryMetadataStatus"
         | "summaryMetadataMessage"

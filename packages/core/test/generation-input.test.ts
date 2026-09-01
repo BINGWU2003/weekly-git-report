@@ -7,7 +7,8 @@ describe("generation input", () => {
     const input = createGenerationInput({
       runId: "run-1",
       reportId: "report-1",
-      reportType: "weekly",
+      reportType: "custom",
+      templateType: "weekly",
       period: { start: "2026-08-17", end: "2026-08-23" },
       templateRevision: "sha256:template",
       rawManifestHash: `sha256:${"1".repeat(64)}`,
@@ -48,6 +49,7 @@ describe("generation input", () => {
       branch: "main",
       commits: [{ authorName: "Alice", body: "Record provenance." }],
     });
+    expect(input).toMatchObject({ reportType: "custom", templateType: "weekly" });
     const serialized = JSON.stringify(input);
     expect(serialized).not.toContain("alice@example.com");
     expect(serialized).not.toContain("D:/secret");

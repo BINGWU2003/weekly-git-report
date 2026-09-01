@@ -47,6 +47,7 @@ const activeAbortControllers = new Map<string, AbortController>();
 
 export interface PrepareReportRunInput {
   reportType: ReportType;
+  templateType?: ReportType;
   reportId?: string;
   title?: string;
   period: Period;
@@ -68,6 +69,7 @@ export interface PreparedReportRun {
 
 export async function prepareReportRun(input: PrepareReportRunInput): Promise<PreparedReportRun> {
   const reportType = ReportTypeSchema.parse(input.reportType);
+  const templateType = resolveTemplateType(reportType, input.templateType);
   const period = validateSummaryPeriod(reportType, input.period);
   const id = randomUUID();
   const reportId = input.reportId ?? id;
@@ -77,6 +79,7 @@ export async function prepareReportRun(input: PrepareReportRunInput): Promise<Pr
       id,
       reportId,
       reportType,
+      templateType,
       ...(input.title?.trim() ? { title: input.title.trim() } : {}),
       period,
       generator: input.generator,
@@ -121,7 +124,7 @@ export async function prepareReportRun(input: PrepareReportRunInput): Promise<Pr
       );
     }
     const template = await readSummaryTemplate({
-      reportType,
+      reportType: templateType,
       period,
       reportTitle: input.title,
     });
@@ -130,6 +133,7 @@ export async function prepareReportRun(input: PrepareReportRunInput): Promise<Pr
       runId: run.id,
       reportId,
       reportType,
+      templateType,
       ...(input.title ? { reportTitle: input.title } : {}),
       period,
       templateRevision: template.template.revision,
@@ -152,6 +156,7 @@ export async function prepareReportRun(input: PrepareReportRunInput): Promise<Pr
         rawManifestHash,
         generationInputPath: generationInputFile,
         generationInputHash: writtenInput.hash,
+        templateType,
         templateRevision: template.template.revision,
       }),
     );
@@ -220,7 +225,7 @@ export async function generateBuiltInRun(
       );
     }
     const template = await readSummaryTemplate({
-      reportType: run.reportType,
+      reportType: run.templateType ?? run.reportType,
       period: run.period,
       reportTitle: run.title,
     });
@@ -320,6 +325,7 @@ export async function approveReportRun(
         generator: run.generator,
         ...(run.provider ? { provider: run.provider } : {}),
         ...(run.model ? { model: run.model } : {}),
+        templateType: run.templateType ?? run.reportType,
         templateRevision: required(run.templateRevision),
         rawManifestHash: required(run.rawManifestHash),
         ...(preparedInput.userContext
@@ -709,6 +715,14 @@ function selectProjects<T extends { id: string; name: string }>(projects: T[], i
   const unknown = ids.filter((id) => !found.has(id));
   if (unknown.length) throw new Error(`Unknown or disabled projects: ${unknown.join(", ")}`);
   return matches;
+}
+
+function resolveTemplateType(reportType: ReportType, input: ReportType | undefined): ReportType {
+  const templateType = input === undefined ? reportType : ReportTypeSchema.parse(input);
+  if (reportType !== "custom" && templateType !== reportType) {
+    throw new Error("Only custom reports can use a different template type.");
+  }
+  return templateType;
 }
 
 function normalizeRunError(error: unknown, retryableFrom: ReportRunStep["name"]): ReportRunError {

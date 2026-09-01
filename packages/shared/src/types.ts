@@ -131,6 +131,7 @@ export interface IndexedReportFile {
   size: number;
   reportId?: string;
   reportType?: ReportType;
+  templateType?: ReportType;
   reportTitle?: string;
   trashed?: boolean;
   trashedAt?: string;

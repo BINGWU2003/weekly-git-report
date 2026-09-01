@@ -74,7 +74,21 @@ describe('GenerateReportDialog', () => {
 
   it('regenerates a custom report with the original identity and period', async () => {
     const generate = vi.fn().mockResolvedValue({ id: 'run-custom', status: 'awaiting_review' })
+    const readTemplate = vi.fn().mockResolvedValue({
+      formatVersion: 1,
+      type: 'weekly',
+      template: {
+        content: '# 周报模板',
+        renderedContent: '# 已渲染的周报模板',
+        path: 'templates/weekly/summary.md',
+        revision: 'sha256:weekly',
+        defaultRevision: 'sha256:weekly',
+        isDefault: true,
+      },
+      created: false,
+    })
     vi.stubGlobal('electronAPI', {
+      templates: { read: readTemplate },
       runs: {
         onGenerationDelta: vi.fn(() => () => undefined),
         generate,
@@ -96,6 +110,7 @@ describe('GenerateReportDialog', () => {
       size: 100,
       reportId: 'report-1',
       reportType: 'custom' as const,
+      templateType: 'weekly' as const,
       reportTitle: '版本回顾',
     }
 
@@ -123,14 +138,73 @@ describe('GenerateReportDialog', () => {
     await expect
       .element(screen.getByRole('button', { name: /2026-08-01 ~ 2026-08-03/ }))
       .toBeInTheDocument()
+    await expect
+      .element(screen.getByRole('combobox', { name: '报告模板' }))
+      .toHaveTextContent('周报模板')
+    await userEvent.click(screen.getByRole('button', { name: '预览模板' }))
+    await expect
+      .element(screen.getByRole('heading', { name: '已渲染的周报模板' }))
+      .toBeInTheDocument()
+    expect(readTemplate).toHaveBeenCalledWith(
+      'weekly',
+      { start: '2026-08-01', end: '2026-08-03' },
+      '版本回顾',
+    )
+    await userEvent.keyboard('{Escape}')
+    await userEvent.click(screen.getByRole('combobox', { name: '报告模板' }))
+    await userEvent.click(screen.getByRole('option', { name: '月报模板' }))
     await userEvent.click(screen.getByRole('button', { name: '开始生成' }))
     await vi.waitFor(() =>
       expect(generate).toHaveBeenCalledWith({
         reportType: 'custom',
+        templateType: 'monthly',
         reportId: 'report-1',
         title: '版本回顾',
         period: { start: '2026-08-01', end: '2026-08-03' },
       }),
+    )
+  })
+
+  it('固定周期锁定对应模板但仍可预览', async () => {
+    const readTemplate = vi.fn().mockResolvedValue({
+      formatVersion: 1,
+      type: 'weekly',
+      template: {
+        content: '# 周报模板',
+        renderedContent: '# 固定周报模板预览',
+        path: 'templates/weekly/summary.md',
+        revision: 'sha256:weekly',
+        defaultRevision: 'sha256:weekly',
+        isDefault: true,
+      },
+      created: false,
+    })
+    vi.stubGlobal('electronAPI', {
+      templates: { read: readTemplate },
+      runs: {
+        onGenerationDelta: vi.fn(() => () => undefined),
+        generate: vi.fn(),
+        approve: vi.fn(),
+        cancel: vi.fn(),
+      },
+    } as unknown as DesktopAPI)
+    const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <GenerateReportDialog open onOpenChange={vi.fn()} onSaved={vi.fn()} />
+      </QueryClientProvider>,
+    )
+
+    await expect.element(screen.getByText('固定周期始终使用对应的报告模板。')).toBeInTheDocument()
+    await expect.element(screen.getByText('周报模板')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '预览模板' }))
+    await expect
+      .element(screen.getByRole('heading', { name: '固定周报模板预览' }))
+      .toBeInTheDocument()
+    expect(readTemplate).toHaveBeenCalledWith(
+      'weekly',
+      expect.objectContaining({ start: expect.any(String), end: expect.any(String) }),
+      undefined,
     )
   })
 

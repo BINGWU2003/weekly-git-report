@@ -284,6 +284,9 @@ export function registerIpcHandlers(): void {
     if (!isRecord(input)) throw new Error("生成参数无效。");
     const request = {
       reportType: ReportTypeSchema.parse(input.reportType),
+      ...(input.templateType === undefined
+        ? {}
+        : { templateType: ReportTypeSchema.parse(input.templateType) }),
       period: PeriodSchema.parse(input.period),
       ...(typeof input.reportId === "string" ? { reportId: input.reportId } : {}),
       ...(typeof input.title === "string" ? { title: input.title } : {}),
