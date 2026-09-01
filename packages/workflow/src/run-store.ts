@@ -220,7 +220,7 @@ export class ReportRunStore {
 
 export function createQueuedRun(
   input: Pick<ReportRun, "id" | "reportId" | "reportType" | "period" | "trigger" | "generator"> &
-    Partial<Pick<ReportRun, "title" | "taskId" | "taskSnapshot">>,
+    Partial<Pick<ReportRun, "title" | "templateType" | "taskId" | "taskSnapshot">>,
 ): ReportRun {
   const now = new Date().toISOString();
   return ReportRunSchema.parse({

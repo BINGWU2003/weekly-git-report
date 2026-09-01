@@ -188,6 +188,7 @@ export interface TasksState {
 
 export interface GenerateReportRequest {
   reportType: ReportType;
+  templateType?: ReportType;
   period: Period;
   reportId?: string;
   title?: string;

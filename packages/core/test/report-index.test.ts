@@ -166,7 +166,7 @@ test("indexes trashed summaries with their original location", async () => {
         "custom",
         period,
         content,
-        { ...provenance(), reportId: "report-custom" },
+        { ...provenance(), reportId: "report-custom", templateType: "weekly" },
         "版本回顾",
       ),
     ),
@@ -186,6 +186,7 @@ test("indexes trashed summaries with their original location", async () => {
     {
       reportId: "report-custom",
       reportType: "custom",
+      templateType: "weekly",
       reportTitle: "版本回顾",
       trashed: true,
       originalRelativePath: `summary/2026/08/${name}`,

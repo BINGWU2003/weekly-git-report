@@ -540,6 +540,7 @@ export async function generateDesktopReport(
   if (enabledProjects.length === 0) throw new Error("请先添加并启用至少一个仓库。");
   const prepared = await prepareReportRun({
     reportType: request.reportType,
+    ...(request.templateType ? { templateType: request.templateType } : {}),
     period: request.period,
     ...(request.reportId ? { reportId: request.reportId } : {}),
     ...(request.title ? { title: request.title } : {}),

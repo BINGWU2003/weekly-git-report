@@ -1,12 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { CalendarDays, Loader2, Save, Sparkles } from 'lucide-react'
+import { CalendarDays, Eye, Loader2, Save, Sparkles } from 'lucide-react'
 import type { DateRange } from 'react-day-picker'
 import type { ReportRun, ReportType } from '@weekly-git-report/shared'
+import { MarkdownViewer } from '@/components/markdown-viewer'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -42,6 +50,11 @@ export function ReportGenerationPanel({
   onBusyChange?(busy: boolean): void
 }) {
   const [reportType, setReportType] = useState<ReportType>(initialReport?.reportType ?? 'weekly')
+  const [templateType, setTemplateType] = useState<ReportType>(() =>
+    initialReport?.reportType === 'custom'
+      ? initialReport.templateType ?? 'custom'
+      : initialReport?.reportType ?? 'weekly',
+  )
   const [customRange, setCustomRange] = useState<DateRange | undefined>(() =>
     toDateRange(initialReport?.period),
   )
@@ -53,6 +66,7 @@ export function ReportGenerationPanel({
   const [runId, setRunId] = useState<string | undefined>(initialRunId)
   const [publish, setPublish] = useState(false)
   const [forceSave, setForceSave] = useState(false)
+  const [templatePreviewOpen, setTemplatePreviewOpen] = useState(false)
   const runIdRef = useRef(runId)
   const onRunChangeRef = useRef(onRunChange)
   const onSavedRef = useRef(onSaved)
@@ -97,6 +111,7 @@ export function ReportGenerationPanel({
         setRun(restoredRun)
         setRunId(restoredRun.id)
         setReportType(restoredRun.reportType)
+        setTemplateType(restoredRun.templateType ?? restoredRun.reportType)
         if (restoredDraft !== undefined) setDraft(restoredDraft)
         if (
           restoredRun.summaryPath &&
@@ -117,6 +132,7 @@ export function ReportGenerationPanel({
     mutationFn: () =>
       window.electronAPI.runs.generate({
         reportType,
+        ...(reportType === 'custom' ? { templateType } : {}),
         period: period!,
         ...(regenerating && initialReport?.reportId ? { reportId: initialReport.reportId } : {}),
         ...(reportType === 'custom' && title.trim() ? { title: title.trim() } : {}),
@@ -141,6 +157,14 @@ export function ReportGenerationPanel({
       await refreshFailedRun()
       if (!isNoCommitsMessage(getErrorMessage(error))) showErrorToast(getErrorMessage(error))
     },
+  })
+  const templatePreview = useMutation({
+    mutationFn: () =>
+      window.electronAPI.templates.read(
+        templateType,
+        period!,
+        reportType === 'custom' && title.trim() ? title.trim() : undefined,
+      ),
   })
   const retry = useMutation({
     mutationFn: (allowEmpty: boolean) => window.electronAPI.runs.retry(runId!, allowEmpty),
@@ -200,7 +224,11 @@ export function ReportGenerationPanel({
   }
 
   function changeReportType(value: string) {
-    setReportType(value as ReportType)
+    const next = value as ReportType
+    setReportType(next)
+    setTemplateType(next)
+    templatePreview.reset()
+    setTemplatePreviewOpen(false)
     setRegenerating(false)
     setCustomRange(undefined)
     setTitle('')
@@ -214,6 +242,7 @@ export function ReportGenerationPanel({
 
   function resetForm() {
     setReportType('weekly')
+    setTemplateType('weekly')
     setCustomRange(undefined)
     setTitle('')
     setContext('')
@@ -223,7 +252,15 @@ export function ReportGenerationPanel({
     runIdRef.current = undefined
     setPublish(false)
     setForceSave(false)
+    setTemplatePreviewOpen(false)
+    templatePreview.reset()
     setRegenerating(false)
+  }
+
+  function openTemplatePreview() {
+    setTemplatePreviewOpen(true)
+    templatePreview.reset()
+    templatePreview.mutate()
   }
 
   return (
@@ -239,7 +276,7 @@ export function ReportGenerationPanel({
           <div className='space-y-2'>
             <Label>报告类型</Label>
             <Select value={reportType} onValueChange={changeReportType} disabled={generating}>
-              <SelectTrigger className='w-full'>
+              <SelectTrigger aria-label='报告类型' className='w-full'>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -296,6 +333,52 @@ export function ReportGenerationPanel({
               disabled={generating}
               placeholder='默认使用“自定义报告”'
             />
+          </div>
+        ) : null}
+        {!onboarding ? (
+          <div className='space-y-2'>
+            <Label>报告模板</Label>
+            <div className='flex gap-2'>
+              {reportType === 'custom' ? (
+                <Select
+                  value={templateType}
+                  onValueChange={(value) => {
+                    setTemplateType(value as ReportType)
+                    templatePreview.reset()
+                  }}
+                  disabled={generating}
+                >
+                  <SelectTrigger aria-label='报告模板' className='min-w-0 flex-1'>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TEMPLATE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className='flex h-9 min-w-0 flex-1 items-center rounded-md border bg-muted/40 px-3 text-sm'>
+                  {getTemplateLabel(templateType)}
+                </div>
+              )}
+              <Button
+                type='button'
+                variant='outline'
+                onClick={openTemplatePreview}
+                disabled={generating || !period}
+              >
+                <Eye />
+                预览模板
+              </Button>
+            </div>
+            <p className='text-xs text-muted-foreground'>
+              {reportType === 'custom'
+                ? '自定义周期可以使用任一当前已保存的模板。'
+                : '固定周期始终使用对应的报告模板。'}
+            </p>
           </div>
         ) : null}
         <div className='space-y-2'>
@@ -389,8 +472,44 @@ export function ReportGenerationPanel({
           )}
         </div>
       </div>
+      <Dialog open={templatePreviewOpen} onOpenChange={setTemplatePreviewOpen}>
+        <DialogContent className='grid max-h-[min(48rem,calc(100vh-2rem))] grid-rows-[auto_minmax(0,1fr)] overflow-hidden sm:max-w-3xl'>
+          <DialogHeader>
+            <DialogTitle>{getTemplateLabel(templateType)}预览</DialogTitle>
+            <DialogDescription>
+              当前保存的模板内容，仅供预览。已按 {period?.start} 至 {period?.end} 渲染，不会采集数据或调用 AI。
+            </DialogDescription>
+          </DialogHeader>
+          <div className='min-h-0 overflow-y-auto rounded-lg border p-5'>
+            {templatePreview.isPending ? (
+              <div className='flex items-center gap-2 text-sm text-muted-foreground'>
+                <Loader2 className='animate-spin' />
+                正在读取模板…
+              </div>
+            ) : templatePreview.isError ? (
+              <Alert variant='destructive'>
+                <AlertTitle>无法预览模板</AlertTitle>
+                <AlertDescription>{getErrorMessage(templatePreview.error)}</AlertDescription>
+              </Alert>
+            ) : (
+              <MarkdownViewer content={templatePreview.data?.template.renderedContent ?? ''} />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
+}
+
+const TEMPLATE_OPTIONS: Array<{ value: ReportType; label: string }> = [
+  { value: 'daily', label: '日报模板' },
+  { value: 'weekly', label: '周报模板' },
+  { value: 'monthly', label: '月报模板' },
+  { value: 'custom', label: '自定义报告模板' },
+]
+
+function getTemplateLabel(type: ReportType) {
+  return TEMPLATE_OPTIONS.find((option) => option.value === type)?.label ?? '报告模板'
 }
 
 async function restoreRun(runId: string) {

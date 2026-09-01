@@ -44,6 +44,7 @@ export const SummaryProvenanceSchema = z
     generator: ReportGeneratorSchema,
     provider: AiProviderSchema.optional(),
     model: z.string().trim().min(1).optional(),
+    templateType: ReportTypeSchema.optional(),
     templateRevision: z.string().trim().min(1),
     rawManifestHash: z.string().regex(/^sha256:[a-f\d]{64}$/),
     userNotesHash: z
@@ -78,6 +79,7 @@ export const SummaryMetadataSchema = z
     generator: ReportGeneratorSchema,
     provider: AiProviderSchema.optional(),
     model: z.string().trim().min(1).optional(),
+    templateType: ReportTypeSchema.optional(),
     templateRevision: z.string().trim().min(1),
     rawManifestHash: z.string().regex(/^sha256:[a-f\d]{64}$/),
     userNotesHash: z
@@ -236,6 +238,7 @@ export const ReportRunSchema = z
       .string()
       .regex(/^sha256:[a-f\d]{64}$/)
       .optional(),
+    templateType: ReportTypeSchema.optional(),
     templateRevision: z.string().optional(),
     draftPath: z.string().optional(),
     summaryPath: z.string().optional(),
@@ -273,6 +276,7 @@ export const GenerationInputSchema = z
     reportTitle: z.string().trim().min(1).max(200).optional(),
     period: PeriodSchema,
     createdAt: z.string().datetime(),
+    templateType: ReportTypeSchema.optional(),
     templateRevision: z.string().trim().min(1),
     rawManifestHash: z.string().regex(/^sha256:[a-f\d]{64}$/),
     userContext: z.string().max(20_000).optional(),
