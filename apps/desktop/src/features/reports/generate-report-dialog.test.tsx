@@ -283,4 +283,137 @@ describe('GenerateReportDialog', () => {
     expect(readDraft).toHaveBeenCalledWith('run-restored')
     await expect.element(screen.getByRole('button', { name: '确认并保存' })).toBeInTheDocument()
   })
+
+  it('使用同一次采集数据直接重新生成未编辑的草稿', async () => {
+    let onGenerationDelta: ((runId: string, delta: string) => void) | undefined
+    const generate = vi.fn().mockImplementation(async () => {
+      onGenerationDelta?.('run-1', '# 第一版草稿')
+      return { id: 'run-1', status: 'awaiting_review' }
+    })
+    const regenerate = vi.fn().mockImplementation(async () => {
+      onGenerationDelta?.('run-1', '# 第二版草稿')
+      return { id: 'run-1', status: 'awaiting_review' }
+    })
+    vi.stubGlobal('electronAPI', {
+      runs: {
+        onGenerationDelta: vi.fn((listener) => {
+          onGenerationDelta = listener
+          return () => undefined
+        }),
+        generate,
+        regenerate,
+        approve: vi.fn(),
+        cancel: vi.fn(),
+      },
+    } as unknown as DesktopAPI)
+    const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <GenerateReportDialog open onOpenChange={vi.fn()} onSaved={vi.fn()} />
+      </QueryClientProvider>,
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: '开始生成' }))
+    await expect
+      .element(screen.getByRole('textbox', { name: '报告草稿' }))
+      .toHaveValue('# 第一版草稿')
+    await userEvent.click(screen.getByRole('button', { name: '重新生成' }))
+
+    await vi.waitFor(() => expect(regenerate).toHaveBeenCalledWith('run-1'))
+    await expect
+      .element(screen.getByRole('textbox', { name: '报告草稿' }))
+      .toHaveValue('# 第二版草稿')
+    await expect.element(screen.getByRole('heading', { name: '重新生成报告？' })).not.toBeInTheDocument()
+  })
+
+  it('手动编辑草稿后先确认再重新生成', async () => {
+    let onGenerationDelta: ((runId: string, delta: string) => void) | undefined
+    const generate = vi.fn().mockImplementation(async () => {
+      onGenerationDelta?.('run-edited', '# AI 原稿')
+      return { id: 'run-edited', status: 'awaiting_review' }
+    })
+    const regenerate = vi.fn().mockImplementation(async () => {
+      onGenerationDelta?.('run-edited', '# 新草稿')
+      return { id: 'run-edited', status: 'awaiting_review' }
+    })
+    vi.stubGlobal('electronAPI', {
+      runs: {
+        onGenerationDelta: vi.fn((listener) => {
+          onGenerationDelta = listener
+          return () => undefined
+        }),
+        generate,
+        regenerate,
+        approve: vi.fn(),
+        cancel: vi.fn(),
+      },
+    } as unknown as DesktopAPI)
+    const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <GenerateReportDialog open onOpenChange={vi.fn()} onSaved={vi.fn()} />
+      </QueryClientProvider>,
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: '开始生成' }))
+    const draft = screen.getByRole('textbox', { name: '报告草稿' })
+    await userEvent.fill(draft, '# 手动修改')
+    await userEvent.click(screen.getByRole('button', { name: '重新生成' }))
+
+    await expect.element(screen.getByRole('heading', { name: '重新生成报告？' })).toBeInTheDocument()
+    expect(regenerate).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: '放弃修改并重新生成' }))
+    await vi.waitFor(() => expect(regenerate).toHaveBeenCalledWith('run-edited'))
+    await expect.element(draft).toHaveValue('# 新草稿')
+  })
+
+  it('重新生成失败后恢复上一版草稿并提示原因', async () => {
+    let onGenerationDelta: ((runId: string, delta: string) => void) | undefined
+    const generate = vi.fn().mockImplementation(async () => {
+      onGenerationDelta?.('run-failed', '# 可用草稿')
+      return { id: 'run-failed', status: 'awaiting_review' }
+    })
+    const regenerate = vi.fn().mockRejectedValue(new Error('AI 服务暂不可用'))
+    const get = vi.fn().mockResolvedValue({
+      id: 'run-failed',
+      status: 'awaiting_review',
+      reportType: 'weekly',
+    })
+    const readDraft = vi.fn().mockResolvedValue('# 可用草稿')
+    vi.stubGlobal('electronAPI', {
+      runs: {
+        onGenerationDelta: vi.fn((listener) => {
+          onGenerationDelta = listener
+          return () => undefined
+        }),
+        generate,
+        regenerate,
+        get,
+        readDraft,
+        approve: vi.fn(),
+        cancel: vi.fn(),
+      },
+    } as unknown as DesktopAPI)
+    const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <GenerateReportDialog open onOpenChange={vi.fn()} onSaved={vi.fn()} />
+      </QueryClientProvider>,
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: '开始生成' }))
+    await userEvent.click(screen.getByRole('button', { name: '重新生成' }))
+
+    await vi.waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        '重新生成失败，已恢复上一版草稿：AI 服务暂不可用',
+        expect.objectContaining({ closeButton: true }),
+      ),
+    )
+    expect(get).toHaveBeenCalledWith('run-failed')
+    expect(readDraft).toHaveBeenCalledWith('run-failed')
+    await expect
+      .element(screen.getByRole('textbox', { name: '报告草稿' }))
+      .toHaveValue('# 可用草稿')
+  })
 })

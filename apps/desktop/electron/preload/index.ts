@@ -110,6 +110,7 @@ const electronAPI: DesktopAPI = Object.freeze({
     cancel: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.runsCancel, id),
     retry: (id: string, allowEmpty?: boolean) =>
       ipcRenderer.invoke(IPC_CHANNELS.runsRetry, id, allowEmpty),
+    regenerate: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.runsRegenerate, id),
     publish: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.runsPublish, id),
     onGenerationDelta: (listener: (runId: string, delta: string) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, runId: string, delta: string) =>

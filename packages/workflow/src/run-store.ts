@@ -9,7 +9,7 @@ const TRANSITIONS: Record<ReportRunStatus, readonly ReportRunStatus[]> = {
   queued: ["collecting", "failed", "cancelled"],
   collecting: ["generating", "failed", "cancelled"],
   generating: ["awaiting_review", "saving", "failed", "cancelled", "abandoned"],
-  awaiting_review: ["saving", "cancelled"],
+  awaiting_review: ["generating", "saving", "cancelled"],
   saving: ["awaiting_review", "publishing", "succeeded", "failed", "cancelled"],
   publishing: ["succeeded", "publish_failed", "cancelled"],
   succeeded: ["publishing"],

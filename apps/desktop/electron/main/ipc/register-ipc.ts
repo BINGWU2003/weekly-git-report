@@ -60,6 +60,7 @@ import {
   removeDesktopRepository,
   saveDesktopConfig,
   resetDesktopSummaryTemplate,
+  regenerateDesktopRun,
   retryDesktopRun,
   runDesktopTask,
   saveDesktopSummaryTemplate,
@@ -318,6 +319,14 @@ export function registerIpcHandlers(): void {
       throw new Error("空周期重试参数无效。");
     }
     return retryDesktopRun(id, allowEmpty === true);
+  });
+  ipcMain.handle(IPC_CHANNELS.runsRegenerate, (event, id: unknown) => {
+    if (typeof id !== "string") throw new Error("Run id is required.");
+    return regenerateDesktopRun(id, (runId, delta) => {
+      if (!event.sender.isDestroyed()) {
+        event.sender.send(IPC_CHANNELS.runsGenerationDelta, runId, delta);
+      }
+    });
   });
   ipcMain.handle(IPC_CHANNELS.runsPublish, (_event, id: unknown) => {
     if (typeof id !== "string") throw new Error("Run id is required.");

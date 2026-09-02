@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { CalendarDays, Eye, Loader2, Save, Sparkles } from 'lucide-react'
+import { CalendarDays, Eye, Loader2, RotateCcw, Save, Sparkles } from 'lucide-react'
 import type { DateRange } from 'react-day-picker'
 import type { ReportRun, ReportType } from '@weekly-git-report/shared'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { MarkdownViewer } from '@/components/markdown-viewer'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -62,11 +63,14 @@ export function ReportGenerationPanel({
   const [regenerating, setRegenerating] = useState(Boolean(initialReport))
   const [context, setContext] = useState('')
   const [draft, setDraft] = useState('')
+  const [generatedDraft, setGeneratedDraft] = useState('')
   const [run, setRun] = useState<ReportRun>()
   const [runId, setRunId] = useState<string | undefined>(initialRunId)
   const [publish, setPublish] = useState(false)
   const [forceSave, setForceSave] = useState(false)
   const [templatePreviewOpen, setTemplatePreviewOpen] = useState(false)
+  const [confirmRegenerateOpen, setConfirmRegenerateOpen] = useState(false)
+  const draftRef = useRef('')
   const runIdRef = useRef(runId)
   const onRunChangeRef = useRef(onRunChange)
   const onSavedRef = useRef(onSaved)
@@ -96,7 +100,11 @@ export function ReportGenerationPanel({
           runIdRef.current = id
           onRunChangeRef.current?.(id)
         }
-        if (delta) setDraft((value) => value + delta)
+        if (delta) {
+          const nextDraft = draftRef.current + delta
+          draftRef.current = nextDraft
+          setDraft(nextDraft)
+        }
       }),
     [],
   )
@@ -112,7 +120,11 @@ export function ReportGenerationPanel({
         setRunId(restoredRun.id)
         setReportType(restoredRun.reportType)
         setTemplateType(restoredRun.templateType ?? restoredRun.reportType)
-        if (restoredDraft !== undefined) setDraft(restoredDraft)
+        if (restoredDraft !== undefined) {
+          setDraft(restoredDraft)
+          setGeneratedDraft(restoredDraft)
+          draftRef.current = restoredDraft
+        }
         if (
           restoredRun.summaryPath &&
           ['succeeded', 'publish_failed'].includes(restoredRun.status)
@@ -140,6 +152,8 @@ export function ReportGenerationPanel({
       }),
     onMutate: () => {
       setDraft('')
+      setGeneratedDraft('')
+      draftRef.current = ''
       setRun(undefined)
       setRunId(undefined)
       runIdRef.current = undefined
@@ -147,6 +161,7 @@ export function ReportGenerationPanel({
     },
     onSuccess: (nextRun) => {
       setRun(nextRun)
+      setGeneratedDraft(draftRef.current)
       setRunId(nextRun.id)
       if (runIdRef.current !== nextRun.id) {
         runIdRef.current = nextRun.id
@@ -168,11 +183,48 @@ export function ReportGenerationPanel({
   })
   const retry = useMutation({
     mutationFn: (allowEmpty: boolean) => window.electronAPI.runs.retry(runId!, allowEmpty),
-    onMutate: () => setDraft(''),
-    onSuccess: (nextRun) => setRun(nextRun),
+    onMutate: () => {
+      setDraft('')
+      setGeneratedDraft('')
+      draftRef.current = ''
+    },
+    onSuccess: (nextRun) => {
+      setRun(nextRun)
+      setGeneratedDraft(draftRef.current)
+    },
     onError: async (error) => {
       await refreshFailedRun()
       showErrorToast(getErrorMessage(error))
+    },
+  })
+  const regenerate = useMutation({
+    mutationFn: () => window.electronAPI.runs.regenerate(runId!),
+    onMutate: () => {
+      setDraft('')
+      draftRef.current = ''
+      setForceSave(false)
+    },
+    onSuccess: (nextRun) => {
+      setRun(nextRun)
+      setGeneratedDraft(draftRef.current)
+    },
+    onError: async (error) => {
+      const message = getErrorMessage(error)
+      try {
+        const id = runIdRef.current!
+        const { restoredRun, restoredDraft } = await restoreRun(id)
+        setRun(restoredRun)
+        if (restoredDraft !== undefined) {
+          setDraft(restoredDraft)
+          setGeneratedDraft(restoredDraft)
+          draftRef.current = restoredDraft
+        }
+        showErrorToast(`重新生成失败，已恢复上一版草稿：${message}`)
+      } catch (restoreError) {
+        showErrorToast(
+          `重新生成失败，且无法恢复上一版草稿：${message}；${getErrorMessage(restoreError)}`,
+        )
+      }
     },
   })
   const approve = useMutation({
@@ -202,8 +254,13 @@ export function ReportGenerationPanel({
     },
     onError: (error) => showErrorToast(getErrorMessage(error)),
   })
-  const busy = generate.isPending || retry.isPending || approve.isPending || cancel.isPending
-  const generating = generate.isPending || retry.isPending
+  const busy =
+    generate.isPending ||
+    retry.isPending ||
+    regenerate.isPending ||
+    approve.isPending ||
+    cancel.isPending
+  const generating = generate.isPending || retry.isPending || regenerate.isPending
   const noCommits = run?.status === 'failed' && run.error?.code === 'NO_COMMITS'
   const readyForReview = Boolean(
     runId && draft && (!run?.status || run.status === 'awaiting_review'),
@@ -247,12 +304,15 @@ export function ReportGenerationPanel({
     setTitle('')
     setContext('')
     setDraft('')
+    setGeneratedDraft('')
+    draftRef.current = ''
     setRun(undefined)
     setRunId(undefined)
     runIdRef.current = undefined
     setPublish(false)
     setForceSave(false)
     setTemplatePreviewOpen(false)
+    setConfirmRegenerateOpen(false)
     templatePreview.reset()
     setRegenerating(false)
   }
@@ -261,6 +321,14 @@ export function ReportGenerationPanel({
     setTemplatePreviewOpen(true)
     templatePreview.reset()
     templatePreview.mutate()
+  }
+
+  function requestRegenerate() {
+    if (draft !== generatedDraft) {
+      setConfirmRegenerateOpen(true)
+      return
+    }
+    regenerate.mutate()
   }
 
   return (
@@ -402,13 +470,18 @@ export function ReportGenerationPanel({
                 : 'field-sizing-fixed h-80 min-h-80 max-h-80 resize-none overflow-y-auto font-mono'
             }
             value={draft}
-            onChange={(event) => setDraft(event.target.value)}
+            onChange={(event) => {
+              setDraft(event.target.value)
+              draftRef.current = event.target.value
+            }}
             readOnly={generating}
           />
           {generating ? (
             <p className='flex shrink-0 items-center gap-2 text-sm text-muted-foreground'>
               <Loader2 className='size-4 animate-spin' />
-              正在同步、采集并生成，内容会实时显示…
+              {regenerate.isPending
+                ? '正在重新生成，内容会实时显示…'
+                : '正在同步、采集并生成，内容会实时显示…'}
             </p>
           ) : null}
         </div>
@@ -438,9 +511,11 @@ export function ReportGenerationPanel({
         ) : null}
         <div className='flex flex-wrap justify-end gap-2 border-t pt-4'>
           {generating && runId ? (
-            <Button variant='outline' onClick={() => cancel.mutate()} disabled={cancel.isPending}>
-              取消生成
-            </Button>
+            regenerate.isPending ? null : (
+              <Button variant='outline' onClick={() => cancel.mutate()} disabled={cancel.isPending}>
+                取消生成
+              </Button>
+            )
           ) : onClose ? (
             <Button variant='outline' onClick={onClose} disabled={busy}>
               关闭
@@ -460,11 +535,22 @@ export function ReportGenerationPanel({
                 {retry.isPending ? <Loader2 className='animate-spin' /> : <Sparkles />}仍然生成
               </Button>
             </>
-          ) : readyForReview ? (
-            <Button onClick={() => approve.mutate()} disabled={approve.isPending || !draft.trim()}>
-              {approve.isPending ? <Loader2 className='animate-spin' /> : <Save />}
-              {forceSave ? '覆盖并保存' : '确认并保存'}
+          ) : regenerate.isPending ? (
+            <Button disabled>
+              <Loader2 className='animate-spin' />
+              重新生成
             </Button>
+          ) : readyForReview ? (
+            <>
+              <Button variant='outline' onClick={requestRegenerate} disabled={busy}>
+                <RotateCcw />
+                重新生成
+              </Button>
+              <Button onClick={() => approve.mutate()} disabled={approve.isPending || !draft.trim()}>
+                {approve.isPending ? <Loader2 className='animate-spin' /> : <Save />}
+                {forceSave ? '覆盖并保存' : '确认并保存'}
+              </Button>
+            </>
           ) : (
             <Button onClick={() => generate.mutate()} disabled={busy || !period}>
               {generating ? <Loader2 className='animate-spin' /> : <Sparkles />}开始生成
@@ -497,6 +583,18 @@ export function ReportGenerationPanel({
           </div>
         </DialogContent>
       </Dialog>
+      <ConfirmDialog
+        open={confirmRegenerateOpen}
+        onOpenChange={setConfirmRegenerateOpen}
+        title='重新生成报告？'
+        desc='当前手动修改会被丢弃，并使用相同的采集数据重新调用 AI。'
+        cancelBtnText='保留当前草稿'
+        confirmText='放弃修改并重新生成'
+        handleConfirm={() => {
+          setConfirmRegenerateOpen(false)
+          regenerate.mutate()
+        }}
+      />
     </div>
   )
 }
