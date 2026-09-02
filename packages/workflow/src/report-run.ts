@@ -189,6 +189,7 @@ export async function generateBuiltInRun(
     autoSave?: boolean;
     publish?: boolean;
     allowEmpty?: boolean;
+    restoreReviewOnFailure?: boolean;
   } = {},
 ): Promise<ReportRun> {
   const store = new ReportRunStore(getRunsDatabaseFilePath());
@@ -269,14 +270,23 @@ export async function generateBuiltInRun(
     const failure = normalizeRunError(redactedError, "generate");
     const current = store.require(run.id);
     if (current.status === "cancelled") throw new Error(message, { cause: error });
+    const generationStatus = controller.signal.aborted ? "cancelled" : "failed";
     run = transition(
       store,
       run,
-      controller.signal.aborted ? "cancelled" : "failed",
-      finishStep(run, "generate", controller.signal.aborted ? "cancelled" : "failed", {
-        error: failure,
-      }),
+      !controller.signal.aborted && options.restoreReviewOnFailure
+        ? "awaiting_review"
+        : generationStatus,
+      {
+        ...finishStep(run, "generate", generationStatus, { error: failure }),
+        ...(!controller.signal.aborted && options.restoreReviewOnFailure
+          ? { error: undefined, finishedAt: undefined }
+          : {}),
+      },
     );
+    if (!controller.signal.aborted && options.restoreReviewOnFailure) {
+      run = store.replace({ ...run, ...startStep(run, "review"), updatedAt: now() });
+    }
     throw new Error(message, { cause: error });
   } finally {
     activeAbortControllers.delete(runId);
@@ -479,6 +489,34 @@ export async function retryReportRun(
     store.close();
   }
   return generateBuiltInRun(runId, options);
+}
+
+export async function regenerateReportRun(
+  runId: string,
+  options: { onTextDelta?(delta: string): void } = {},
+): Promise<ReportRun> {
+  const store = new ReportRunStore(getRunsDatabaseFilePath());
+  let run = store.require(runId);
+  try {
+    if (run.generator !== "builtin-ai" || run.status !== "awaiting_review") {
+      throw new Error("This run is not ready to regenerate.");
+    }
+    if ((await hashFile(required(run.generationInputPath))) !== run.generationInputHash) {
+      throw new Error("Generation input changed; collect a new run instead.");
+    }
+    const reviewedRun = {
+      ...run,
+      ...finishStep(run, "review", "cancelled"),
+      attempt: run.attempt + 1,
+    };
+    run = transition(store, reviewedRun, "generating", {
+      error: undefined,
+      finishedAt: undefined,
+    });
+  } finally {
+    store.close();
+  }
+  return generateBuiltInRun(runId, { ...options, restoreReviewOnFailure: true });
 }
 
 export async function publishReportRun(runId: string): Promise<ReportRun> {

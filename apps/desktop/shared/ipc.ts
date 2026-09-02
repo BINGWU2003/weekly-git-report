@@ -283,6 +283,7 @@ export interface DesktopAPI {
     approve(id: string, content: string, publish?: boolean, force?: boolean): Promise<ReportRun>;
     cancel(id: string): Promise<ReportRun>;
     retry(id: string, allowEmpty?: boolean): Promise<ReportRun>;
+    regenerate(id: string): Promise<ReportRun>;
     publish(id: string): Promise<ReportRun>;
     onGenerationDelta(listener: (runId: string, delta: string) => void): () => void;
   };
@@ -354,6 +355,7 @@ export const IPC_CHANNELS = {
   runsApprove: "runs:approve",
   runsCancel: "runs:cancel",
   runsRetry: "runs:retry",
+  runsRegenerate: "runs:regenerate",
   runsPublish: "runs:publish",
   runsGenerationDelta: "runs:generation-delta",
   updatesStatus: "updates:status",

@@ -82,6 +82,7 @@ import {
   maintainReportRuns,
   prepareReportRun,
   publishReportRun,
+  regenerateReportRun,
   publishSummaryToFeishu,
   registerTaskSchedule,
   resolveCurrentPeriod,
@@ -570,6 +571,15 @@ export function cancelDesktopRun(id: string) {
 
 export function retryDesktopRun(id: string, allowEmpty = false) {
   return retryReportRun(id, { allowEmpty });
+}
+
+export function regenerateDesktopRun(
+  id: string,
+  onTextDelta: (runId: string, delta: string) => void,
+) {
+  return regenerateReportRun(id, {
+    onTextDelta: (delta) => onTextDelta(id, delta),
+  });
 }
 
 export function publishDesktopRun(id: string) {

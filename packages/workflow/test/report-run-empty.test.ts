@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -10,6 +10,7 @@ import {
   createQueuedRun,
   generateBuiltInRun,
   prepareReportRun,
+  regenerateReportRun,
   ReportRunStore,
 } from "../src/index.js";
 
@@ -211,3 +212,112 @@ describe("empty report run", () => {
     );
   });
 });
+
+describe("report draft regeneration", () => {
+  test("reuses the prepared input and replaces the draft after successful generation", async () => {
+    const prepared = await createAwaitingReviewRun("successful");
+    mocks.generateReportWithAi.mockResolvedValue({
+      content: "# 第二版草稿\n",
+      provider: "openai",
+      model: "gpt-5.4-mini",
+    });
+
+    const regenerated = await regenerateReportRun(prepared.runId);
+
+    expect(regenerated).toMatchObject({ status: "awaiting_review", attempt: 2 });
+    expect(await readFile(prepared.draftPath, "utf8")).toBe("# 第二版草稿\n");
+    expect(mocks.generateReportWithAi).toHaveBeenCalledOnce();
+    expect(regenerated.steps).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "review", attempt: 1, status: "cancelled" }),
+        expect.objectContaining({ name: "generate", attempt: 2, status: "succeeded" }),
+        expect.objectContaining({ name: "review", attempt: 2, status: "running" }),
+      ]),
+    );
+  });
+
+  test("restores review state and preserves the previous draft after generation fails", async () => {
+    const prepared = await createAwaitingReviewRun("failed");
+    mocks.generateReportWithAi.mockRejectedValue(new Error("AI service unavailable"));
+
+    await expect(regenerateReportRun(prepared.runId)).rejects.toThrow("AI service unavailable");
+
+    const store = new ReportRunStore(path.join(mocks.directory, "runs.db"));
+    const restored = store.require(prepared.runId);
+    store.close();
+    expect(restored).toMatchObject({ status: "awaiting_review", attempt: 2 });
+    expect(restored.error).toBeUndefined();
+    expect(await readFile(prepared.draftPath, "utf8")).toBe("# 第一版草稿\n");
+    expect(restored.steps).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "review", attempt: 1, status: "cancelled" }),
+        expect.objectContaining({ name: "generate", attempt: 2, status: "failed" }),
+        expect.objectContaining({ name: "review", attempt: 2, status: "running" }),
+      ]),
+    );
+  });
+});
+
+async function createAwaitingReviewRun(suffix: string) {
+  mocks.directory = await mkdtemp(path.join(os.tmpdir(), `weekly-regenerate-${suffix}-`));
+  const runId = `run-regenerate-${suffix}`;
+  const runDir = path.join(mocks.directory, "runs", runId);
+  const generationInputPath = path.join(runDir, "input.json");
+  const draftPath = path.join(runDir, "draft.md");
+  const generationInput = JSON.stringify({
+    version: 2,
+    runId,
+    reportId: `report-regenerate-${suffix}`,
+    reportType: "weekly",
+    period: { start: "2026-08-17", end: "2026-08-23" },
+    createdAt: "2026-08-24T00:00:00.000Z",
+    templateRevision: "template-revision",
+    rawManifestHash: `sha256:${"a".repeat(64)}`,
+    repositories: [
+      {
+        id: "repo",
+        name: "repo",
+        branch: "main",
+        commits: [
+          {
+            hash: "commit-1",
+            committedAt: "2026-08-20T00:00:00.000Z",
+            subject: "完成报告功能",
+            body: "",
+            authorName: "Alice",
+          },
+        ],
+      },
+    ],
+  });
+  await mkdir(runDir, { recursive: true });
+  await writeFile(generationInputPath, generationInput, "utf8");
+  await writeFile(draftPath, "# 第一版草稿\n", "utf8");
+
+  const store = new ReportRunStore(path.join(mocks.directory, "runs.db"));
+  store.create({
+    ...createQueuedRun({
+      id: runId,
+      reportId: `report-regenerate-${suffix}`,
+      reportType: "weekly",
+      period: { start: "2026-08-17", end: "2026-08-23" },
+      trigger: "manual",
+      generator: "builtin-ai",
+    }),
+    status: "awaiting_review",
+    generationInputPath,
+    generationInputHash: sha256(generationInput),
+    templateRevision: "template-revision",
+    draftPath,
+    steps: [
+      {
+        name: "review",
+        attempt: 1,
+        status: "running",
+        startedAt: "2026-08-24T00:01:00.000Z",
+      },
+    ],
+  });
+  store.close();
+  return { runId, draftPath };
+}
